@@ -529,8 +529,11 @@ function ContainmentProgress({ run }: { run: Run }) {
   // shown once its stage has started, or whenever the final object carries it
   const destructiveVisible = !!c?.destructive || (!!destructiveStage && destructiveStage.status !== "pending")
   const leak = stage("leak_attempt")
-  const leakVisible = !!c || (!!leak && leak.status !== "pending")
-  const leakRunning = !c && leak?.status === "running"
+  // `containment` can arrive before the run ends; its leak fields are final only once the leak
+  // stage has settled (or the run has ended), so never show a verdict before then.
+  const terminal = run.state === "completed" || run.state === "failed"
+  const leakSettled = terminal || leak?.status === "done" || leak?.status === "failed" || leak?.status === "skipped"
+  const leakVisible = leakSettled || (!!leak && leak.status !== "pending")
 
   return (
     <div className="mt-3 flex flex-col gap-2.5" aria-live="polite">
@@ -581,7 +584,7 @@ function ContainmentProgress({ run }: { run: Run }) {
       {/* phase 3: leak attempt */}
       {leakVisible ? (
         <div className="rounded-lg border bg-card px-3.5 py-3">
-          {leakRunning || (!c && leak?.status !== "done") ? (
+          {!leakSettled ? (
             <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
               <LoaderCircle aria-hidden className="size-4 animate-spin text-brand" />
               {leak?.detail ?? "Checking the leak attempt"}

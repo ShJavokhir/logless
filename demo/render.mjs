@@ -60,10 +60,9 @@ const closing = cardShell(`
   <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
     <div>${wordmark(56, 44)}</div>
     <p style="margin-top:26px;font-size:34px;line-height:1.2;font-weight:500;letter-spacing:-0.02em;color:var(--fg)">What people do with your assistant, and what isn’t working —<br>without anyone reading a conversation.</p>
-    <div style="margin-top:52px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;max-width:1184px">
+    <div style="margin-top:52px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1000px">
       ${chip("GLM", "on Vultr Serverless Inference")}
       ${chip("Jev", "by TypeSafe")}
-      ${chip("Embeddings", "by Fireworks")}
       ${chip("gVisor sandbox", "on Vultr")}
     </div>
   </div>
@@ -74,12 +73,13 @@ const closing = cardShell(`
 
 const overlayShell = (inner) => `<!doctype html><html><head><meta charset="utf-8"><style>${css}
 body { background: transparent; }
-/* centred under the map panel (x 17–881) so the right-hand panel, story and sheet stay readable */
-.cap { position: absolute; left: 449px; bottom: 28px; transform: translateX(-50%); max-width: 846px; width: max-content;
+/* centred on screen, narrow enough to clear the bottom-left toast */
+.cap { position: absolute; left: 720px; bottom: 28px; transform: translateX(-50%); max-width: 660px; width: max-content;
   padding: 10px 20px 11px; border-radius: 12px; background: rgb(22 22 26 / 0.84); color: #fff;
   font-size: 22px; line-height: 1.34; font-weight: 500; letter-spacing: -0.005em; text-align: center; text-wrap: balance;
   box-shadow: 0 6px 24px -8px rgb(0 0 0 / 0.35); }
-.pill { position: absolute; left: 449px; top: 108px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px;
+.pill.r { left: auto; right: 583px; top: 148px; }
+.pill { position: absolute; left: 32px; top: 142px; display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 13px 7px 11px; border-radius: 999px; background: rgb(22 22 26 / 0.84); color: #fff; font-size: 15px; font-weight: 600; }
 </style></head><body>${inner}</body></html>`
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -107,6 +107,11 @@ for (const [beat, chunks] of Object.entries(voice.beats)) {
   }
 }
 const ff = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M3 5.5v13l9-6.5zM12.5 5.5v13l9-6.5z"/></svg>`
-for (const s of ["1.5", "2", "3", "4"]) await shot(overlayShell(`<div class="pill">${ff}<span>${s}× speed</span></div>`), `speed-${s}.png`, true)
+// two placements: top-left of the map (default) and top-right of the map (-r), used
+// during live intake where the "New conversations" inbox badge sits top-left
+for (const s of ["2", "3", "4", "5", "6"]) {
+  await shot(overlayShell(`<div class="pill">${ff}<span>${s}× speed</span></div>`), `speed-${s}.png`, true)
+  await shot(overlayShell(`<div class="pill r">${ff}<span>${s}× speed</span></div>`), `speed-${s}-r.png`, true)
+}
 await browser.close()
 console.log("overlays →", OUT)

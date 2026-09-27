@@ -17,14 +17,19 @@ WORK="${WORK:-$HERE/.work}"
 mkdir -p "$WORK"
 cd "$HERE"
 
-RECORD=0; DRY=""
+RECORD=0; DRY=""; EVALCLIP=0
 for a in "$@"; do
   case "$a" in
     --record) RECORD=1 ;;
     --dry) RECORD=1; DRY="--dry" ;;
+    --eval-clip) EVALCLIP=1 ;;
     *) echo "unknown arg $a" >&2; exit 1 ;;
   esac
 done
+
+# a --dry rehearsal never overwrites the real deliverables in demo/
+OUT="$HERE"
+[[ -n "$DRY" ]] && OUT="$WORK/dry_out" && mkdir -p "$OUT"
 
 echo "== narration (macOS say)"
 node voice.mjs "$WORK"
@@ -36,13 +41,21 @@ if [[ $RECORD == 1 || ! -f "$WORK/rec/marks.json" ]]; then
   node voice.mjs "$WORK"
 fi
 
+if [[ $EVALCLIP == 1 ]]; then
+  # the Evaluation beat as its own clip (free: no live run) → $WORK/rec_eval, spliced in by timeline.mjs
+  echo "== recording the Evaluation clip"
+  node record.mjs "$WORK" --eval-only
+  node voice.mjs "$WORK"
+fi
+
 echo "== cards + captions"
 node render.mjs "$WORK"
 
 echo "== frames → app.mp4 (30 fps CFR, near-lossless 4:4:4 intermediate)"
-node -e '
+to_mp4() { # <rec dir> <out.mp4>
+  node -e '
 const fs = require("fs"), path = require("path")
-const rec = path.join(process.argv[1], "rec")
+const rec = process.argv[1]
 const frames = JSON.parse(fs.readFileSync(path.join(rec, "frames.json")))
 const { marks } = JSON.parse(fs.readFileSync(path.join(rec, "marks.json")))
 const end = marks.end ?? frames.at(-1).t + 1
@@ -53,10 +66,13 @@ frames.forEach((f, i) => {
 })
 s += `file frames/${frames.at(-1).file}\n`
 fs.writeFileSync(path.join(rec, "frames.ffconcat"), s)
-' "$WORK"
-ffmpeg -y -v error -f concat -safe 0 -i "$WORK/rec/frames.ffconcat" \
-  -vf "fps=30,scale=1440:900:flags=lanczos:in_range=pc:out_range=tv,setsar=1" -fps_mode cfr -color_range tv \
-  -c:v libx264 -preset medium -crf 8 -pix_fmt yuv444p "$WORK/app.mp4"
+' "$1"
+  ffmpeg -y -v error -f concat -safe 0 -i "$1/frames.ffconcat" \
+    -vf "fps=30,scale=1440:900:flags=lanczos:in_range=pc:out_range=tv,setsar=1" -fps_mode cfr -color_range tv \
+    -c:v libx264 -preset medium -crf 8 -pix_fmt yuv444p "$2"
+}
+to_mp4 "$WORK/rec" "$WORK/app.mp4"
+[[ -f "$WORK/rec_eval/marks.json" ]] && to_mp4 "$WORK/rec_eval" "$WORK/app_eval.mp4"
 
 echo "== timeline"
 node timeline.mjs "$WORK"
@@ -69,22 +85,22 @@ ffmpeg -y -v error "${ARGS[@]}" -/filter_complex "$WORK/ff/graph.txt" \
   -map "[vout]" -map "[aout]" -t "$TOTAL" \
   -c:v libx264 -preset slow -crf 17 -profile:v high -pix_fmt yuv420p -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 -r 30 -g 60 \
   -c:a aac -b:a 192k -ar 48000 -ac 2 \
-  -movflags +faststart "$HERE/logless-demo.mp4"
-ffmpeg -y -v error -i "$HERE/logless-demo.mp4" -map 0:v -c copy -an -movflags +faststart "$HERE/logless-demo-silent.mp4"
+  -movflags +faststart "$OUT/logless-demo.mp4"
+ffmpeg -y -v error -i "$OUT/logless-demo.mp4" -map 0:v -c copy -an -movflags +faststart "$OUT/logless-demo-silent.mp4"
 
 echo "== stills (clean app frames, no captions)"
-rm -f "$HERE"/frame-*.png
+rm -f "$OUT"/frame-*.png
 node -e '
 const t = JSON.parse(require("fs").readFileSync(process.argv[1] + "/timeline.json"))
-Object.entries(t.stills).forEach(([k, v], i) => console.log(`${i + 1}-${k} ${v.toFixed(3)}`))
-' "$WORK" | while read -r name ts; do
-  ffmpeg -y -v error -ss "$ts" -i "$WORK/app.mp4" -frames:v 1 -update 1 "$HERE/frame-$name.png" </dev/null
+Object.entries(t.stills).forEach(([k, [src, v]], i) => console.log(`${i + 1}-${k} ${src ? "app_eval" : "app"} ${v.toFixed(3)}`))
+' "$WORK" | while read -r name src ts; do
+  ffmpeg -y -v error -ss "$ts" -i "$WORK/$src.mp4" -frames:v 1 -update 1 "$OUT/frame-$name.png" </dev/null
 done
 
 echo "== check"
 for f in logless-demo.mp4 logless-demo-silent.mp4; do
   printf '%-26s ' "$f"
-  ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,pix_fmt,r_frame_rate -of compact=p=0:nk=1 "$HERE/$f" | tr '\n' ' '
+  ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,pix_fmt,r_frame_rate -of compact=p=0:nk=1 "$OUT/$f" | tr '\n' ' '
   echo
 done
-ls -la "$HERE"/logless-demo*.mp4 "$HERE"/frame-*.png
+ls -la "$OUT"/logless-demo*.mp4 "$OUT"/frame-*.png

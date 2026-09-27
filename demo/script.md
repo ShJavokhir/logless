@@ -1,48 +1,56 @@
-# logless: one-minute demo script
+# logless: one-minute demo script (v2: live intake, two-program answers, rm -rf)
 
-**Target:** ≤ 60 s, 1440×900, H.264 + AAC. Vultr Agent Arena, Track 1: Agent Sandboxing.
-**Final cut:** `logless-demo.mp4`, 59.2 s (`logless-demo-silent.mp4` is the same cut with captions only).
-**Recorded against:** https://144-202-110-2.sslip.io, snapshot `snap_20260927T015930_bf1a`, one continuous live take (Sep 26, 2026, 19:38 PDT).
+**Final cut:** `logless-demo.mp4`, 59.3 s, 1440×900, H.264 High + AAC, with captions burned in. `logless-demo-silent.mp4` is the same cut without audio.
+**Recorded against:** https://144-202-110-2.sslip.io on Sep 26, 2026, about 22:05 PDT, as one live take plus a separate Evaluation clip.
 
-Narration: macOS `say`, voice Samantha (the only natural English voice installed; no Premium or Enhanced voices on this Mac), about 175 wpm, 128 caption words. Captions are burned in under the map panel so the video also works muted.
+- **Base snapshot:** `snap_20260927T040954_6a04`, with 5,050 conversations (5,000 WildChat + 50 test fixtures).
+- **After the live intake:** `snap_20260927T050347_cf87`, with 5,350 conversations.
+
+**Narration:** macOS `say`, voice Samantha (the only natural English voice installed), about 175 wpm. It has 129 caption words and 136 spoken words, because numbers are spelled out for the voice.
+
+- **Read off the screen:** the {rate} and {targets} values are captured during the take.
+- **Checked on screen during the take:** the header shows "5,000 WildChat". The intake decided 300/300. The key finding is under a fifth of conversations and over a quarter of the friction (18.0% / 28.7%). The programs agree. The rm -rf card shows the command absorbed, a read-only root and the container destroyed. The Evaluation shows 0 detected canary leaks.
 
 | # | Time | On screen | Narration / caption |
-|---|------|-----------|---------------------|
-| 1 | 0:00 | Title card. The second line fades in when the voice reaches it. | "Users tell you what's broken every day — but you can't read their conversations." / "logless reads them so nobody has to." |
-| 2 | 0:07 | Usage map (34 workflows, 7 categories). The pointer hovers "Concept explanations", then "Probing the AI" (tooltip: 207 conversations, 185 people). | "5,000 real WildChat conversations, grouped by agents into 34 workflows." / "One of them is people testing the AI itself." |
-| 3 | 0:15 | Click **What's not working?**. A live run steps through writing the program, the gVisor run, the gate and the explanation (**2× speed** while waiting), then shows **Verified · 7.4 s** and gate 16/16. The map switches to the friction lens, and the pointer rests on "Fixing errors" (39.5%). | "GLM on Vultr writes a program without seeing any data." / "It runs in a gVisor sandbox with no network, and a gate checks every number." / "Software work has the highest friction rate." |
-| 4 | 0:27 | Open "Fixing errors" (friction 39.5%, signals), scroll down, click **Generate fictional user story**. The story card appears, labelled fiction, with evidence-id chips. | "In "Fixing errors", 39.5% of conversations show friction." / "A clearly labelled fictional story makes the pattern concrete." |
-| 5 | 0:36 | **Run details** sheet shows the execution receipt (runsc (gVisor), network none, read-only root, container removed) and the egress gate at 16/16. Then **Run containment check**: the runaway bar runs in real time, and the result reads **2,124 ms measured vs 2,000 ms deadline**, container removed, app health ok, follow-up run passed. Next, "Leak attempt rejected by the gate" (the per-person export fails the allowlisted-fields and exact-schema checks). The wait between the kill and the leak result runs at **2× speed**. | "Every run leaves a receipt." / "Now the containment check." / "A runaway program is killed at its 2-second deadline." / "A program that tries to export per-person rows is rejected by the gate." |
-| 6 | 0:50 | Footer **Evaluation** dialog shows 14 of 15 targets met, 0 detected canary leaks. The closing card at 0:56 reads "GLM on Vultr Serverless Inference · Jev by TypeSafe · Embeddings by Fireworks · gVisor sandbox on Vultr" plus the live URL. | "14 of 15 evaluation targets met, with 0 detected canary leaks." |
+|---|---|---|---|
+| 1 | 0:00 | Title card. "logless reads them so nobody has to." fades in. | "Users tell you what's broken every day, but you can't read their conversations." |
+| 2 | 0:05 | Map. The pointer rests on **Aggregate insights only**, whose tooltip says the map is computed by the logless pipeline on Vultr from 5,000 real conversations, and that no one can open a conversation. | "5,000 real conversations, read only by an LLM pipeline on Vultr." |
+| 3 | 0:10 | **Live intake**. 300 dots fly from the inbox into the map in real time. The panel counts 300/300 at 126–128 conv/s, 170 ms p50, 5 decisions per conversation, with the one-line summary feed. Next come the privacy gate and publishing (**2× speed**). Then "Map updated · +300 conversations (70 to Other or unclear)" and the completion toast. | "300 new ones arrive, pre-read by GLM." / "Jev decides each live, about 130 a second." / "The privacy gate re-checks; the map republishes." |
+| 4 | 0:21 | Key finding "Coding help is 18.0% of conversations but 28.7% of observed friction", then **Show where it breaks**, which zooms into Coding help and selects Data scripts (48.6% friction). | "Coding is under a fifth of conversations, but over a quarter of the friction." |
+| 5 | 0:26 | **Ask a question**, then the chip "Which coding workflows have the most distinct people repeating requests?". The plan appears as "Distinct people · with repeated requests · within Coding help · by workflow · top 5 by count". The loop strip shows: wrote 2 programs (A pandas, B plain Python), ran both in gVisor, gate 34/34 plus map 2/2, programs agree (identical), explained. The waiting part runs at **4× speed**. The result is **Verified · 29.5 s**, with 5 verified rows. | "GLM plans the question and writes two independent programs without seeing any data." / "Each runs in its own gVisor sandbox; both must agree and pass the gate." |
+| 6 | 0:37 | **Run details**: Program A (pandas) and Program B (plain Python) side by side, each gate 17/17, with code and receipt (runsc, no network). Then the cross-checks: consistent with the published map, and "Two independent programs agree". | "Every answer has a receipt: both programs and their cross-checks." |
+| 7 | 0:42 | **Run containment check**. The runaway bar runs in real time until "Execution limit reached · 2,113 ms measured vs 2,000 ms deadline". Next, "Running a destructive command…" changes to "Destructive command absorbed · `$ rm -rf --no-preserve-root /` · exit 1 · 11,094 deletions refused · Read-only filesystem, nothing deleted · Container destroyed · Next run clean". Last, "Leak attempt rejected by the gate". The wait before the rm -rf result runs at **2× speed**. | "A runaway program is killed at two seconds." / "rm -rf / hits a read-only root: nothing deleted." / "A per-person export is rejected by the gate." |
+| 8 | 0:53 | **Evaluation** dialog showing "11 of 12 targets met" and 0 detected canary leaks, then the closing card: GLM on Vultr Serverless Inference · Jev by TypeSafe · gVisor sandbox on Vultr, plus the URL. | "11 of 12 evaluation targets met; 0 canary leaks." |
 
-The eval count is not hard-coded. `record.mjs` reads "N of M targets met" from the dialog during the take, and `voice.mjs` fills `{targets}` in `beats.json` from it. The count moves as the live checks update: it was 13 of 14 in the brief, then 13 of 15, and 14 of 15 at the final take. The take also confirms the other spoken numbers on screen (207 / 185, 34 workflows, 39.5%, 0 detected canary leaks) and writes them to `rec/facts.json`.
+## Edits: all real, all disclosed
 
-## What is sped up
-
-Only waiting stretches are sped up, and each carries a "2× speed" pill:
-
-- The analysis run from click to Verified: 8.6 s shown at 2×.
-- The containment check from 1.6 s after the kill to the leak result: 4.6 s shown at 2×.
-
-Everything else plays in real time. That includes the runaway program from start to the kill, the measured milliseconds, and the 1.6 s after the kill. The story was already generated for this workflow (earlier take), so it appeared at once and needed no speed-up. The only other edits are trimmed idle holds at the ends of beats, where the pointer is still.
-
-## Files
-
-- `beats.json`: narration and captions per beat, plus the recording mark each line is anchored to.
-- `voice.mjs`: runs `say` once per line, trims the silence, and writes `voice.json`.
-- `record.mjs`: runs Playwright against the live app. It captures with a CDP screencast (JPEG q92, at device scale factor 4/3, downsampled to 1440×900) and draws an injected pointer overlay. Its waits are keyed to UI states: the Verified chip, `#story-card-h`, "Execution limit reached", "Leak attempt rejected". It aborts on a failed or paused step or a failed preflight (mock API, sandbox unreachable).
-- `render.mjs`: renders the title and closing cards, the caption PNGs and the speed pills (Geist, the app's palette).
-- `timeline.mjs`: makes frame-exact cuts and speed-ups, places narration on anchors, trims holds to fit the narration, and caps the total at 59.6 s.
-- `build.sh`: runs the whole pipeline and the ffmpeg assembly, then extracts the stills.
+- **Sped up** (each with an "N× speed" pill):
+  - intake gate and publish wait, 6.1 s shown at 2×;
+  - question wait from the chip click to Verified, 30.0 s shown at 4×; 2× does not fit in 60 s;
+  - containment wait from 1.2 s after the kill to the rm -rf result, 1.9 s shown at 2×.
+- **Real time:**
+  - the intake dot flight, from the first decision to 1.6 s after the last;
+  - the runaway bar through 1.2 s after the kill, including the measured ms;
+  - the rm -rf result;
+  - all pointer actions.
+- **Cut from the containment beat:** 1.1 s of an interim card state. For that 1.1 s the app showed "Leak attempt was NOT rejected" above "The gate rejected it…" while the run was still finishing. The final run record says `leak_attempt_rejected: true`, and the final state ("Leak attempt rejected by the gate") is what the video shows, held on its first frame.
+  - This is a real UI/backend glitch and should be fixed before the live demo; see the report.
+  - The recorder retried the check because of it. The retry is not in the cut.
+  - The cut points are documented in `cut-notes.json` (copied from `$WORK/rec/marks.override.json`, which the build reads).
+- **Evaluation recorded separately:** the take ended at the containment retry, so the Evaluation beat is a separate recording made after the intake reset. It shows the base snapshot's report, 11 of 12. The post-intake snapshot's report was not captured. It is joined with a short white dip, and the base-snapshot map is visible for about 0.5 s.
+- **Trimmed:** otherwise only still holds at the ends of beats.
 
 ## Re-record
 
 ```sh
-cd demo
-pnpm install                      # playwright 1.57.0 (uses the cached chromium-1200); or set PLAYWRIGHT=/path/to/playwright/index.mjs
-./build.sh --dry                  # free rehearsal: map + evaluation only
-./build.sh --record               # one live take (1 analysis + 1 story + 1 containment run), then build
-./build.sh                        # re-cut / re-voice / re-encode the last take, no new runs
+cd demo && pnpm install
+./build.sh --dry                  # free rehearsal (output goes to $WORK/dry_out, not demo/)
+./build.sh --record               # one live take: 1 intake + 1 question + 1 containment check, then build
+./build.sh --eval-clip            # (optional, free) record only the Evaluation beat and splice it in
+./build.sh                        # re-cut / re-voice the last take, no live runs
+node record.mjs "$WORK" --reset-only   # reset the live intake and confirm it
 ```
 
-`WORK` (default `demo/.work`) holds the frames and intermediates. Edit `beats.json` to change the wording. Holds in the recording are generous, so wording changes usually need only `./build.sh`.
+**Presenter key:** `record.mjs` reads `PRESENTER_KEY` from the repo-root `.env` and puts it in the page's localStorage, which is where the app stores it after `/?presenter=`. The key never goes into a URL, frame, log or file.
+
+**Intake reset:** after every take, the recorder resets the intake and confirms it twice, 20 s apart. The check requires ready, base and current snapshot `snap_20260927T040954_6a04`, and 5,050 conversations.

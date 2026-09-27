@@ -18,9 +18,12 @@ const TRIM = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=
 // {placeholders} come from what the last take read off the screen (rec/facts.json),
 // falling back to beats.json "defaults" (used only to pace a take before it exists)
 let facts = { ...(cfg.defaults ?? {}) }
-try {
-  facts = { ...facts, ...JSON.parse(readFileSync(join(WORK, "rec", "facts.json"), "utf8")) }
-} catch {}
+for (const dir of ["rec", "rec_eval"]) {
+  // rec_eval (a separately recorded Evaluation clip) wins for the facts it read
+  try {
+    facts = { ...facts, ...JSON.parse(readFileSync(join(WORK, dir, "facts.json"), "utf8")) }
+  } catch {}
+}
 const fill = (t) => t?.replace(/\{(\w+)\}/g, (_, k) => {
   if (facts[k] === undefined || facts[k] === null) throw new Error(`no value for {${k}}`)
   return String(facts[k])
@@ -36,7 +39,7 @@ for (const beat of cfg.beats) {
     execFileSync("say", ["-v", cfg.voice, "-r", rate, "-o", `${base}.aiff`, c.spoken])
     execFileSync("ffmpeg", ["-y", "-v", "error", "-i", `${base}.aiff`, "-af", TRIM, "-ar", "48000", "-ac", "1", `${base}.wav`])
     words += c.spoken.split(/\s+/).filter(Boolean).length
-    return { file: `${base}.wav`, dur: +dur(`${base}.wav`).toFixed(3), caption: c.caption, at: c.at, spoken: c.spoken }
+    return { file: `${base}.wav`, dur: +dur(`${base}.wav`).toFixed(3), caption: c.caption, at: c.at, spoken: c.spoken, ...(c.requires ? { requires: c.requires } : {}) }
   })
 }
 writeFileSync(join(WORK, "voice.json"), JSON.stringify(out, null, 1))

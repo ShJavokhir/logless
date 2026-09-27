@@ -1,0 +1,14 @@
+{
+ "note": "Containment uses attempt 1 of the take (82.4–91.8 s), which completed: kill 2,113 ms, rm -rf absorbed, leak attempt rejected by the gate. The recorder had retried because for 1.1 s (90.62–91.71 s) the card showed an interim, contradictory state ('Leak attempt was NOT rejected' above 'The gate rejected it…') while the run was still finishing; the final run record says leak_attempt_rejected: true. That interim second is cut, and the final frame (91.74 s, before the pointer moved to 'Run again') is held. The Evaluation beat was recorded separately (rec_eval) because the take ended before it.",
+ "marks": {
+  "contain_start": 82.37,
+  "contain_scroll": 82.39,
+  "contain_click": 83.22,
+  "runaway_seen": 83.87,
+  "kill_seen": 86.50,
+  "rmrf_seen": 89.58,
+  "leak_bad_start": 90.60,
+  "leak_seen": 91.74,
+  "contain_end": 91.77
+ }
+}
