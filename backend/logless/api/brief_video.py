@@ -95,7 +95,10 @@ def _render(brief: dict) -> None:
         src.write_text(json.dumps(brief), encoding="utf-8")
         cmd = ["nice", "-n", "10", node, str(script), str(src), str(tmp), "--bundle", str(bundle),
                "--scale", "0.6667", "--concurrency", os.environ.get("BRIEF_RENDER_CONCURRENCY", "2")]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_S, cwd=str(script.parent))
+        # A minimal environment: the renderer never sees the service's provider keys.
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.environ.get("BRIEF_RENDER_HOME", str(script.parent)),
+               "LANG": "C.UTF-8"}
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT_S, cwd=str(script.parent), env=env)
         if p.returncode == 0 and tmp.is_file() and tmp.stat().st_size > 0:
             tmp.rename(out_dir / f"{bid}.mp4")
             ok = True
