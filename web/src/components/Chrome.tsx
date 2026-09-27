@@ -186,6 +186,7 @@ export function Toolbar({
           size="sm"
           spacing={0}
           value={view}
+          disabled={disabled}
           onValueChange={(v) => v && onView(v as View)}
           aria-label="View"
         >

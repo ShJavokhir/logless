@@ -4,9 +4,7 @@ import { cn } from "@/lib/utils"
 import { useElementSize } from "@/hooks/useElementSize"
 import { layoutOrderOf, packLayout, zoomTransform, type PackedCircle } from "@/lib/hierarchy"
 import type { Snapshot } from "@/lib/types"
-import type { IntakeVisual } from "@/hooks/useIntake"
 import { useLayoutTween } from "@/hooks/useLayoutTween"
-import { IntakeOverlay } from "./IntakeOverlay"
 import { arcLabelFits, canvasMeasure, ellipsizeLabel, fitCircleLabel, labelText, resetMeasureCache, type CircleLabel } from "@/lib/labels"
 import { categoryEmphasis, leafEmphasis, type Emphasis, type HighlightState } from "@/lib/search"
 import type { SnapshotIndex } from "@/lib/snapshot"
@@ -29,8 +27,6 @@ type Props = {
   layoutBase?: Snapshot | null
   /** conversations filed live but not yet in the snapshot (intake), per leaf */
   liveDelta?: Map<string, number>
-  /** live intake stream to animate over the map */
-  intake?: { visual: IntakeVisual; decided: number; total: number } | null
   /** extra control in the map header (presenter-only live intake) */
   headerControl?: ReactNode
 }
@@ -61,7 +57,6 @@ export function UsageMap({
   onLens,
   layoutBase,
   liveDelta,
-  intake,
   headerControl,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null)
@@ -82,23 +77,6 @@ export function UsageMap({
 
   const focus = focusId && layout ? layout.byId.get(focusId) ?? null : null
   const { k, tx, ty } = zoomTransform(focus, width, height, 0.92)
-
-  // Intake overlay geometry: final (untweened) circle positions in screen space.
-  const targetOf = useCallback(
-    (leafId: string) => {
-      const c = target?.byId.get(leafId)
-      return c ? { x: c.x * k + tx, y: c.y * k + ty, r: c.r * k } : null
-    },
-    [target, k, tx, ty],
-  )
-  const obstacles = useMemo(() => (target ? target.categories.map((c) => ({ x: c.x * k + tx, y: c.y * k + ty, r: c.r * k })) : []), [target, k, tx, ty])
-  const colorOf = useCallback(
-    (leafId: string) => {
-      const pal = index.paletteOf(leafId)
-      return { dot: pal.dot, ring: pal.label }
-    },
-    [index],
-  )
 
   // Re-measure labels once the web font has loaded (canvas widths change).
   const [fontsReady, setFontsReady] = useState(0)
@@ -432,18 +410,6 @@ export function UsageMap({
       ) : null}
 
       {/* tooltip */}
-      {intake && width > 0 ? (
-        <IntakeOverlay
-          visual={intake.visual}
-          width={width}
-          height={height}
-          targetOf={targetOf}
-          colorOf={colorOf}
-          decided={intake.decided}
-          total={intake.total}
-          obstacles={obstacles}
-        />
-      ) : null}
       {hovered && layout ? <MapTooltip circle={hovered} k={k} tx={tx} ty={ty} width={width} height={height} total={total} lens={lens} /> : null}
       </div>
       {width > 0 && width < KEY_BELOW_WIDTH ? <CategoryKey index={index} focusId={focusId} onFocusCategory={onFocusCategory} /> : null}

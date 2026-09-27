@@ -10,6 +10,7 @@ import { formatDelta, pickToastDeltas } from "@/lib/intake"
 import { proseName } from "@/lib/labels"
 import { fmtInt } from "@/lib/format"
 import { useIntake } from "@/hooks/useIntake"
+import { IntakeFlow } from "@/components/IntakeFlow"
 import { IntakePanel } from "@/components/IntakePanel"
 import { isRunActive } from "@/lib/runs"
 import { useRun } from "@/hooks/useRun"
@@ -175,7 +176,7 @@ export default function App() {
   // Completion toast, once per run, after the map has swapped to the new snapshot.
   const toastedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!intake.published || !intake.summary || !index || toastedRef.current === intake.runId) return
+    if (intake.flowVisible || !intake.published || !intake.summary || !index || toastedRef.current === intake.runId) return
     toastedRef.current = intake.runId
     const nameOf = (id: string) => {
       const n = index.byId.get(id)
@@ -191,7 +192,7 @@ export default function App() {
       ),
       duration: 9000,
     })
-  }, [intake.published, intake.summary, intake.runId, index])
+  }, [intake.flowVisible, intake.published, intake.summary, intake.runId, index])
 
   const intakeControl = !intake.presenter ? null : intake.phase !== "idle" ? (
     <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-soft px-2 py-0.5 text-[12px] font-medium text-brand">
@@ -241,7 +242,7 @@ export default function App() {
         onOpenAsk={() => setAskOpen(true)}
         view={view}
         onView={setView}
-        disabled={!index}
+        disabled={!index || intake.flowVisible}
         notice={<HealthNotice health={health} error={healthError} snapshotId={intakeActive ? undefined : snapshot?.snapshot_id} />}
       />
 
@@ -250,40 +251,41 @@ export default function App() {
           aria-label={view === "map" ? "Usage map" : "Workflow list"}
           className="relative overflow-hidden rounded-xl border bg-card lg:min-h-0"
         >
-          {!index ? (
-            <MapSkeleton />
-          ) : view === "map" ? (
-            <UsageMap
-              index={index}
-              lens={lens}
-              highlight={highlight}
-              selectedId={selectedId}
-              focusId={focusId}
-              peekId={peekId}
-              onSelectLeaf={selectLeaf}
-              onFocusCategory={focusCategory}
-              onLens={setLens}
-              layoutBase={layoutBase}
-              liveDelta={intake.liveDelta}
-              intake={intake.streaming ? { visual: intake.visual, decided: intake.counters?.decided ?? 0, total: intake.counters?.total ?? intake.status?.batch_size ?? 0 } : null}
-              headerControl={intakeControl}
-            />
-          ) : (
-            <div className="flex h-full min-h-[440px] flex-col">
-              <MapBar
+          <div inert={intake.flowVisible} aria-hidden={intake.flowVisible || undefined} className={`h-full transition-opacity duration-300 motion-reduce:transition-none ${intake.flowVisible ? "hidden opacity-0 lg:block" : "opacity-100"}`}>
+            {!index ? (
+              <MapSkeleton />
+            ) : view === "map" ? (
+              <UsageMap
                 index={index}
-                focusNode={focusId ? (index.byId.get(focusId) ?? null) : null}
-                onFocusCategory={focusCategory}
                 lens={lens}
+                highlight={highlight}
+                selectedId={selectedId}
+                focusId={focusId}
+                peekId={peekId}
+                onSelectLeaf={selectLeaf}
+                onFocusCategory={focusCategory}
                 onLens={setLens}
-                extra={intakeControl}
+                layoutBase={layoutBase}
+                headerControl={intakeControl}
               />
-              <div className="min-h-0 flex-1">
-                <ClusterList index={index} lens={lens} highlight={highlight} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} />
+            ) : (
+              <div className="flex h-full min-h-[440px] flex-col">
+                <MapBar
+                  index={index}
+                  focusNode={focusId ? (index.byId.get(focusId) ?? null) : null}
+                  onFocusCategory={focusCategory}
+                  lens={lens}
+                  onLens={setLens}
+                  extra={intakeControl}
+                />
+                <div className="min-h-0 flex-1">
+                  <ClusterList index={index} lens={lens} highlight={highlight} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} />
+                </div>
               </div>
-            </div>
-          )}
-          {index && search.highlight.active && search.highlight.empty ? (
+            )}
+          </div>
+          {index && intake.flowVisible ? <IntakeFlow intake={intake} index={index} /> : null}
+          {index && !intake.flowVisible && search.highlight.active && search.highlight.empty ? (
             <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center">
               <div role="status" className="rounded-full border bg-card/95 px-3.5 py-1.5 text-[12.5px] shadow-xs backdrop-blur-sm">
                 No matching published insights for “{search.query.trim()}”
