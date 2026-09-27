@@ -1,0 +1,1912 @@
+{
+  "generated_at": "2026-09-26T17:24:06.840658+00:00",
+  "scope": "External resources referenced by the research memos. See each memo for verification method and caveats. Inclusion is not a claim of runtime testing or authenticated availability. Fragment-only URL differences are deduplicated.",
+  "resource_count": 182,
+  "resources": [
+    {
+      "url": "https://agentdojo.spylab.ai/",
+      "domain": "agentdojo.spylab.ai",
+      "labels": [
+        "AgentDojo"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://agentdojo.spylab.ai/concepts/task_suite_and_tasks/",
+      "domain": "agentdojo.spylab.ai",
+      "labels": [
+        "AgentDojo custom tasks"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/e2b-dev/E2B",
+      "domain": "api.github.com",
+      "labels": [
+        "E2B SDK metadata"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/e2b-dev/runtime",
+      "domain": "api.github.com",
+      "labels": [
+        "runtime metadata"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/google/gvisor",
+      "domain": "api.github.com",
+      "labels": [
+        "gVisor metadata"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/opensandbox-group/OpenSandbox",
+      "domain": "api.github.com",
+      "labels": [
+        "OpenSandbox API metadata"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://api.github.com/repos/superradcompany/microsandbox",
+      "domain": "api.github.com",
+      "labels": [
+        "Microsandbox metadata"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://api.vultr.com/v2/applications?type=marketplace",
+      "domain": "api.vultr.com",
+      "labels": [
+        "Live applications API"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://api.vultr.com/v2/os",
+      "domain": "api.vultr.com",
+      "labels": [
+        "`GET /v2/os`"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://api.vultr.com/v2/plans?type=vc2",
+      "domain": "api.vultr.com",
+      "labels": [
+        "`GET /v2/plans?type=vc2`",
+        "Live plans"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://api.vultr.com/v2/regions",
+      "domain": "api.vultr.com",
+      "labels": [
+        "`GET /v2/regions`"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://api.vultr.com/v2/regions/sjc/availability?type=vc2",
+      "domain": "api.vultr.com",
+      "labels": [
+        "`GET /v2/regions/sjc/availability?type=vc2`",
+        "Silicon Valley availability"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://api.vultrinference.com/",
+      "domain": "api.vultrinference.com",
+      "labels": [
+        "Official inference API, version 1.1.3",
+        "Inference API reference",
+        "Official API"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://api.vultrinference.com/v1/models",
+      "domain": "api.vultrinference.com",
+      "labels": [
+        "`https://api.vultrinference.com/v1/models`",
+        "`/v1/models`",
+        "Current model catalog",
+        "Live Vultr model catalog"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md",
+        "06-resource-library.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://archive.ics.uci.edu/dataset/352/online+retail",
+      "domain": "archive.ics.uci.edu",
+      "labels": [
+        "UCI Online Retail"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://cerebralvalley.ai/e/vultr-the-agent-arena",
+      "domain": "cerebralvalley.ai",
+      "labels": [
+        "Cerebral Valley event page"
+      ],
+      "referenced_in": [
+        "01-event-requirements.md"
+      ]
+    },
+    {
+      "url": "https://cerebralvalley.ai/e/vultr-the-agent-arena/hackathon/submit",
+      "domain": "cerebralvalley.ai",
+      "labels": [
+        "Official submission portal"
+      ],
+      "referenced_in": [
+        "01-event-requirements.md"
+      ]
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html",
+      "domain": "cheatsheetseries.owasp.org",
+      "labels": [
+        "OWASP upload guidance"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html",
+      "domain": "cheatsheetseries.owasp.org",
+      "labels": [
+        "OWASP prompt-injection guidance"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html",
+      "domain": "cheatsheetseries.owasp.org",
+      "labels": [
+        "OWASP SSRF guidance"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://coolify.io/docs/core/infrastructure/servers/build-servers",
+      "domain": "coolify.io",
+      "labels": [
+        "build servers"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://coolify.io/docs/core/infrastructure/servers/overview",
+      "domain": "coolify.io",
+      "labels": [
+        "server roles and shared resources"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://coolify.io/docs/start-with-self-hosted",
+      "domain": "coolify.io",
+      "labels": [
+        "Coolify requirements",
+        "Coolify server requirements"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://discord.com/invite/shgrMdwPH",
+      "domain": "discord.com",
+      "labels": [
+        "Official Discord invitation from G"
+      ],
+      "referenced_in": [
+        "01-event-requirements.md"
+      ]
+    },
+    {
+      "url": "https://discover.vultr.com/events",
+      "domain": "discover.vultr.com",
+      "labels": [
+        "Vultr events page"
+      ],
+      "referenced_in": [
+        "01-event-requirements.md"
+      ]
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-changesets.html",
+      "domain": "docs.aws.amazon.com",
+      "labels": [
+        "CloudFormation change sets"
+      ],
+      "referenced_in": [
+        "09-opportunity-review.md"
+      ]
+    },
+    {
+      "url": "https://docs.bullmq.io/guide/workers",
+      "domain": "docs.bullmq.io",
+      "labels": [
+        "BullMQ workers"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/containers/resource_constraints/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Resource constraints",
+        "Docker resources"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/install/ubuntu/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Ubuntu installation firewall warning",
+        "Docker firewall limitations"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md",
+        "04-netbird-bonus.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/network/firewall-iptables/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Docker firewall behavior"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/security/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Docker security"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/security/rootless/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Rootless mode"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/security/rootless/tips/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "rootless resource limitations",
+        "Docker rootless tips"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/security/seccomp/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Seccomp"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/storage/bind-mounts/",
+      "domain": "docs.docker.com",
+      "labels": [
+        "Docker bind mounts"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/reference/cli/docker/container/run",
+      "domain": "docs.docker.com",
+      "labels": [
+        "run reference"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent",
+      "domain": "docs.github.com",
+      "labels": [
+        "GitHub cloud-agent documentation"
+      ],
+      "referenced_in": [
+        "09-opportunity-review.md"
+      ]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+      "domain": "docs.langchain.com",
+      "labels": [
+        "LangGraph interrupts"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+      "domain": "docs.langchain.com",
+      "labels": [
+        "LangGraph persistence"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/about-netbird/ports-and-firewalls",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Ports and firewalls"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/api",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "API authentication"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/api/resources/services",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Services API"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/get-started/cli",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "CLI reference"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/access-control",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Access policies"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/peers/register-machines-using-setup-keys",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Setup-key guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/public-api",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "service users and PATs"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Reverse Proxy overview",
+        "NetBird reverse proxy",
+        "Reverse proxy docs"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md",
+        "06-resource-library.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/access-logs",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Access logs"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/authentication",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Authentication guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/bring-your-own-proxy",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "BYOP guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/expose-from-cli",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "CLI documentation",
+        "CLI expose setup",
+        "NetBird CLI expose"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/service-configuration",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Backend service configuration"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/manage/reverse-proxy/troubleshooting",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "troubleshooting guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/selfhosted/marketplaces/vultr",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "Vultr marketplace guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/selfhosted/migration/enable-reverse-proxy",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "migration guide"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.netbird.io/selfhosted/selfhosted-quickstart",
+      "domain": "docs.netbird.io",
+      "labels": [
+        "self-host quickstart"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://docs.stagehand.dev/v4/first-steps/introduction",
+      "domain": "docs.stagehand.dev",
+      "labels": [
+        "Stagehand v4 introduction"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.temporal.io/workflow-execution",
+      "domain": "docs.temporal.io",
+      "labels": [
+        "Temporal workflow execution"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-deploy-a-nextjs-application-with-vultr-supabase-marketplace-app",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr Next.js + Supabase guide",
+        "Supabase on Vultr"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-deploy-an-application-with-vultr-coolify-marketplace-app",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr Coolify application guide",
+        "Coolify on Vultr"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-rank-documents-with-vultronretriever-on-vultr-serverless-inference",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "VultronRetriever guide",
+        "VultronRetriever visual documents"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-set-up-agent-sandboxing-on-vultr-cloud-compute",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr sandbox tutorial",
+        "Vultr guide"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md",
+        "06-resource-library.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-use-tool-calling-with-vultr-serverless-inference",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Tool-calling guide",
+        "Tool-calling walkthrough"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-use-vultr-object-storage-in-python",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr Object Storage + Python",
+        "Object Storage Python"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-use-vultr-s-supabase-marketplace-application",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr Supabase marketplace setup"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-use-vultr-serverless-inference-in-nodejs",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Node.js introduction"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/how-to-use-vultr-serverless-inference-in-python",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Python introduction"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/platform/iam/service-user/how-to-create-a-service-user",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "create service user",
+        "IAM service users"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/platform/release-notes",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "release notes",
+        "Platform release notes"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/products/compute/instances/cloud-compute/provisioning",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Cloud Compute provisioning"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/products/compute/serverless-inference/management/monitor",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Monitoring"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/products/compute/serverless-inference/provisioning",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Provisioning",
+        "Inference provisioning"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/products/serverless/inference/provisioning",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr inference provisioning"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/public/doc-assets/pdfs/collection_item/platform-billing.pdf",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Vultr billing PDF, promotional-code FAQ"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/reference/terraform",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "older reference example"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/reference/terraform/resources/inference",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "inference Terraform resource"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/reference/terraform/resources/instance",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "instance resource"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/reference/vultr-cli",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "CLI reference"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/reference/vultr-cli/instance",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "CLI lifecycle",
+        "Vultr instance CLI"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/api/what-rate-limits-apply-to-the-vultr-api",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "API rate limits"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/billing/are-stopped-instances-still-billed-on-vultr",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "stopped-instance billing",
+        "Billing when stopped",
+        "Vultr billing rule"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md",
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/billing/how-am-i-billed-for-my-servers",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Server billing"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/billing/how-can-i-increase-my-account-limits",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Account limits"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/iam/what-is-a-user-in-vultr-iam",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "IAM user types"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/platform/users/how-can-i-manage-api-access-for-users",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "API access controls"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/products/orchestration/can-i-add-a-startup-script-using-the-vultr-api-or-cli",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Startup-script API support"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://docs.vultr.com/support/products/serverless/how-do-i-monitor-the-usage-and-cost-of-my-vultr-serverless-inference-subscription",
+      "domain": "docs.vultr.com",
+      "labels": [
+        "Older flat-pricing support page"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://duckdb.org/docs/current/data/csv/overview",
+      "domain": "duckdb.org",
+      "labels": [
+        "DuckDB CSV import"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://duckdb.org/docs/current/operations_manual/securing_duckdb/overview",
+      "domain": "duckdb.org",
+      "labels": [
+        "Securing DuckDB"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://duckdb.org/docs/stable/data/csv/overview",
+      "domain": "duckdb.org",
+      "labels": [
+        "DuckDB"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md"
+      ]
+    },
+    {
+      "url": "https://github.com/OpenHands/OpenHands",
+      "domain": "github.com",
+      "labels": [
+        "OpenHands",
+        "OpenHands / Agent Canvas"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/SWE-agent/mini-swe-agent",
+      "domain": "github.com",
+      "labels": [
+        "mini-SWE-agent"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/SWE-bench/SWE-bench/blob/main/docs/guides/docker_setup.md",
+      "domain": "github.com",
+      "labels": [
+        "SWE-bench's Docker guidance",
+        "SWE-bench Docker guide"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/ServiceNow/AgentLab",
+      "domain": "github.com",
+      "labels": [
+        "AgentLab"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/ServiceNow/BrowserGym",
+      "domain": "github.com",
+      "labels": [
+        "BrowserGym"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/ServiceNow/DoomArena",
+      "domain": "github.com",
+      "labels": [
+        "DoomArena"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/ServiceNow/WorkArena",
+      "domain": "github.com",
+      "labels": [
+        "WorkArena"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/ServiceNow/webarena-verified",
+      "domain": "github.com",
+      "labels": [
+        "WebArena-Verified"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/TheAgentCompany/TheAgentCompany",
+      "domain": "github.com",
+      "labels": [
+        "TheAgentCompany"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/browser-use/browser-use",
+      "domain": "github.com",
+      "labels": [
+        "Browser Use"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/browser-use/browser-use/blob/main/skills/open-source/references/models.md",
+      "domain": "github.com",
+      "labels": [
+        "Browser Use model configuration"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/browserbase/stagehand",
+      "domain": "github.com",
+      "labels": [
+        "Stagehand repository"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/E2B/releases/tag/e2b%402.51.0",
+      "domain": "github.com",
+      "labels": [
+        "E2B SDK release"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/runtime",
+      "domain": "github.com",
+      "labels": [
+        "Runtime README",
+        "Runtime"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/runtime/blob/main/embed/README.md",
+      "domain": "github.com",
+      "labels": [
+        "Embed deployment notes",
+        "Embed"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/runtime/blob/main/embed/compose/README.md",
+      "domain": "github.com",
+      "labels": [
+        "Compose guide",
+        "Compose"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/runtime/releases/tag/2026.30",
+      "domain": "github.com",
+      "labels": [
+        "runtime release"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/frappe/erpnext",
+      "domain": "github.com",
+      "labels": [
+        "ERPNext"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/google/gvisor/releases/tag/release-20260921.0",
+      "domain": "github.com",
+      "labels": [
+        "gVisor release"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/microsoft/magentic-ui",
+      "domain": "github.com",
+      "labels": [
+        "MagenticLite / Magentic-UI"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/microsoft/playwright-mcp",
+      "domain": "github.com",
+      "labels": [
+        "Playwright MCP"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/client/cmd/expose.go",
+      "domain": "github.com",
+      "labels": [
+        "Versioned CLI source"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/client/embed/expose.go",
+      "domain": "github.com",
+      "labels": [
+        "Embedded expose API"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/client/internal/expose/manager.go",
+      "domain": "github.com",
+      "labels": [
+        "client expose manager"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/management/internals/modules/reverseproxy/service/manager/expose_tracker.go",
+      "domain": "github.com",
+      "labels": [
+        "Reaper source",
+        "Versioned expiry implementation"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/management/internals/modules/reverseproxy/service/manager/manager.go",
+      "domain": "github.com",
+      "labels": [
+        "service manager, persistence and renewal"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/management/internals/modules/reverseproxy/service/service.go",
+      "domain": "github.com",
+      "labels": [
+        "Request-to-service implementation"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/blob/v0.79.0/shared/management/http/api/openapi.yml",
+      "domain": "github.com",
+      "labels": [
+        "v0.79.0 OpenAPI specification"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/netbirdio/netbird/releases/tag/v0.79.0",
+      "domain": "github.com",
+      "labels": [
+        "v0.79.0 release"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://github.com/open-telemetry/semantic-conventions-genai",
+      "domain": "github.com",
+      "labels": [
+        "OpenTelemetry GenAI conventions"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox",
+      "domain": "github.com",
+      "labels": [
+        "Project README",
+        "OpenSandbox repository"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/architecture/index.md",
+      "domain": "github.com",
+      "labels": [
+        "architecture"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/architecture/network/egress.md",
+      "domain": "github.com",
+      "labels": [
+        "egress architecture",
+        "Egress architecture",
+        "OpenSandbox egress",
+        "OpenSandbox egress design"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/examples/code-interpreter.md",
+      "domain": "github.com",
+      "labels": [
+        "code interpreter"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/examples/playwright.md",
+      "domain": "github.com",
+      "labels": [
+        "Playwright"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/guides/credential-vault.md",
+      "domain": "github.com",
+      "labels": [
+        "OpenSandbox Credential Vault",
+        "OpenSandbox vault"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/guides/secure-container.md",
+      "domain": "github.com",
+      "labels": [
+        "OpenSandbox secure-runtime guide",
+        "OpenSandbox secure runtime"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/blob/main/server/configuration.md",
+      "domain": "github.com",
+      "labels": [
+        "Configuration reference",
+        "OpenSandbox configuration"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/issues/750",
+      "domain": "github.com",
+      "labels": [
+        "Issue #750"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/releases/tag/release-1.1.0",
+      "domain": "github.com",
+      "labels": [
+        "OpenSandbox release",
+        "Release notes"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/opensandbox-group/OpenSandbox/tree/main/examples",
+      "domain": "github.com",
+      "labels": [
+        "example directory",
+        "OpenSandbox examples"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/pytest-dev/pytest",
+      "domain": "github.com",
+      "labels": [
+        "pytest"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/sierra-research/tau2-bench",
+      "domain": "github.com",
+      "labels": [
+        "τ²-bench",
+        "τ-bench / tau2-bench repo"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox",
+      "domain": "github.com",
+      "labels": [
+        "Repository",
+        "Microsandbox repository"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/SECURITY.md",
+      "domain": "github.com",
+      "labels": [
+        "security policy"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/docs/cli/sandbox-commands.mdx",
+      "domain": "github.com",
+      "labels": [
+        "CLI rule syntax"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/docs/examples/browser-automation/playwright.mdx",
+      "domain": "github.com",
+      "labels": [
+        "Microsandbox Playwright example",
+        "Playwright example"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/docs/security/hardening.mdx",
+      "domain": "github.com",
+      "labels": [
+        "Hardening"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/docs/security/network.mdx",
+      "domain": "github.com",
+      "labels": [
+        "Network defenses"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/main/docs/security/secrets.mdx",
+      "domain": "github.com",
+      "labels": [
+        "Microsandbox secret boundary",
+        "Secret handling"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/blob/v0.7.3/sdk/rust/lib/runtime/spawn.rs",
+      "domain": "github.com",
+      "labels": [
+        "v0.7.3 launch source"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/releases/tag/v0.7.3",
+      "domain": "github.com",
+      "labels": [
+        "Microsandbox release",
+        "Release notes"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/security/advisories/GHSA-4vq3-cjpp-v7fg",
+      "domain": "github.com",
+      "labels": [
+        "Official copy-out advisory",
+        "Copy-out advisory"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/superradcompany/microsandbox/security/advisories/GHSA-m8f5-rh7h-vgg3",
+      "domain": "github.com",
+      "labels": [
+        "Official argument-exposure advisory",
+        "argv advisory"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr-marketing/code-samples/blob/main/vultr-inference-examples/tool-calling-weather.py",
+      "domain": "github.com",
+      "labels": [
+        "Vultr-owned sample script"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/terraform-provider-vultr",
+      "domain": "github.com",
+      "labels": [
+        "Terraform provider"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/terraform-provider-vultr/blob/master/website/docs/r/inference.html.markdown",
+      "domain": "github.com",
+      "labels": [
+        "inference resource"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/terraform-provider-vultr/blob/master/website/docs/r/instance.html.markdown",
+      "domain": "github.com",
+      "labels": [
+        "Terraform instance resource",
+        "instance resource"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/terraform-provider-vultr/releases",
+      "domain": "github.com",
+      "labels": [
+        "provider releases"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/vultr-cli",
+      "domain": "github.com",
+      "labels": [
+        "official CLI repository",
+        "Official Vultr CLI"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/vultr-cli/blob/master/cmd/inference/inference.go",
+      "domain": "github.com",
+      "labels": [
+        "its implementation"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/vultr-cli/blob/master/cmd/instance/instance.go",
+      "domain": "github.com",
+      "labels": [
+        "official instance command implementation"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/vultr/vultr-cli/releases",
+      "domain": "github.com",
+      "labels": [
+        "CLI releases"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://github.com/web-arena-x/webarena",
+      "domain": "github.com",
+      "labels": [
+        "WebArena"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Overview"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/architecture_guide/intro/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "gVisor security introduction"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/architecture_guide/security/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Security model",
+        "gVisor security model"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/user_guide/compatibility/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Compatibility",
+        "gVisor compatibility"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/user_guide/install/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Installation",
+        "Install"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/user_guide/platforms/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "platforms",
+        "gVisor platforms"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md",
+        "06-resource-library.md",
+        "README.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/user_guide/production/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Production guide"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/docs/user_guide/quick_start/docker/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "Docker quick start"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://gvisor.dev/security/",
+      "domain": "gvisor.dev",
+      "labels": [
+        "security policy"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md"
+      ]
+    },
+    {
+      "url": "https://hypothesis.readthedocs.io/en/latest/",
+      "domain": "hypothesis.readthedocs.io",
+      "labels": [
+        "Hypothesis"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://miniwob.farama.org/",
+      "domain": "miniwob.farama.org",
+      "labels": [
+        "MiniWoB++"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://modelcontextprotocol.io/docs/draft/tutorials/security/security_best_practices",
+      "domain": "modelcontextprotocol.io",
+      "labels": [
+        "MCP security best practices"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://neon.com/branching",
+      "domain": "neon.com",
+      "labels": [
+        "Neon branching workflows"
+      ],
+      "referenced_in": [
+        "09-opportunity-review.md"
+      ]
+    },
+    {
+      "url": "https://netbird.io/pricing",
+      "domain": "netbird.io",
+      "labels": [
+        "pricing page"
+      ],
+      "referenced_in": [
+        "04-netbird-bonus.md"
+      ]
+    },
+    {
+      "url": "https://pandera.readthedocs.io/en/stable/",
+      "domain": "pandera.readthedocs.io",
+      "labels": [
+        "Pandera"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://pkg.go.dev/github.com/vultr/govultr/v3",
+      "domain": "pkg.go.dev",
+      "labels": [
+        "GoVultr v3 SDK"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://playwright.dev/docs/docker",
+      "domain": "playwright.dev",
+      "labels": [
+        "Playwright Docker documentation",
+        "Playwright Docker"
+      ],
+      "referenced_in": [
+        "03-sandbox-architecture.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://playwright.dev/docs/test-assertions",
+      "domain": "playwright.dev",
+      "labels": [
+        "Playwright assertions"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://playwright.dev/docs/trace-viewer",
+      "domain": "playwright.dev",
+      "labels": [
+        "Playwright trace viewer"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://pydantic.dev/docs/validation/latest/get-started/",
+      "domain": "pydantic.dev",
+      "labels": [
+        "Pydantic validation"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://standard.open-contracting.org/latest/en/",
+      "domain": "standard.open-contracting.org",
+      "labels": [
+        "Open Contracting Data Standard"
+      ],
+      "referenced_in": [
+        "05-ranked-project-opportunities.md",
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://status.vultr.com/",
+      "domain": "status.vultr.com",
+      "labels": [
+        "Vultr status"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://supabase.com/docs/guides/self-hosting",
+      "domain": "supabase.com",
+      "labels": [
+        "Supabase self-hosting overview"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://supabase.com/docs/guides/self-hosting/docker",
+      "domain": "supabase.com",
+      "labels": [
+        "Supabase Docker self-hosting",
+        "Supabase self-hosting"
+      ],
+      "referenced_in": [
+        "02-vultr-platform-and-inference.md"
+      ]
+    },
+    {
+      "url": "https://www.blackline.com/products/financial-close/transaction-matching/",
+      "domain": "www.blackline.com",
+      "labels": [
+        "BlackLine Transaction Matching"
+      ],
+      "referenced_in": [
+        "09-opportunity-review.md"
+      ]
+    },
+    {
+      "url": "https://www.microsoft.com/en-us/research/blog/magentic-ui-an-experimental-human-centered-web-agent/",
+      "domain": "www.microsoft.com",
+      "labels": [
+        "Original Magentic-UI research"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    },
+    {
+      "url": "https://www.swebench.com/SWE-bench/guides/evaluation/",
+      "domain": "www.swebench.com",
+      "labels": [
+        "SWE-bench evaluation guide"
+      ],
+      "referenced_in": [
+        "09-opportunity-review.md"
+      ]
+    },
+    {
+      "url": "https://www.swebench.com/SWE-bench/reference/cli/",
+      "domain": "www.swebench.com",
+      "labels": [
+        "SWE-bench current CLI"
+      ],
+      "referenced_in": [
+        "06-resource-library.md"
+      ]
+    }
+  ]
+}

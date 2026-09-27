@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
