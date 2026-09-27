@@ -60,17 +60,25 @@ function packed(box: Box, r: number, k: number, fromBottom = true): Pt {
   return { x, y }
 }
 
+/** Largest marble for which the whole batch fits in the jar and a quarter of it fits in the shortest bin. */
 function geometry(W: number, H: number, total: number, nBins: number): Geometry {
-  const jarW = clamp(W * 0.15, 170, 236)
-  let r = 9
-  let jarH = 0
-  for (; r > 3.5; r -= 0.25) {
+  let g = layout(W, H, total, nBins, 9)
+  for (let r = 9; r >= 1.75; r -= 0.25) {
+    g = layout(W, H, total, nBins, r)
     const d = 2 * r
-    const per = Math.floor((jarW - 18) / d)
-    const rows = Math.ceil(total / Math.max(1, per - 0.5))
-    jarH = rows * d * 0.87 + d + 24
-    if (jarH <= H * 0.46) break
+    const shortest = Math.min(...g.bins.map((b) => b.h))
+    const perBin = Math.max(1, Math.floor((g.bins[0].w - 4) / d) - 0.5)
+    const fitsBins = Math.floor((shortest - 2) / (d * 0.87)) * perBin >= total * 0.26
+    if (g.jar.h <= H * 0.46 && fitsBins) break
   }
+  return g
+}
+
+function layout(W: number, H: number, total: number, nBins: number, r: number): Geometry {
+  const jarW = total > 600 ? clamp(W * 0.19, 170, 320) : clamp(W * 0.15, 170, 236)
+  const d = 2 * r
+  const per = Math.floor((jarW - 18) / d)
+  const jarH = Math.ceil(total / Math.max(1, per - 0.5)) * d * 0.87 + d + 24
   const jar = { x: PAD, y: PAD + 26, w: jarW, h: jarH }
   const outlet = { x: jar.x + jar.w + 4, y: jar.y + jar.h - r - 8 }
   const gate = { x: jar.x + jar.w + clamp(W * 0.12, 130, 190), y: outlet.y + 58 }
@@ -175,9 +183,9 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
     landedSeqs: Set<number>
     spawned: number
   } | null>(null)
-  const live = useRef({ armed, published: intake.published, total, rowIds: rows.map((r) => r.node.id), g })
+  const live = useRef({ armed, published: intake.published, total, rowIds: rows.map((r) => r.node.id), g, filed: intake.landedEvents })
   useEffect(() => {
-    live.current = { armed, published: intake.published, total, rowIds: rows.map((r) => r.node.id), g }
+    live.current = { armed, published: intake.published, total, rowIds: rows.map((r) => r.node.id), g, filed: intake.landedEvents }
   })
 
   // Space sorts (the "snap"); ignored while typing.
@@ -289,7 +297,9 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
         const p = plans.get(event.seq) ?? plan(event)
         if (!landedSeqs.has(event.seq)) {
           landedSeqs.add(event.seq)
-          landed.push({ event, bin: p.bin, k: p.k, at: performance.now() })
+          const m = { event, bin: p.bin, k: p.k, at: performance.now() }
+          landed.push(m)
+          settle(m)
         }
         plans.delete(event.seq)
         intake.visual.onLand(event)
@@ -297,18 +307,33 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
     }
     const flights = createIntakeFlights(visual, (event) => (plans.get(event.seq) ?? plan(event)).total)
 
-    const draw = (s: HTMLCanvasElement, p: Pt, angle = 0, alpha = 1) => {
+    const drawOn = (c: CanvasRenderingContext2D, s: HTMLCanvasElement, p: Pt, angle = 0, alpha = 1) => {
       const size = 2 * r + 2
-      ctx.globalAlpha = alpha
+      c.globalAlpha = alpha
       if (angle) {
-        ctx.save()
-        ctx.translate(p.x, p.y)
-        ctx.rotate(angle)
-        ctx.drawImage(s, -size / 2, -size / 2, size, size)
-        ctx.restore()
-      } else ctx.drawImage(s, p.x - size / 2, p.y - size / 2, size, size)
-      ctx.globalAlpha = 1
+        c.save()
+        c.translate(p.x, p.y)
+        c.rotate(angle)
+        c.drawImage(s, -size / 2, -size / 2, size, size)
+        c.restore()
+      } else c.drawImage(s, p.x - size / 2, p.y - size / 2, size, size)
+      c.globalAlpha = 1
     }
+    const draw = (s: HTMLCanvasElement, p: Pt, angle = 0, alpha = 1) => drawOn(ctx, s, p, angle, alpha)
+    const spin = r >= 4 // tiny marbles skip per-marble rotation
+    // Marbles at rest are painted once into their own layer, so thousands cost one drawImage per frame.
+    const settledCv = document.createElement("canvas")
+    settledCv.width = cv.width
+    settledCv.height = cv.height
+    const settledCtx = settledCv.getContext("2d")!
+    settledCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    const settle = (m: { event: IntakeEvent; bin: number; k: number }) => {
+      const b = g.bins[m.bin]
+      if (!b) return
+      const p = packed(b, r, m.k)
+      drawOn(settledCtx, colorSprite(m.event, m.bin), { x: p.x + (hash(m.event.seq) - 0.5) * 0.9, y: p.y }, spin ? hash(m.event.seq) * 6 : 0)
+    }
+    for (const m of landed) settle(m)
     const shadow = (p: Pt, a = 0.16) => {
       ctx.fillStyle = `rgba(20,24,33,${a})`
       ctx.beginPath()
@@ -346,6 +371,17 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
       if (!L.armed && openedAt === Infinity) openedAt = now
       if (L.published && publishedAt === Infinity) publishedAt = now
       const active = L.armed ? [] : flights.tick(now)
+      // Catch up on anything the hook filed while frames were paused (hidden tab): no flight, straight to its slot.
+      if (L.filed.length > landedSeqs.size) {
+        for (const event of L.filed) {
+          if (landedSeqs.has(event.seq) || plans.has(event.seq)) continue
+          const m = { event, ...reserve(event), at: now }
+          landedSeqs.add(event.seq)
+          landed.push(m)
+          settle(m)
+          book.spawned++
+        }
+      }
       ctx.clearRect(0, 0, g.W, g.H)
 
       // ---- jar (the prepared batch)
@@ -357,7 +393,7 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
       ctx.fill()
       for (let k = 0; k < jarCount; k++) {
         const p = packed(jarInner, r, k)
-        draw(glass(), { x: p.x + (hash(k) - 0.5) * 1.8, y: p.y + (hash(k + 7777) - 0.5) * 1.2 }, hash(k + 99) * 6)
+        draw(glass(), { x: p.x + (hash(k) - 0.5) * Math.min(1.8, r * 0.25), y: p.y + (hash(k + 7777) - 0.5) * Math.min(1.2, r * 0.18) }, spin ? hash(k + 99) * 6 : 0)
       }
       // glass jar walls + lid
       const wall = ctx.createLinearGradient(g.jar.x, 0, g.jar.x + g.jar.w, 0)
@@ -382,7 +418,7 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
       steel(g.outlet.x - 6, g.outlet.y + r + 1, gateIn + 4, g.gate.y + r + 1, 3)
       const remaining = Math.max(0, L.total - book.spawned)
       const want = Math.min(g.queueSlots, remaining)
-      const refill = L.armed ? 260 : 12
+      const refill = L.armed ? clamp(r * 36, 70, 260) : 12
       if (queue.length < want && now - lastFeed > refill && (queue.length === 0 || queue[queue.length - 1].s > 2 * r + 2)) {
         queue.push({ s: 0, v: L.armed ? 0.05 : 0.5 })
         lastFeed = now
@@ -441,13 +477,7 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
         ctx.stroke()
       })
       // landed marbles
-      for (const m of landed) {
-        const b = g.bins[m.bin]
-        if (!b) continue
-        const p = packed(b, r, m.k)
-        const age = now - m.at
-        draw(colorSprite(m.event, m.bin), { x: p.x + (hash(m.event.seq) - 0.5) * 0.9, y: p.y }, hash(m.event.seq) * 6, age < 0 ? 1 : clamp(age / 120, 0.35, 1))
-      }
+      ctx.drawImage(settledCv, 0, 0, g.W, g.H)
 
       // ---- flights
       let lastOut: { color: string; at: number } | null = null
