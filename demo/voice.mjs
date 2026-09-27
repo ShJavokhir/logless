@@ -45,15 +45,16 @@ const EL_KEY = envKey()
 const el = cfg.elevenlabs ?? {}
 const cacheDir = join(WORK, "voice-cache")
 mkdirSync(cacheDir, { recursive: true })
-async function eleven(text, base) {
+// previous_text / next_text: the neighbouring lines, so intonation flows across clips
+async function eleven(text, base, previous_text, next_text) {
   const settings = { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1.0, ...(el.settings ?? {}) }
-  const key = createHash("sha256").update(JSON.stringify([el.voice_id, el.model, settings, text])).digest("hex").slice(0, 16)
+  const key = createHash("sha256").update(JSON.stringify([el.voice_id, el.model, settings, text, previous_text, next_text])).digest("hex").slice(0, 16)
   const cached = join(cacheDir, `${key}.mp3`)
   if (!existsSync(cached)) {
     const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${el.voice_id}?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": EL_KEY, "content-type": "application/json", accept: "audio/mpeg" },
-      body: JSON.stringify({ text, model_id: el.model, voice_settings: settings }),
+      body: JSON.stringify({ text, model_id: el.model, voice_settings: settings, previous_text, next_text }),
     })
     if (!r.ok) throw new Error(`ElevenLabs ${r.status}: ${(await r.text()).slice(0, 200)}`)
     writeFileSync(cached, Buffer.from(await r.arrayBuffer()))
@@ -63,18 +64,21 @@ async function eleven(text, base) {
 
 const out = { voice: EL_KEY ? `elevenlabs:${el.voice_id}` : cfg.voice, rate: cfg.rate, gap: cfg.gap, beats: {} }
 console.log(`narration engine: ${EL_KEY ? "ElevenLabs " + el.model : "macOS say " + cfg.voice}`)
+const spokenOrder = cfg.beats.flatMap((b) => b.chunks.map((c) => c.spoken))
 let words = 0
+let n = 0
 for (const beat of cfg.beats) {
   out.beats[beat.id] = []
   for (const [i, c] of beat.chunks.entries()) {
     const base = join(dir, `${beat.id}-${i}`)
     if (EL_KEY) {
-      await eleven(c.spoken, base)
+      await eleven(c.spoken, base, spokenOrder[n - 1], spokenOrder[n + 1])
     } else {
       const rate = String(beat.rate ?? cfg.rate)
       execFileSync("say", ["-v", cfg.voice, "-r", rate, "-o", `${base}.aiff`, c.spoken])
       execFileSync("ffmpeg", ["-y", "-v", "error", "-i", `${base}.aiff`, "-af", TRIM, "-ar", "48000", "-ac", "1", `${base}.wav`])
     }
+    n++
     words += c.spoken.split(/\s+/).filter(Boolean).length
     out.beats[beat.id].push({ file: `${base}.wav`, dur: +dur(`${base}.wav`).toFixed(3), caption: c.caption, at: c.at, spoken: c.spoken, ...(c.requires ? { requires: c.requires } : {}) })
   }

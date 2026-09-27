@@ -12,7 +12,7 @@
       "chunks": [
         {
           "caption": null,
-          "spoken": "You can't read your users' chats. So logless sends an agent that writes and runs code, sandboxed on Vultr.",
+          "spoken": "You can't read your users' chats. So logless sends in an agent that writes code, and runs it in a sandbox on Vultr.",
           "at": "title+0.3"
         }
       ]
@@ -22,7 +22,7 @@
       "chunks": [
         {
           "caption": "5,000 real chats, grouped by GLM on Vultr.",
-          "spoken": "Five thousand real chats, grouped by G L M on Vultr.",
+          "spoken": "Here are five thousand real conversations, grouped by GLM on Vultr.",
           "at": "map_start+0.15"
         }
       ]
@@ -32,17 +32,17 @@
       "chunks": [
         {
           "caption": "300 more arrive.",
-          "spoken": "Three hundred more arrive.",
+          "spoken": "Three hundred new ones come in.",
           "at": "intake_click-0.3"
         },
         {
           "caption": "TypeSafe Jev routes each live, about {rate} a second.",
-          "spoken": "TypeSafe Jev routes each live, about {rate} a second.",
+          "spoken": "TypeSafe Jev routes each one live, about {rate} a second.",
           "at": "intake_first"
         },
         {
           "caption": "Privacy gate passes; the map republishes.",
-          "spoken": "Privacy gate passes; the map republishes.",
+          "spoken": "The privacy gate checks them, and the map updates.",
           "at": "intake_flight_end-0.6"
         }
       ]
@@ -52,7 +52,7 @@
       "chunks": [
         {
           "caption": "Coding: under a fifth of chats, over a quarter of friction.",
-          "spoken": "Coding: under a fifth of chats, over a quarter of friction.",
+          "spoken": "Coding is under a fifth of the chats, but over a quarter of the friction.",
           "at": "finding_start+0.3"
         }
       ]
@@ -62,12 +62,12 @@
       "chunks": [
         {
           "caption": "The agent plans, then writes two independent programs without seeing a row.",
-          "spoken": "The agent plans, then writes two independent programs, without seeing a row.",
+          "spoken": "The agent makes a plan, and writes two separate programs, without ever seeing the data.",
           "at": "ask_open-0.3"
         },
         {
           "caption": "Each runs in its own gVisor container on a keyless VM; both must agree and pass the gate.",
-          "spoken": "Each runs in its own gee-visor container on a keyless VM; both must agree and pass the gate.",
+          "spoken": "Each runs in its own gee-visor container, on a machine with no keys. They have to agree, and pass the gate.",
           "at": "ask_click+1.0"
         }
       ]
@@ -77,7 +77,7 @@
       "chunks": [
         {
           "caption": "Every answer ships with a receipt.",
-          "spoken": "Every answer ships with a receipt.",
+          "spoken": "And every answer comes with a receipt.",
           "at": "details_start+0.3"
         }
       ]
@@ -87,18 +87,18 @@
       "chunks": [
         {
           "caption": "A runaway program: killed at two seconds.",
-          "spoken": "A runaway program: killed at two seconds.",
+          "spoken": "Now, hostile code. A runaway program gets killed at two seconds.",
           "at": "contain_click+0.3"
         },
         {
           "caption": "rm -rf /: read-only root, deletions refused.",
-          "spoken": "R M dash R F slash: read-only root. Deletions refused.",
+          "spoken": "R M, dash R F, slash? It hits a read-only root, and the deletes are refused.",
           "at": "kill_seen+0.3",
           "requires": "rmrf_seen"
         },
         {
           "caption": "A per-person export: rejected by the gate.",
-          "spoken": "A per-person export: rejected by the gate.",
+          "spoken": "And a per-person export? The gate rejects it.",
           "at": "leak_seen-1.0"
         }
       ]
@@ -108,19 +108,20 @@
       "chunks": [
         {
           "caption": "{targets} evaluation targets met; 0 canary leaks.",
-          "spoken": "{targets} evaluation targets met; zero canary leaks.",
+          "spoken": "{targets} evaluation targets met, and zero canary leaks.",
           "at": "eval_start+0.2"
         }
       ]
     }
   ],
   "elevenlabs": {
-    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "voice_id": "iP95p4xoKVk53GoZ742B",
     "model": "eleven_multilingual_v2",
     "settings": {
-      "stability": 0.5,
-      "similarity_boost": 0.75,
-      "speed": 1.1
+      "stability": 0.4,
+      "similarity_boost": 0.8,
+      "style": 0.25,
+      "speed": 1.0
     }
   }
 }
