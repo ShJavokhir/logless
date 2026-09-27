@@ -4,6 +4,7 @@
 // attributes when Jev's answer arrives. 100k marbles cost one draw call.
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
 export type MarbleBin = {
@@ -26,7 +27,8 @@ export type MarbleScene = {
   push: (bin: number, friction: boolean) => void
   /** lift the gate (armed → running) */
   open: () => void
-  resize: (w: number, h: number) => void
+  /** inset: fractions of the canvas height kept clear for overlaid HUD */
+  resize: (w: number, h: number, inset?: { top: number; bottom: number }) => void
   stats: () => MarbleStats
   dispose: () => void
 }
@@ -64,31 +66,36 @@ function rng(seed: number) {
 // ------------------------------------------------------------------ layout
 
 const BIN_W = 1.15
+const GATE = { w: 0.96, h: 0.66, d: 0.74 }
 const WALL = 0.03
 const BIN_Z0 = -0.6
 const BIN_Z1 = 0.6
 const WALL_H = 0.34
 const TROUGH_Z = -0.24
-const TROUGH_W = 0.44
 const SLOPE = 0.05
 const SPEED = 3.4 // rail speed, units/s
 const G = 11 // gravity, units/s²
 const T_SLIDE = 0.2 // jar floor → outlet
-const T_TUBE = 0.32 // outlet → gate
+const T_TUBE = 0.24 // drop down the glass tube into the gate
 const T_GATE = 0.12 // through the gate
 
 function layout(capacity: number, nBins: number) {
   const r = Math.min(0.045, Math.max(0.0125, 0.0125 * Math.cbrt(100000 / Math.max(1, capacity))))
   const pitch = 1.633 * r // close-packed layer spacing
+  // single-file track: rods hug one marble, the tube is barely wider than one
+  const track = { gap: 0.15 * r, rodR: 0.4 * r, tubeR: 1.35 * r }
   const trayX0 = -2.35
   const trayX1 = trayX0 + nBins * BIN_W
-  const gateX = trayX0 - 0.78
-  const gateIn = gateX - 0.36
-  const gateOut = gateX + 0.36
-  const railY0 = 1.1
-  const hopper = { x: trayX0 - 2.05, z: TROUGH_Z, R: 0.62, bottom: 1.52 }
-  const outlet = new THREE.Vector3(hopper.x, 1.3, hopper.z)
-  return { r, pitch, trayX0, trayX1, gateX, gateIn, gateOut, railY0, hopper, outlet, gateY: railY0 + 0.03 }
+  const railY0 = 1.0
+  const gateX = trayX0 - GATE.w / 2 - 0.12
+  const gateY = railY0 + GATE.h / 2 - 0.12
+  const gateTop = gateY + GATE.h / 2
+  const gateOut = gateX + GATE.w / 2
+  // the hopper sits right above Jev and drops straight in through the lid
+  const hopper = { x: gateX, z: TROUGH_Z, R: 0.7, bottom: gateTop + 0.62 }
+  const outlet = new THREE.Vector3(hopper.x, hopper.bottom - 0.24, hopper.z)
+  const gateIn = new THREE.Vector3(gateX, gateTop - 0.1, TROUGH_Z)
+  return { r, pitch, track, trayX0, trayX1, gateX, gateY, gateTop, gateIn, gateOut, railY0, hopper, outlet }
 }
 type Layout = ReturnType<typeof layout>
 const railY = (L: Layout, x: number) => L.railY0 - SLOPE * (x - L.gateOut)
@@ -162,16 +169,16 @@ uniform float uTime, uSpawned, uPerLayer, uPitch, uJarBottom, uR;
 uniform vec3 uOutlet, uGateIn;
 uniform float uGateOut, uRailY0, uSlope, uSpeed, uG, uTSlide, uTTube, uTGate;
 uniform vec3 uColors[8];
-uniform vec3 uGlass, uHeat;
+uniform vec3 uGlass;
 varying vec2 vUv;
 varying vec3 vCenter, vColor;
-varying float vGlass, vHeat;
+varying float vGlass;
 
 float railY(float x) { return uRailY0 - uSlope * (x - uGateOut); }
 
 void main() {
+  // colour code: bin + 16 when friction was observed; friction is counted, not coloured
   float code = aRoute.w;
-  float heat = step(15.5, code);
   int bin = int(mod(code, 16.0) + 0.5);
   vec3 jarFloor = vec3(aJar.x, uJarBottom + uR, aJar.z);
   vec3 p;
@@ -186,8 +193,7 @@ void main() {
     p = mix(jarFloor, uOutlet, k * k);
   } else if (t < uTSlide + uTTube) {
     float k = (t - uTSlide) / uTTube;
-    vec3 c = vec3(uOutlet.x + 0.05, uGateIn.y, uOutlet.z);
-    p = mix(mix(uOutlet, c, k), mix(c, uGateIn, k), k);
+    p = mix(uOutlet, uGateIn, k * k);
   } else if (t < uTSlide + uTTube + uTGate) {
     float k = (t - uTSlide - uTTube) / uTGate;
     vec3 outP = vec3(uGateOut, railY(uGateOut) + uR, aRoute.z);
@@ -214,9 +220,7 @@ void main() {
       }
     }
   }
-  vec3 base = uColors[bin];
-  vColor = mix(base, uHeat, heat * 0.72);
-  vHeat = heat * (1.0 - glass);
+  vColor = uColors[bin];
   vGlass = glass;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vCenter = mv.xyz;
@@ -232,7 +236,7 @@ uniform float uR;
 uniform vec3 uGlass;
 varying vec2 vUv;
 varying vec3 vCenter, vColor;
-varying float vGlass, vHeat;
+varying float vGlass;
 
 void main() {
   float d2 = dot(vUv, vUv);
@@ -253,7 +257,6 @@ void main() {
   col = mix(col, env, fres * (0.35 + 0.4 * vGlass));
   col += vec3(1.0) * pow(max(dot(r, L), 0.0), 48.0) * 1.1;
   col *= 0.72 + 0.28 * smoothstep(-1.0, 0.25, n.y); // contact shading underneath
-  col += vec3(1.0, 0.45, 0.12) * vHeat * 0.35 * (1.0 - d2);
   float edge = fwidth(d2);
   gl_FragColor = vec4(col, 1.0 - smoothstep(1.0 - edge * 1.5, 1.0, d2));
   #include <tonemapping_fragment>
@@ -305,7 +308,15 @@ function canvasPlane(w: number, h: number, pxW: number, pxH: number, emissive = 
 
 export function createMarbleScene(
   canvas: HTMLCanvasElement,
-  opts: { capacity: number; bins: MarbleBin[]; armed?: boolean; reducedMotion?: boolean; background?: string },
+  opts: {
+    capacity: number
+    bins: MarbleBin[]
+    armed?: boolean
+    reducedMotion?: boolean
+    background?: string
+    /** fractions of the canvas height kept clear for overlaid HUD */
+    inset?: { top: number; bottom: number }
+  },
 ): MarbleScene {
   const { bins, reducedMotion = false } = opts
   const capacity = Math.max(1, Math.floor(opts.capacity))
@@ -327,7 +338,7 @@ export function createMarbleScene(
   scene.environment = envTex
   scene.environmentIntensity = 0.55
 
-  const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 80)
+  const camera = new THREE.PerspectiveCamera(24, 1, 0.02, 80)
   scene.add(new THREE.HemisphereLight(0xffffff, 0xd8cfc2, 0.9))
   const sun = new THREE.DirectionalLight(0xffffff, 1.6)
   sun.position.set(-3, 9, 6)
@@ -395,15 +406,18 @@ export function createMarbleScene(
   const railStart = new THREE.Vector3(L.gateOut - 0.02, railY(L, L.gateOut), 0)
   const railEnd = new THREE.Vector3(trayX1 + 0.08, railY(L, trayX1 + 0.08), 0)
   const railLen = railEnd.x - railStart.x
-  const floor = add(new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.008, TROUGH_W + 0.04), glassMat), false)
+  const { rodR, gap } = L.track
+  const rodZ = L.r + gap + rodR
+  const rodY = 0.75 * L.r
+  const floor = add(new THREE.Mesh(new THREE.BoxGeometry(railLen, 0.006, 2 * (rodZ + rodR)), glassMat), false)
   floor.position.set((railStart.x + railEnd.x) / 2, (railStart.y + railEnd.y) / 2 - 0.004, TROUGH_Z)
   floor.rotation.z = -Math.atan(SLOPE)
   for (const side of [-1, 1]) {
-    const z = TROUGH_Z + side * (TROUGH_W / 2 + 0.02)
-    rod(railStart.clone().setZ(z).add(new THREE.Vector3(0, 0.03, 0)), railEnd.clone().setZ(z).add(new THREE.Vector3(0, 0.03, 0)), 0.016, steel)
+    const z = TROUGH_Z + side * rodZ
+    rod(railStart.clone().setZ(z).add(new THREE.Vector3(0, rodY, 0)), railEnd.clone().setZ(z).add(new THREE.Vector3(0, rodY, 0)), rodR, steel)
     for (let i = 0; i <= bins.length; i++) {
       const x = trayX0 + i * BIN_W
-      rod(new THREE.Vector3(x, i === 0 || i === bins.length ? WALL_H : WALL_H - 0.02, z), new THREE.Vector3(x, railY(L, x) + 0.03, z), 0.008, steel)
+      rod(new THREE.Vector3(x, i === 0 || i === bins.length ? WALL_H : WALL_H - 0.02, z), new THREE.Vector3(x, railY(L, x) + rodY, z), 0.6 * rodR, steel)
     }
   }
   const pinMat = new THREE.MeshStandardMaterial({ color: 0x23262e, roughness: 0.4 })
@@ -414,11 +428,12 @@ export function createMarbleScene(
     const tag = new THREE.MeshStandardMaterial({ color: col, roughness: 0.35 })
     disposables.push(tag)
     for (const side of [-1, 1]) {
-      const z = TROUGH_Z + side * (TROUGH_W / 2 + 0.02)
-      const pin = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 12), pinMat))
-      pin.position.set(x - BIN_W * 0.42, railY(L, x - BIN_W * 0.42) + 0.075, z)
-      const cap = add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 16, 12), tag))
-      cap.position.set(pin.position.x, pin.position.y + 0.05, z)
+      const z = TROUGH_Z + side * rodZ
+      const pinH = 4 * L.r
+      const pin = add(new THREE.Mesh(new THREE.CylinderGeometry(rodR, rodR, pinH, 12), pinMat))
+      pin.position.set(x - BIN_W * 0.42, railY(L, x - BIN_W * 0.42) + rodY + pinH / 2, z)
+      const cap = add(new THREE.Mesh(new THREE.SphereGeometry(2 * rodR, 16, 12), tag))
+      cap.position.set(pin.position.x, pin.position.y + pinH / 2 + rodR, z)
     }
   })
 
@@ -436,30 +451,31 @@ export function createMarbleScene(
   const disc = add(new THREE.Mesh(new THREE.CircleGeometry(hop.R, 64), new THREE.MeshStandardMaterial({ color: 0xe9e4dc, roughness: 0.5, metalness: 0.2 })), false)
   disc.rotation.x = -Math.PI / 2
   disc.position.set(hop.x, hop.bottom + 0.001, hop.z)
-  const funnel = add(new THREE.Mesh(new THREE.CylinderGeometry(hop.R, 0.07, hop.bottom - L.outlet.y, 64, 1, true), glassMat), false)
+  const funnel = add(new THREE.Mesh(new THREE.CylinderGeometry(hop.R, L.track.tubeR, hop.bottom - L.outlet.y, 64, 1, true), glassMat), false)
   funnel.position.set(hop.x, (hop.bottom + L.outlet.y) / 2, hop.z)
-  const gateInP = new THREE.Vector3(L.gateIn, L.gateY, TROUGH_Z)
-  const tubeCurve = new THREE.QuadraticBezierCurve3(L.outlet, new THREE.Vector3(L.outlet.x + 0.05, L.gateY, L.outlet.z), gateInP)
-  add(new THREE.Mesh(new THREE.TubeGeometry(tubeCurve, 48, 0.07, 24, false), glassMat), false)
+  const gateInP = L.gateIn
+  const tube = add(new THREE.Mesh(new THREE.CylinderGeometry(L.track.tubeR, L.track.tubeR, L.outlet.y - L.gateTop, 24, 1, true), glassMat), false)
+  tube.position.set(hop.x, (L.outlet.y + L.gateTop) / 2, hop.z)
   for (let k = 0; k < 3; k++) {
-    const a = (k / 3) * Math.PI * 2 + 0.5
+    const a = (k / 3) * Math.PI * 2 + 0.9
     const top = new THREE.Vector3(hop.x + Math.cos(a) * hop.R, hop.bottom, hop.z + Math.sin(a) * hop.R)
     const foot = new THREE.Vector3(hop.x + Math.cos(a) * (hop.R + 0.28), -0.07, hop.z + Math.sin(a) * (hop.R + 0.28))
     rod(top, foot, 0.018, steel)
   }
 
   // Jev gate: dark body, live front display (text + a strip of recent decisions), amber bar while armed
-  const gate = add(new THREE.Mesh(new RoundedBoxGeometry(0.74, 0.52, 0.66, 5, 0.06), new THREE.MeshStandardMaterial({ color: 0x1d2130, roughness: 0.35, metalness: 0.3 })))
-  gate.position.set(L.gateX, L.gateY + 0.02, TROUGH_Z)
-  rod(new THREE.Vector3(L.gateX, -0.07, TROUGH_Z), new THREE.Vector3(L.gateX, L.gateY - 0.24, TROUGH_Z), 0.03, steel)
-  const screen = canvasPlane(0.62, 0.38, 496, 304, true)
-  screen.mesh.position.set(L.gateX, L.gateY + 0.02, TROUGH_Z + 0.332)
+  const gate = add(new THREE.Mesh(new RoundedBoxGeometry(GATE.w, GATE.h, GATE.d, 5, 0.07), new THREE.MeshStandardMaterial({ color: 0x1d2130, roughness: 0.32, metalness: 0.35 })))
+  gate.position.set(L.gateX, L.gateY, TROUGH_Z)
+  rod(new THREE.Vector3(L.gateX, -0.07, TROUGH_Z), new THREE.Vector3(L.gateX, L.gateY - GATE.h / 2, TROUGH_Z), 0.04, steel)
+  const screen = canvasPlane(GATE.w - 0.12, GATE.h - 0.14, 640, 420, true)
+  screen.mesh.position.set(L.gateX, L.gateY, TROUGH_Z + GATE.d / 2 + 0.002)
   scene.add(screen.mesh)
   disposables.push(screen.mesh.geometry, screen.mesh.material as THREE.Material, screen.tex)
   const barMat = new THREE.MeshStandardMaterial({ color: 0xe0a13a, emissive: 0xe0a13a, emissiveIntensity: 0.5, roughness: 0.4 })
   disposables.push(barMat)
-  const bar = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.2, TROUGH_W), barMat))
-  bar.position.set(L.gateIn - 0.03, L.gateY, TROUGH_Z)
+  // shutter under the hopper outlet; slides aside when the run starts
+  const bar = add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 0.22), barMat))
+  bar.position.set(hop.x, L.outlet.y - 0.03, hop.z)
 
   // bin labels on the ledge in front of the tray
   const labels = bins.map((b, i) => {
@@ -534,7 +550,6 @@ export function createMarbleScene(
     uTGate: { value: T_GATE },
     uColors: { value: colors },
     uGlass: { value: new THREE.Vector3(...oklchLinear(0.9, 0.018, 215)) },
-    uHeat: { value: new THREE.Vector3(...oklchLinear(0.7, 0.19, HEAT_HUE)) },
     uProj: { value: camera.projectionMatrix },
   }
   const marbleMat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, alphaToCoverage: true })
@@ -581,7 +596,7 @@ export function createMarbleScene(
       used[bin]++
       const bx0 = trayX0 + bin * BIN_W
       const relX = bx0 + BIN_W * (0.1 + rand() * 0.6)
-      const lane = TROUGH_Z + (rand() - 0.5) * (TROUGH_W - 2 * r)
+      const lane = TROUGH_Z + (rand() - 0.5) * L.track.gap
       const spawnAt = reducedMotion ? t - 60 : t + (k / n) * dt
       targets.set(p, i * 3)
       routes.set([spawnAt, relX, lane, code], i * 4)
@@ -654,7 +669,7 @@ export function createMarbleScene(
         const code = leds[row * COLS + col]
         let color = "#232838"
         if (armed) color = `rgba(224,161,58,${0.15 + 0.35 * Math.max(0, Math.sin(t * 2.2 + col * 0.35 - row * 0.2))})`
-        else if (code !== null && code !== undefined) color = code >= 16 ? `oklch(0.74 0.18 ${HEAT_HUE})` : binCss(bins[code & 15] ?? bins[0], 0.72, 0.17)
+        else if (code !== null && code !== undefined) color = binCss(bins[code & 15] ?? bins[0], 0.72, 0.17)
         ctx.fillStyle = color
         ctx.beginPath()
         ctx.arc(x0 + col * cell + cell / 2, y0 + row * cell + cell / 2, cell * 0.36, 0, Math.PI * 2)
@@ -665,21 +680,67 @@ export function createMarbleScene(
   }
 
   // ---------------------------------------------------------------- camera + loop
+  // Auto-framed from the machine's projected bounds until the viewer grabs the
+  // camera; then OrbitControls owns it (wheel/pinch zooms toward the cursor,
+  // drag orbits, right-drag pans) and a double-click hands it back.
   let W = 1
   let H = 1
-  const target = new THREE.Vector3(trayCx - 0.9, 0.95, 0)
-  const dir = new THREE.Vector3(0.08, 0.42, 1).normalize()
+  const inset = { top: 0.04, bottom: 0.04, ...opts.inset }
+  const target = new THREE.Vector3()
+  const dir = new THREE.Vector3(-0.22, 0.5, 1).normalize()
   let dist = 12
+  const bounds = new THREE.Box3(
+    new THREE.Vector3(hop.x - hop.R - 0.35, -0.07, BIN_Z0 - 0.05),
+    new THREE.Vector3(trayX1 + 0.1, hop.bottom + jarH + 0.05, BIN_Z1 + 0.4),
+  )
+  const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => new THREE.Vector3(k & 1 ? bounds.max.x : bounds.min.x, k & 2 ? bounds.max.y : bounds.min.y, k & 4 ? bounds.max.z : bounds.min.z))
+  const place = (sway = 0) => {
+    camera.position.copy(target).addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), sway), dist)
+    camera.lookAt(target)
+    camera.updateMatrixWorld()
+  }
   const fit = () => {
     camera.aspect = W / H
-    const vFov = (camera.fov * Math.PI) / 180
-    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect)
-    const halfW = (trayX1 - (hop.x - hop.R - 0.4)) / 2 + 0.25
-    const halfH = 1.75
-    target.x = (trayX1 + hop.x - hop.R - 0.4) / 2
-    dist = Math.max(halfW / Math.tan(hFov / 2), halfH / Math.tan(vFov / 2)) * 1.02
     camera.updateProjectionMatrix()
+    bounds.getCenter(target)
+    const yLo = -1 + 2 * inset.bottom
+    const yHi = 1 - 2 * inset.top
+    const tanV = Math.tan((camera.fov * Math.PI) / 360)
+    for (let k = 0; k < 5; k++) {
+      place()
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
+      for (const c of corners) {
+        const v = c.clone().project(camera)
+        x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y)
+      }
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0)
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1)
+      const half = dist * tanV
+      target.addScaledVector(right, ((x0 + x1) / 2) * half * camera.aspect).addScaledVector(up, ((y0 + y1) / 2 - (yLo + yHi) / 2) * half)
+      dist *= Math.max((x1 - x0) / 1.9, (y1 - y0) / ((yHi - yLo) * 0.96))
+    }
+    place()
   }
+
+  const controls = new OrbitControls(camera, canvas)
+  controls.enableDamping = true
+  controls.dampingFactor = 0.08
+  controls.zoomToCursor = true
+  controls.screenSpacePanning = true
+  controls.minDistance = 0.12
+  controls.maxDistance = 40
+  controls.maxPolarAngle = Math.PI * 0.49
+  let userView = false
+  controls.addEventListener("start", () => {
+    userView = true
+  })
+  const resetView = () => {
+    userView = false
+    fit()
+    controls.target.copy(target)
+  }
+  canvas.addEventListener("dblclick", resetView)
+  disposables.push(controls, { dispose: () => canvas.removeEventListener("dblclick", resetView) })
 
   let raf = 0
   let prev = now()
@@ -692,13 +753,14 @@ export function createMarbleScene(
     uniforms.uTime.value = t
     uniforms.uSpawned.value = spawned
     const lift = Math.min(1, Math.max(0, (t - openedAt) / 0.35))
-    bar.position.y = L.gateY + lift * 0.32
+    bar.position.x = hop.x + lift * 0.3
     bar.visible = lift < 1
     barMat.emissiveIntensity = openedAt > t ? 0.35 + 0.3 * Math.sin(t * 3) : 0.5
-    const sway = reducedMotion ? 0 : Math.sin(t * 0.12) * 0.05
-    const d = dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), sway)
-    camera.position.copy(target).addScaledVector(d, dist)
-    camera.lookAt(target)
+    if (!userView) {
+      place(reducedMotion ? 0 : Math.sin(t * 0.12) * 0.04)
+      controls.target.copy(target)
+    }
+    controls.update()
     if (t - lastScreen > 0.05) {
       lastScreen = t
       drawScreen(t)
@@ -723,11 +785,14 @@ export function createMarbleScene(
     open() {
       if (openedAt === Infinity) openedAt = now()
     },
-    resize(w, h) {
+    resize(w, h, next) {
+      if (next) Object.assign(inset, next)
       W = Math.max(1, w)
       H = Math.max(1, h)
       renderer.setSize(W, H, false)
-      fit()
+      camera.aspect = W / H
+      camera.updateProjectionMatrix()
+      if (!userView) fit()
     },
     stats() {
       const t = now()
