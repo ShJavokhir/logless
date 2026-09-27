@@ -50,7 +50,9 @@ def _ttl_s() -> float:
 
 
 def _desktop_idle_s() -> float:
-    return float(os.environ.get("REMOTE_DESKTOP_IDLE_S", "60"))
+    # Browsers throttle a tab hidden for 5+ minutes to about one timer per minute, so this must outlast two polls.
+    # Closing the tab ends the session at once (pagehide); this only catches crashes and sleep.
+    return float(os.environ.get("REMOTE_DESKTOP_IDLE_S", "150"))
 
 
 def _iso(ts: float) -> str:
