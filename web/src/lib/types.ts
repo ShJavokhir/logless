@@ -202,7 +202,7 @@ export type Attempt = {
 
 export type Run = {
   run_id: string
-  kind: "analysis" | "story" | "containment" | "intake"
+  kind: "analysis" | "story" | "prd" | "containment" | "intake"
   intent: AnalysisIntent | null
   snapshot_id: string
   state: RunState
@@ -235,6 +235,24 @@ export type Story = {
   model: string
   generated_at: string
 }
+
+export type Prd = {
+  cluster_id: string
+  snapshot_id: string
+  label: string
+  title: string
+  problem: string
+  user_stories: string[]
+  requirements: string[]
+  success_metrics: string[]
+  citations: string[]
+  metrics_used: { name: string; value: string }[]
+  priority: { level: "P0" | "P1" | "P2" | null; rank: number | null; of: number; basis: string }
+  model: string
+  generated_at: string
+}
+
+export type PrdResponse = { status: "ready"; prd: Prd } | { status: "pending"; run_id: string }
 
 export type StoryResponse = { status: "ready"; story: Story } | { status: "pending"; run_id: string }
 

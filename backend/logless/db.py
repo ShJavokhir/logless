@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS stories (
   created_at TEXT NOT NULL,
   PRIMARY KEY (snapshot_id, cluster_id)
 );
+CREATE TABLE IF NOT EXISTS prds (
+  snapshot_id TEXT NOT NULL,
+  cluster_id TEXT NOT NULL,
+  json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (snapshot_id, cluster_id)
+);
 CREATE TABLE IF NOT EXISTS eval_reports (
   snapshot_id TEXT PRIMARY KEY,
   json TEXT NOT NULL,

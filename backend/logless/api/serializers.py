@@ -401,6 +401,26 @@ def serialize_story(raw: dict) -> dict:
     return out
 
 
+def serialize_prd(raw: dict) -> dict:
+    pr = raw.get("priority") or {}
+    out = {"cluster_id": _id(raw["cluster_id"], LEAF_ID), "snapshot_id": _id(raw["snapshot_id"], SNAPSHOT_ID),
+           "label": _str(raw["label"], 300), "title": _str(raw["title"], 160), "problem": _str(raw["problem"], 1200),
+           "user_stories": [_str(s, 600) for s in (raw.get("user_stories") or [])[:4]],
+           "requirements": [_str(s, 600) for s in (raw.get("requirements") or [])[:5]],
+           "success_metrics": [_str(s, 600) for s in (raw.get("success_metrics") or [])[:4]],
+           "citations": [_id(c, EVIDENCE_ID) for c in raw.get("citations") or []],
+           "metrics_used": [{"name": _str(m["name"], 40), "value": _str(m["value"], 20)} for m in raw.get("metrics_used") or []],
+           "priority": {"level": pr.get("level") if pr.get("level") in ("P0", "P1", "P2") else None,
+                        "rank": int(pr["rank"]) if pr.get("rank") is not None else None, "of": int(pr.get("of") or 0),
+                        "basis": _str(pr.get("basis") or "", 200)},
+           "model": _str(raw["model"], 60), "generated_at": _str(raw["generated_at"], 40)}
+    models.Prd.model_validate(out)
+    flat = " ".join([out["title"], out["problem"], *out["user_stories"], *out["requirements"], *out["success_metrics"]])
+    if leakcheck.problems(flat):
+        raise Blocked("prd failed the leak check")
+    return out
+
+
 def serialize_eval(raw: dict) -> dict:
     out = {"snapshot_id": _id(raw["snapshot_id"], SNAPSHOT_ID), "generated_at": _str(raw["generated_at"], 40),
            "checks": [{"id": _str(c["id"], 60), "name": _str(c["name"], 160), "value": _str(str(c.get("value", "")), 200),

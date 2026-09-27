@@ -88,6 +88,7 @@ const STAGE_NAMES: Record<string, string> = {
   repairing: "Repairing",
   explaining: "Explaining",
   writing: "Writing story",
+  drafting: "Drafting PRD",
   checking: "Privacy check",
   runaway: "Runaway program",
   cleanup: "Cleanup",

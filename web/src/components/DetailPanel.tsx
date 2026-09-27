@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Bar, Dot, EvidenceTag, Hint, SectionLabel, SignalIcon, Stat } from "./common"
 import { StoryPanel } from "./StoryPanel"
+import { PrdPanel } from "./PrdPanel"
 import { KeyFinding } from "./KeyFinding"
 
 import { PEOPLE_HINT, fixtureCount, fixturesShort } from "@/lib/copy"
@@ -245,6 +246,7 @@ function LeafDetail({
         </ul>
       </section>
 
+      <PrdPanel index={index} leaf={leaf} onHoverCitation={setActiveEvidence} />
       <StoryPanel index={index} leaf={leaf} onHoverCitation={setActiveEvidence} />
     </article>
   )

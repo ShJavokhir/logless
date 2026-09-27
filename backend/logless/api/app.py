@@ -33,7 +33,7 @@ from ..sandbox import runs as runstore
 from ..sandbox.analysis import run_analysis
 from ..sandbox.client import RunnerClient
 from ..sandbox.containment import run_containment
-from . import models, search, serializers, stories
+from . import models, prds, search, serializers, stories
 from ..sandbox.plan import normalize_question, sanitize_question
 from .ratelimit import HourlyBudget, RateLimiter, presenter_limits
 
@@ -110,6 +110,7 @@ _active = 0
 _active_lock = threading.Lock()
 _start_lock = threading.RLock()  # a just-completed Future can invoke its callback during submission
 _story_inflight: dict[tuple[str, str], str] = {}
+_prd_inflight: dict[tuple[str, str], str] = {}
 _question_inflight: dict[tuple[str, str], str] = {}
 _runner: RunnerClient | None = None
 _health_cache: tuple[float, str] = (0.0, "unreachable")
@@ -264,6 +265,8 @@ def bucket_for(method: str, path: str) -> str:
             return "containment"
         if path.endswith("/story"):
             return "story"
+        if path.endswith("/prd"):
+            return "prd"
     return "default"
 
 
@@ -487,6 +490,35 @@ def create_app() -> FastAPI:
             _story_inflight[key] = run.id
             _submit(lambda: stories.run_story(run, snapshot_id=snap["snapshot_id"], node=node),
                     on_done=_release_later(_story_inflight, key, run.id), run=run)
+        return {"status": "pending", "run_id": run.id}
+
+    @app.post("/api/clusters/{cluster_id}/prd")
+    def api_prd(cluster_id: str, body: models.StoryIn, request: Request):
+        snap = _require_snapshot(body.snapshot_id)
+        node = next((n for n in snap["clusters"] if n["id"] == cluster_id), None)
+        if node is None:
+            raise ApiError(404, "not_found", "Unknown cluster.")
+        key = (snap["snapshot_id"], cluster_id)
+        hit = prds.cached(*key)
+        if hit is not None:
+            return {"status": "ready", "prd": serializers.serialize_prd(hit)}
+        with _start_lock:
+            # Re-check under the lock: a run may have finished and cached its PRD meanwhile.
+            hit = prds.cached(*key)
+            if hit is not None:
+                return {"status": "ready", "prd": serializers.serialize_prd(hit)}
+            rid = _prd_inflight.get(key)
+            if rid:
+                raw = runstore.load(rid)
+                if raw and raw["state"] not in runstore.TERMINAL:
+                    return {"status": "pending", "run_id": rid}
+            _capacity(request.state.presenter)
+            _spend("prd", request.state.presenter)
+            run = runstore.Run.create("prd", None, snap["snapshot_id"])
+            _prd_inflight[key] = run.id
+            clusters = snap["clusters"]
+            _submit(lambda: prds.run_prd(run, snapshot_id=snap["snapshot_id"], node=node, clusters=clusters),
+                    on_done=_release_later(_prd_inflight, key, run.id), run=run)
         return {"status": "pending", "run_id": run.id}
 
     @app.post("/api/demo/containment")

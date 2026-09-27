@@ -28,6 +28,8 @@ import type {
   StageStatus,
   Story,
   StoryResponse,
+  Prd,
+  PrdResponse,
   Verdict,
 } from "@/lib/types"
 import snapshotJson from "./snapshot.json"
@@ -498,6 +500,32 @@ export async function createMockApi(): Promise<Api> {
       runs.set(fresh.id, fresh)
       storyRuns.set(clusterId, fresh.id)
       return { status: "pending", run_id: fresh.id }
+    },
+
+    async requestPrd(clusterId, snapshotId): Promise<PrdResponse> {
+      await sleep(jitter(600, 1200))
+      if (budgetOut) throw budget()
+      const node = SNAPSHOT.clusters.find((c) => c.id === clusterId)
+      if (!node) throw new ApiError(404, "not_found", "Cluster not found.")
+      const need = node.needs?.[0]
+      const prob = node.problems?.[0]
+      const fs = `${((node.friction.share ?? 0) * 100).toFixed(1)}%`
+      const prd: Prd = {
+        cluster_id: clusterId,
+        snapshot_id: snapshotId,
+        label: "Draft PRD · mock data",
+        title: `Reduce friction in ${node.short_title ?? node.title}`,
+        problem: `${fs} of ${node.conversations.toLocaleString("en-US")} conversations show friction${prob ? ` [${prob.id}]` : ""}.`,
+        user_stories: [`As a user, I want ${need?.text.toLowerCase() ?? "a reliable answer"} so that I can finish my task${need ? ` [${need.id}]` : ""}.`],
+        requirements: [`Address the top problem first${prob ? ` [${prob.id}]` : ""}.`],
+        success_metrics: [`Friction share drops from ${fs}.`],
+        citations: [need?.id, prob?.id].filter((x): x is string => !!x),
+        metrics_used: [{ name: "friction_share", value: fs }],
+        priority: { level: "P1", rank: 6, of: 30, basis: "Mock priority." },
+        model: "glm-5.3",
+        generated_at: new Date().toISOString(),
+      }
+      return { status: "ready", prd }
     },
 
     async startContainment() {

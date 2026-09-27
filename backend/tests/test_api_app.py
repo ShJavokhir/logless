@@ -63,6 +63,21 @@ Q_PLAN = {"group_by": "category", "scope_category_id": None, "measure": "people"
           "rank_by": "count", "limit": 3}
 
 
+PRD = {
+    "title": "Live prices and faster itinerary revisions",
+    "problem": "People plan trips with the assistant but cannot trust prices or availability [p1], and itineraries take "
+               "several rounds of edits [p2]. {friction_share} of {conversations} conversations show friction.",
+    "user_stories": ["As a trip planner, I want a shareable itinerary draft so that my group can agree quickly [n1].",
+                     "As a budget-conscious traveller, I want options compared within my budget so that I can decide "
+                     "without checking elsewhere [n2] [p1]."],
+    "requirements": ["Label every price as an estimate and link the user to a live source [p1].",
+                     "Keep the itinerary as editable structured state between turns [p2].",
+                     "Offer budget comparison as a table [n2]."],
+    "success_metrics": ["Repeated requests fall below today's {repeat_request}.",
+                        "Friction share drops from {friction_share}."],
+}
+
+
 def fake_chat_json(system, user, schema, **kw):
     if schema.__name__ == "Interpretation":
         if "divorce" in user:
@@ -70,6 +85,8 @@ def fake_chat_json(system, user, schema, **kw):
         return schema.model_validate({"plan": Q_PLAN}), {"model": "glm-5.3"}
     if schema.__name__ == "_StoryOut":
         return schema(first_name="Maya", text=STORY, citations=["n1", "n2", "p1", "p2"]), {"model": "glm-5.3"}
+    if schema.__name__ == "_PrdOut":
+        return schema.model_validate(PRD), {"model": "glm-5.3"}
     return schema(text="{{rows.0.id}} leads with {{rows.0.count}} of {{rows.0.base}}."), {"model": "glm-5.3"}
 
 
@@ -138,6 +155,23 @@ def test_story_flow(client):
     assert r["status"] == "ready" and r["story"]["first_name"] == "Maya" and r["story"]["citations"] == ["n1", "n2", "p1", "p2"]
     assert r["story"]["label"].startswith("Fictional user story.")
     assert client.post("/api/clusters/cl_zzzzzz/story", json={"snapshot_id": snap["snapshot_id"]}).status_code == 404
+
+
+def test_prd_flow(client):
+    snap = client.get("/api/snapshot").json()
+    leaf = next(n for n in snap["clusters"] if n["title"] == "Planning trips and events")
+    r = client.post(f"/api/clusters/{leaf['id']}/prd", json={"snapshot_id": snap["snapshot_id"]}).json()
+    assert r["status"] == "pending"
+    d = wait(client, r["run_id"])
+    assert d["state"] == "completed" and d["kind"] == "prd" and [s["name"] for s in d["stages"]] == ["drafting", "checking"]
+    r = client.post(f"/api/clusters/{leaf['id']}/prd", json={"snapshot_id": snap["snapshot_id"]}).json()
+    assert r["status"] == "ready"
+    prd = r["prd"]
+    assert "{" not in prd["problem"] and f"{leaf['conversations']:,}" in prd["problem"]
+    assert prd["citations"] == ["p1", "p2", "n1", "n2"]
+    assert {m["name"] for m in prd["metrics_used"]} == {"friction_share", "conversations", "repeat_request"}
+    assert prd["priority"]["level"] in ("P0", "P1", "P2") and prd["priority"]["rank"] >= 1
+    assert client.post("/api/clusters/cl_zzzzzz/prd", json={"snapshot_id": snap["snapshot_id"]}).status_code == 404
 
 
 def test_search(client, monkeypatch):

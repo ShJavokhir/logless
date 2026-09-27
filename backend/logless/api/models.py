@@ -261,7 +261,7 @@ class Error(_Out):
 
 class Run(_Out):
     run_id: str
-    kind: Literal["analysis", "story", "containment", "intake"]
+    kind: Literal["analysis", "story", "prd", "containment", "intake"]
     intent: Literal["question"] | None
     snapshot_id: str
     state: Literal["queued", "planning", "executing", "validating", "repairing", "explaining", "completed", "failed"]
@@ -289,6 +289,34 @@ class Story(_Out):
     first_name: str
     text: str
     citations: list[str]
+    model: str
+    generated_at: str
+
+
+class PrdPriority(_Out):
+    level: Literal["P0", "P1", "P2"] | None
+    rank: int | None
+    of: int
+    basis: str
+
+
+class PrdMetric(_Out):
+    name: str
+    value: str
+
+
+class Prd(_Out):
+    cluster_id: str
+    snapshot_id: str
+    label: str
+    title: str
+    problem: str
+    user_stories: list[str]
+    requirements: list[str]
+    success_metrics: list[str]
+    citations: list[str]
+    metrics_used: list[PrdMetric]
+    priority: PrdPriority
     model: str
     generated_at: str
 
