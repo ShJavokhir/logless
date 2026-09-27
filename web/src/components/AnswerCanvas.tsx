@@ -144,7 +144,7 @@ export function AnswerCanvas({ run, result, index, ranking, open }: Content & { 
           <input id={`canvas-${run.run_id}`} value={instruction} onChange={(e) => setInstruction(e.target.value)} maxLength={200} disabled={busy} placeholder="Change this view: put the signals first…" className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-brand/50 disabled:opacity-60" />
           <Button type="submit" size="sm" disabled={busy || !instruction.trim()}>Update</Button>
         </form>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">Changes the presentation of this answer. Use Ask another for a new topic or measure. Counts remain tied to the checked result; supporting patterns come from the published snapshot.</p>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">Changes the presentation of this answer. Ask a new question for a new topic or measure. Counts remain tied to the checked result; supporting patterns come from the published snapshot.</p>
       </div>
     </div>
   </ContentContext>

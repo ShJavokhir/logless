@@ -46,7 +46,7 @@ export function useCanvas(runId: string, snapshotId: string) {
       const value = await compose({ run_id: runId, snapshot_id: snapshotId, instruction, previous: current?.selected ?? [] })
       if (seq !== sequence.current) return
       if (value.status === "needs_analysis") {
-        setNotice("That changes the analysis. Use Ask another to ask a complete question; this view still shows the current answer.")
+        setNotice("That changes the analysis. Ask a new, complete question; this view still shows the current answer.")
       } else if (value.status === "fallback") {
         setNotice("Jev could not update the view. Your previous view is still shown. Try again.")
       } else {

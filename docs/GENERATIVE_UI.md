@@ -9,7 +9,7 @@ For example: “Show cards”, “Put the signals first”, or “Show only rank
 **Previous view** restores the preceding composition without a provider call.
 Up to ten versions remain available while the answer is open.
 
-Use **Ask another** for a new analytical question. This release does not add
+Use the main Loggy composer (or **Ask another** in Explore) for a new analytical question. This release does not add
 multi-turn analytical context, new topic groupings, time comparisons, or new
 capability measurements. The existing analysis planner still defines which
 questions can be answered. A needs board shows published evidence to investigate;
@@ -25,12 +25,12 @@ pnpm install --frozen-lockfile
 VITE_MOCK=1 pnpm dev
 ```
 
-Open `http://localhost:5173/#/explore`.
+Open `http://localhost:5173/#/loggy`. The canvas also works in `#/explore`.
 
-1. Select **Ask a question**.
+1. Select the **Loggy** tab.
 2. Ask “Which coding workflows have the most distinct people repeating requests?”
 3. Wait for the answer and its canvas.
-4. Select **Show cards**, then open a workflow card. Its detail should open on the map.
+4. Select **Show cards**, then open a workflow card. Its published detail should open in a dialog (on the map in Explore).
 5. Select **Compare friction**. Check the plot and each workflow's signal counts.
 6. Select **Explore needs**. Check the published needs and recurring problems.
 7. Enter “Show only ranked bars” in **Change this view**.
