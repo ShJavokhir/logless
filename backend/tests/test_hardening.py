@@ -99,10 +99,15 @@ def test_containment_flags_only_from_evidence(tmp_data):
     from programs import job, run_locally
     from qhelpers import df_for, files_for, inputs_for, published_nodes
 
+    import json
+
     df = df_for(11)
     inp = inputs_for(df)
     _, followup_out, _ = run_locally(task_source("followup.py"), files_for(df, FIXED_PLAN))
     _, leak_out, _ = run_locally(task_source("leak_attempt.py"), files_for(df, FIXED_PLAN))
+    # the destructive fixture's own report, as observed inside a read-only container
+    destructive_report = json.dumps({"command": "rm -rf --no-preserve-root /", "ran": True, "rm_exit_code": 1,
+                                     "refused": 11089, "root_writable": False, "python_present": True})
 
     class Scripted:
         def __init__(self, results):
@@ -118,23 +123,55 @@ def test_containment_flags_only_from_evidence(tmp_data):
         return load(run.id)
 
     killed = job(state="timed_out", error="timeout", timed_out=True, elapsed=2050, exit_code=137)
-    d = go([killed, job(output=followup_out), job(output=leak_out)])
+    destructive = job(output=destructive_report)   # the fixture exits 0 after recording rm's exit code 1
+    d = go([killed, destructive, job(output=followup_out), job(output=leak_out)])
     assert d["state"] == "completed", d["error"]
+    assert [s["name"] for s in d["stages"]] == ["runaway", "cleanup", "health", "destructive", "followup", "leak_attempt"]
+    dd = d["containment"]["destructive"]
+    assert dd == {"command": "rm -rf --no-preserve-root /", "exit_code": 1, "refused": 11089, "container_removed": True,
+                  "root_read_only": True, "binaries_intact": True, "next_run_clean": True, "contained": True}
     assert d["containment"]["followup_passed"] and d["containment"]["leak_attempt_rejected"]
     assert d["containment"]["leak_rejection_checks"] == ["Only allowlisted field names", "Schema matches exactly"]
 
+    # the destructive report is untrusted: even a lying "all fine" report can't make it contained
+    # if the outside evidence is missing (container not removed).
+    not_removed = job(output=json.dumps({"command": "rm -rf --no-preserve-root /", "ran": True, "rm_exit_code": 0,
+                                        "refused": 0, "root_writable": False, "python_present": True}))
+    not_removed.raw["container_removed"] = False
+    d = go([killed, not_removed, job(output=followup_out), job(output=leak_out)])
+    assert d["state"] == "failed" and d["error"]["code"] == "containment_check_failed"
+    assert d["containment"]["destructive"]["contained"] is False
+    assert d["containment"]["destructive"]["container_removed"] is False
+    assert "destructive" in d["error"]["message"]
+
+    # the fixture refused to run (not inside the gVisor sandbox): never reported as absorbed
+    refused_to_run = job(output=json.dumps({"command": "rm -rf --no-preserve-root /", "ran": False}))
+    d = go([killed, refused_to_run, job(output=followup_out), job(output=leak_out)])
+    assert d["state"] == "failed" and d["error"]["code"] == "containment_check_failed"
+    dd = d["containment"]["destructive"]
+    assert dd["contained"] is False and dd["exit_code"] is None and dd["refused"] is None
+    assert dd["root_read_only"] is None and dd["binaries_intact"] is None
+    assert next(s for s in d["stages"] if s["name"] == "destructive")["detail"].startswith("the fixture refused to run")
+
+    # ill-typed inside report values are dropped, not trusted
+    odd = job(output=json.dumps({"command": "rm -rf --no-preserve-root /", "ran": True, "rm_exit_code": True,
+                                 "refused": -3, "root_writable": False, "python_present": True}))
+    d = go([killed, odd, job(output=followup_out), job(output=leak_out)])
+    assert d["containment"]["destructive"]["exit_code"] is None and d["containment"]["destructive"]["refused"] is None
+
     # leak fixture times out: the gate never saw output, so it was NOT a rejection
-    d = go([killed, job(output=followup_out), job(state="timed_out", error="timeout", timed_out=True, elapsed=10040)])
+    d = go([killed, destructive, job(output=followup_out), job(state="timed_out", error="timeout", timed_out=True, elapsed=10040)])
     assert d["state"] == "failed" and d["error"]["code"] == "leak_fixture_failed"
     assert d["containment"]["leak_attempt_rejected"] is False and d["containment"]["leak_rejection_checks"] == []
-    assert d["containment"]["killed"] is True and d["containment"]["followup_passed"] is True
+    assert d["containment"]["killed"] is True and d["containment"]["destructive"]["contained"] is True
 
     # runaway finished on its own, follow-up failed, health degraded: flags false, run failed
-    d = go([job(state="failed", error="nonzero_exit"), job(state="failed", error="nonzero_exit"), job(output=leak_out)],
+    d = go([job(state="failed", error="nonzero_exit"), destructive, job(state="failed", error="nonzero_exit"), job(output=leak_out)],
            health="degraded")
     c = d["containment"]
     assert d["state"] == "failed" and d["error"]["code"] == "containment_check_failed"
     assert c["killed"] is False and c["app_health"] == "degraded" and c["followup_passed"] is False
+    assert c["destructive"]["next_run_clean"] is False and c["destructive"]["contained"] is False
     assert c["leak_attempt_rejected"] is True   # this one was a real gate rejection
     assert "not killed" in d["error"]["message"] and "follow-up" in d["error"]["message"]
 

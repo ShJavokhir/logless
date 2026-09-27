@@ -262,12 +262,63 @@ def _explanation(e: dict | None) -> dict | None:
             "metric_refs": [x for x in e.get("metric_refs") or [] if isinstance(x, str) and PLACEHOLDER_KEY.match(x)][:20]}
 
 
+DESTRUCTIVE_COMMANDS = {"rm -rf --no-preserve-root /"}   # fixed vocabulary; never an arbitrary string
+
+
+def _tribool(v) -> bool | None:
+    return v if isinstance(v, bool) else None
+
+
+def _destructive(d: dict | None) -> dict | None:
+    if not d:
+        return None
+    ec = d.get("exit_code")
+    if ec is not None and (isinstance(ec, bool) or not isinstance(ec, int) or not -512 <= ec <= 512):
+        raise Blocked("bad exit code")
+    refused = d.get("refused")
+    if refused is not None and (isinstance(refused, bool) or not isinstance(refused, int) or not 0 <= refused <= 1_000_000):
+        raise Blocked("bad refused count")
+    cmd = d.get("command")
+    if cmd not in DESTRUCTIVE_COMMANDS:
+        raise Blocked("bad destructive command")
+    return {"command": cmd, "exit_code": ec, "refused": refused, "container_removed": bool(d["container_removed"]),
+            "root_read_only": _tribool(d.get("root_read_only")), "binaries_intact": _tribool(d.get("binaries_intact")),
+            "next_run_clean": bool(d["next_run_clean"]), "contained": bool(d["contained"])}
+
+
+def _opt_share(v) -> float | None:
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise Blocked("bad share")
+    f = float(v)
+    if not (f == f and -0.0001 <= f <= 1.0001):   # finite and within [0,1]
+        raise Blocked("bad share")
+    return round(f, 4)
+
+
+def _intake(k: dict | None) -> dict | None:
+    """Intake summary (§11), set only on a completed intake run. Ids and shares are checked like
+    every other browser payload; deltas are capped at 8."""
+    if not k:
+        return None
+    deltas = [{"id": _node_id(d["id"]), "conversations_before": _int(d["conversations_before"]),
+               "conversations_after": _int(d["conversations_after"]),
+               "friction_share_before": _opt_share(d.get("friction_share_before")),
+               "friction_share_after": _opt_share(d.get("friction_share_after"))}
+              for d in (k.get("deltas") or [])][:8]
+    return {"batch_size": _int(k["batch_size"]), "decided": _int(k["decided"]), "other": _int(k["other"]),
+            "published_snapshot_id": _id(k["published_snapshot_id"], SNAPSHOT_ID),
+            "base_snapshot_id": _id(k["base_snapshot_id"], SNAPSHOT_ID), "deltas": deltas}
+
+
 def _containment(c: dict | None) -> dict | None:
     if not c:
         return None
     return {"deadline_ms": _int(c["deadline_ms"]), "elapsed_ms": _int(c["elapsed_ms"]), "killed": bool(c["killed"]),
             "container_removed": bool(c["container_removed"]),
             "app_health": "ok" if c.get("app_health") == "ok" else "degraded",
+            "destructive": _destructive(c.get("destructive")),
             "followup_passed": bool(c["followup_passed"]), "leak_attempt_rejected": bool(c["leak_attempt_rejected"]),
             "leak_rejection_checks": [_str(x, 80) for x in c.get("leak_rejection_checks") or []][:20]}
 
@@ -292,6 +343,7 @@ def serialize_run(raw: dict) -> dict:
         "question": None if raw.get("question") is None else sanitize_question(_str(raw["question"], 200)),
         "plan": _plan(raw.get("plan")),
         "attempts_log": _attempts_log(raw.get("attempts_log")),
+        "intake": _intake(raw.get("intake")),
     }
     models.Run.model_validate(out)
     return out

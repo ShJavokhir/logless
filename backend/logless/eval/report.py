@@ -404,17 +404,24 @@ def sandbox_checks(snapshot_id: str) -> list[dict]:
     out = []
     row = con.execute("SELECT json FROM runs WHERE kind = 'containment' AND snapshot_id = ? ORDER BY updated_at DESC LIMIT 1",
                       (snapshot_id,)).fetchone()
-    target = "killed at deadline, container removed, app healthy"
+    target = "runaway killed & removed, destructive command contained, app healthy, leak rejected"
     if row is None:
         out.append(check("containment", "Containment demo", NOT_VERIFIED, target, False,
                          "no containment run recorded for this snapshot yet"))
     else:
         r = json.loads(row["json"])
         c = r.get("containment") or {}
-        ok = r.get("state") == "completed" and c.get("killed") and c.get("container_removed") and c.get("app_health") == "ok"
+        d = c.get("destructive") or {}
+        # A destructive-command run may predate this beat; require containment only when present.
+        destructive_ok = "destructive" not in c or c.get("destructive") is None or bool(d.get("contained"))
+        ok = (r.get("state") == "completed" and c.get("killed") and c.get("container_removed")
+              and c.get("app_health") == "ok" and destructive_ok)
+        dtxt = (f"destructive ({d.get('command')}) contained {d.get('contained')} "
+                f"(exit {d.get('exit_code')}, container removed {d.get('container_removed')}, next run clean "
+                f"{d.get('next_run_clean')}), " if d else "")
         out.append(check("containment", "Containment demo", r.get("state", "?"), target, bool(ok),
                          f"killed {c.get('killed')}, container removed {c.get('container_removed')}, app health "
-                         f"{c.get('app_health')}, follow-up passed {c.get('followup_passed')}, leak attempt rejected "
+                         f"{c.get('app_health')}, {dtxt}follow-up passed {c.get('followup_passed')}, leak attempt rejected "
                          f"{c.get('leak_attempt_rejected')}."))
     runs = [json.loads(r["json"]) for r in con.execute(
         "SELECT json FROM runs WHERE kind = 'analysis' AND intent = 'question' AND snapshot_id = ?", (snapshot_id,))]

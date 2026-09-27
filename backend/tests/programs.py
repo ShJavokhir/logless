@@ -88,6 +88,12 @@ class LocalRunner:
         self.calls.append({"kind": kind, "code": code, "files": files, "timeout_s": timeout_s})
         if "while True" in code:
             return job(state="timed_out", error="timeout", timed_out=True, elapsed=int(timeout_s * 1000) + 60, exit_code=137)
+        if "no-preserve-root" in code:
+            # NEVER run the destructive fixture on the test host: it targets "/", not a temp dir.
+            # In the real sandbox the read-only root absorbs it; here, stand in for that outcome.
+            import json as _json
+            return job(output=_json.dumps({"command": "rm -rf --no-preserve-root /", "ran": True, "rm_exit_code": 1,
+                                          "refused": 11089, "root_writable": False, "python_present": True}))
         rc, out, err = run_locally(code, files)
         if rc != 0:
             return job(state="failed", error="nonzero_exit", stderr=err, exit_code=rc)

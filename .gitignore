@@ -23,3 +23,6 @@ demo/*.mp4
 demo/frame-*.png
 demo/out/
 vultr-agent-arena-research-*.zip
+
+# local Claude Code launch configs
+.claude/

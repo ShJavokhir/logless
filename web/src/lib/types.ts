@@ -156,7 +156,21 @@ export type GateCheck = { name: string; passed: boolean; detail: string }
 
 export type Verdict = { passed: boolean; checks: GateCheck[] }
 
+/** The destructive command the containment check runs in a fresh sandbox. */
+export type DestructiveResult = {
+  command: string // "rm -rf --no-preserve-root /"
+  exit_code: number | null // rm's own exit code, reported from inside the sandbox
+  refused?: number | null // removals rm reported as refused (a count; the error text never leaves)
+  container_removed: boolean
+  root_read_only: boolean | null // reported from inside the sandbox
+  binaries_intact: boolean | null // reported from inside the sandbox
+  next_run_clean: boolean
+  contained: boolean
+}
+
 export type Containment = {
+  /** §6: runaway → cleanup → health → destructive → followup → leak_attempt */
+  destructive?: DestructiveResult | null
   deadline_ms: number
   elapsed_ms: number
   killed: boolean

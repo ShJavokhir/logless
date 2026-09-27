@@ -6,6 +6,7 @@ import { api, describeError } from "@/lib/api"
 import type { Receipt, Run, RunStage, Snapshot } from "@/lib/types"
 import { durationMs, fmtBytes, fmtClock, fmtDuration, fmtInt, fmtMs } from "@/lib/format"
 import { stageLabel } from "@/lib/runs"
+import { destructiveView, type CheckState, type DestructiveView } from "@/lib/containment"
 import { tokenLines } from "@/lib/highlight"
 import { modelLabel } from "@/lib/snapshot"
 import { useRun } from "@/hooks/useRun"
@@ -470,7 +471,8 @@ function Containment() {
             Containment check
           </h3>
           <p className="mt-0.5 text-[12.5px] leading-snug text-muted-foreground">
-            Submits a program that never stops, then one that tries to export per-person rows. The sandbox must kill the first at its deadline; the gate must reject the second.
+            Submits a runaway program, a destructive <code className="rounded bg-muted px-1 font-mono text-[11.5px] text-foreground">rm -rf /</code>, and a program that tries to
+            export per-person rows. The sandbox must kill the first at its deadline and absorb the second; the gate must reject the third.
           </p>
         </div>
         <Button variant={run ? "outline" : "default"} size="sm" onClick={() => void start()} disabled={starting || active}>
@@ -522,14 +524,18 @@ function ContainmentProgress({ run }: { run: Run }) {
     const st = stage(name)?.status
     return st === "done" ? true : st === "failed" ? false : st === "running" ? "wait" : "pending"
   }
+  const destructiveStage = stage("destructive")
+  const dview = destructiveView(c?.destructive, destructiveStage?.status)
+  // shown once its stage has started, or whenever the final object carries it
+  const destructiveVisible = !!c?.destructive || (!!destructiveStage && destructiveStage.status !== "pending")
   const leak = stage("leak_attempt")
   const leakVisible = !!c || (!!leak && leak.status !== "pending")
   const leakRunning = !c && leak?.status === "running"
 
   return (
-    <div className="mt-4 flex flex-col gap-3" aria-live="polite">
+    <div className="mt-3 flex flex-col gap-2.5" aria-live="polite">
       {/* phase 1: runaway */}
-      <div className={cn("rounded-lg border bg-card p-3.5", killed && "border-foreground/15")}>
+      <div className={cn("rounded-lg border bg-card px-3.5 py-3", killed && "border-foreground/15")}>
         {!killed ? (
           <>
             <div className="flex items-center justify-between text-[13px]">
@@ -550,9 +556,9 @@ function ContainmentProgress({ run }: { run: Run }) {
             <div className="flex items-start gap-2.5">
               <OctagonX aria-hidden className="mt-0.5 size-5 shrink-0 text-destructive" />
               <div className="min-w-0">
-                <div className="text-[16px] leading-tight font-semibold">Execution limit reached · sandbox terminated</div>
-                <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono tabular-nums">
-                  <span className="text-[26px] leading-none font-semibold tracking-tight">{measured !== null ? fmtInt(measured) : "—"} ms</span>
+                <div className="text-[15px] leading-tight font-semibold">Execution limit reached · sandbox terminated</div>
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono tabular-nums">
+                  <span className="text-[22px] leading-none font-semibold tracking-tight">{measured !== null ? fmtInt(measured) : "—"} ms</span>
                   <span className="text-[12.5px] text-muted-foreground">
                     measured vs {fmtInt(deadline)} ms deadline
                     {measured !== null ? ` · +${fmtInt(Math.max(0, measured - deadline))} ms to kill` : ""}
@@ -560,7 +566,7 @@ function ContainmentProgress({ run }: { run: Run }) {
                 </div>
               </div>
             </div>
-            <ul className="mt-3 grid gap-1.5 text-[13px] sm:grid-cols-3">
+            <ul className="mt-2.5 grid gap-1.5 text-[12.5px] sm:grid-cols-3">
               <CheckItem label="Container removed" state={phaseState("cleanup", c?.container_removed)} />
               <CheckItem label="App health ok" state={phaseState("health", c ? c.app_health === "ok" : undefined)} />
               <CheckItem label="Follow-up run passed" state={phaseState("followup", c?.followup_passed)} />
@@ -569,9 +575,12 @@ function ContainmentProgress({ run }: { run: Run }) {
         )}
       </div>
 
-      {/* phase 2: leak attempt */}
+      {/* phase 2: destructive command */}
+      {destructiveVisible ? <DestructiveCard view={dview} /> : null}
+
+      {/* phase 3: leak attempt */}
       {leakVisible ? (
-        <div className="rounded-lg border bg-card p-3.5">
+        <div className="rounded-lg border bg-card px-3.5 py-3">
           {leakRunning || (!c && leak?.status !== "done") ? (
             <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
               <LoaderCircle aria-hidden className="size-4 animate-spin text-brand" />
@@ -585,25 +594,29 @@ function ContainmentProgress({ run }: { run: Run }) {
                 ) : (
                   <ShieldCheck aria-hidden className="size-5 shrink-0 text-ok" />
                 )}
-                <div className="text-[15px] leading-tight font-semibold">
+                <div className="text-[14.5px] leading-tight font-semibold">
                   {c?.leak_attempt_rejected === false ? "Leak attempt was NOT rejected" : "Leak attempt rejected by the gate"}
                 </div>
               </div>
               {c?.leak_rejection_checks.length ? (
-                <ul className="mt-2.5 flex flex-col gap-1 pl-7.5">
+                <ul className="mt-2 flex flex-col gap-0.5 pl-7.5">
                   {c.leak_rejection_checks.map((chk) => {
                     const detail = run.verdict?.checks.find((v) => v.name === chk && !v.passed)?.detail
                     return (
                       <li key={chk} className="grid grid-cols-[0.875rem_1fr] gap-x-2 text-[12.5px]">
                         <X aria-hidden className="mt-0.5 size-3.5 text-destructive" />
                         <span className="font-medium">{chk}</span>
-                        {detail ? <span className="col-start-2 font-mono text-[11.5px] break-words text-muted-foreground">{detail}</span> : null}
+                        {detail ? (
+                          <span className="col-start-2 truncate font-mono text-[11px] text-muted-foreground" title={detail}>
+                            {detail}
+                          </span>
+                        ) : null}
                       </li>
                     )
                   })}
                 </ul>
               ) : null}
-              <p className="mt-2 pl-7.5 text-[12px] text-muted-foreground">Nothing from that program's output left the sandbox host.</p>
+              <p className="mt-1.5 pl-7.5 text-[11.5px] text-muted-foreground">The gate rejected it on the app VM, so none of that program's output reached the browser.</p>
             </>
           )}
         </div>
@@ -623,6 +636,55 @@ function ContainmentProgress({ run }: { run: Run }) {
       ) : null}
     </div>
   )
+}
+
+function DestructiveCard({ view }: { view: DestructiveView }) {
+  const running = view.headline === "running" || view.headline === "pending"
+  const failed = view.headline === "not_contained"
+  return (
+    <div className={cn("rounded-lg border bg-card px-3.5 py-3", failed && "border-destructive/30")}>
+      <div className="flex items-center gap-2.5">
+        {running ? (
+          <LoaderCircle aria-hidden className="size-5 shrink-0 animate-spin text-brand" />
+        ) : failed ? (
+          <CircleX aria-hidden className="size-5 shrink-0 text-destructive" />
+        ) : (
+          <ShieldCheck aria-hidden className="size-5 shrink-0 text-ok" />
+        )}
+        <div className="min-w-0 flex-1 text-[14.5px] leading-tight font-semibold">
+          {running ? "Running a destructive command…" : failed ? "Destructive command NOT contained" : "Destructive command absorbed"}
+        </div>
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-7.5">
+        <code className="inline-block rounded-md bg-foreground px-2 py-0.5 font-mono text-[12px] text-background">$ {view.command}</code>
+        {view.exitCode !== null ? (
+          <span className="font-mono text-[11px] text-muted-foreground">
+            exit {view.exitCode}
+            {view.refused !== null ? ` · ${view.refused.toLocaleString("en-US")} deletions refused` : ""}
+          </span>
+        ) : null}
+      </div>
+      <ul className="mt-2 flex flex-col gap-1 pl-7.5 text-[12.5px]">
+        {view.checks.map((c) => (
+          <li key={c.key} className="flex items-baseline gap-1.5">
+            <span className="self-center">
+              <CheckGlyph state={c.state} />
+            </span>
+            <span className={cn(c.state === "pending" && "text-subtle")}>{c.label}</span>
+            {c.note ? <span className="text-[11px] text-subtle italic">{c.note}</span> : null}
+            {c.state === null ? <span className="text-[11px] text-subtle">· not reported</span> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function CheckGlyph({ state }: { state: CheckState }) {
+  if (state === true) return <CircleCheck aria-label="ok" className="size-4 text-ok" />
+  if (state === false) return <CircleX aria-label="failed" className="size-4 text-destructive" />
+  if (state === "wait") return <LoaderCircle aria-label="checking" className="size-4 animate-spin text-brand" />
+  return <span className="block size-4 rounded-full border border-dashed border-subtle/70" aria-label={state === null ? "not reported" : "pending"} />
 }
 
 function CheckItem({ label, state }: { label: string; state: boolean | "wait" | "pending" }) {

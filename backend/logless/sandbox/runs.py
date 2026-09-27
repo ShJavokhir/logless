@@ -18,7 +18,7 @@ TERMINAL = {"completed", "failed"}
 STAGES: dict[str, list[str]] = {
     "analysis": ["planning", "executing", "validating", "explaining"],
     "story": ["writing", "checking"],
-    "containment": ["runaway", "cleanup", "health", "followup", "leak_attempt"],
+    "containment": ["runaway", "cleanup", "health", "destructive", "followup", "leak_attempt"],
 }
 _lock = threading.Lock()
 

@@ -118,10 +118,12 @@ def test_containment_endpoint(client):
     rid = client.post("/api/demo/containment", json={}).json()["run_id"]
     d = wait(client, rid)
     assert d["state"] == "completed"
-    assert [s["name"] for s in d["stages"]] == ["runaway", "cleanup", "health", "followup", "leak_attempt"]
+    assert [s["name"] for s in d["stages"]] == ["runaway", "cleanup", "health", "destructive", "followup", "leak_attempt"]
     c = d["containment"]
     assert c["killed"] and c["container_removed"] and c["app_health"] == "ok" and c["followup_passed"]
     assert c["leak_attempt_rejected"] and "Only allowlisted field names" in c["leak_rejection_checks"]
+    assert c["destructive"] == {"command": "rm -rf --no-preserve-root /", "exit_code": 1, "refused": 11089, "container_removed": True,
+                                "root_read_only": True, "binaries_intact": True, "next_run_clean": True, "contained": True}
     assert client.post("/api/demo/containment", json={"code": "import os"}).status_code == 422
 
 

@@ -29,7 +29,7 @@ Track 1 asks for "containment-first" execution: **process isolation, secret hygi
 
 | Attack | Outcome | Container removed |
 |---|---|---|
-| `rm -rf --no-preserve-root /` | Nothing deleted. The root filesystem is read-only (`can_write_root: false`), the program isn't root, and the Python binary was still present. | yes |
+| `rm -rf --no-preserve-root /` | Nothing deleted. `rm` exits 1 after about 11,000 refused removals: the root filesystem is read-only (`can_write_root: false`), the program isn't root, and the Python binary was still present. This also runs in the product's containment check (below). | yes |
 | Fork bomb | Refused by the 64-process limit; the job failed in 1.6 s. | yes |
 | Memory bomb (2 GiB) | Killed at the 512 MiB cap (exit 137). | yes |
 | Disk fill | `/tmp` filled at 64 MiB, then `OSError`. | yes |
@@ -37,6 +37,7 @@ Track 1 asks for "containment-first" execution: **process isolation, secret hygi
 | Secret hunting | The environment holds only the Python image defaults. `GPG_KEY` is the public Python release-signing key ID, not a secret. There are no secret files and no Docker socket, and PID 1's environment matches. | yes |
 | Host escape probes | The kernel is `4.19.0-gvisor` (gVisor's user-space kernel), running as uid 10001 with `CapEff 0000000000000000`. `setuid(0)`, `mount`, `/proc/sysrq-trigger`, and writing to the read-only `/in` were all denied. | yes |
 | Runaway loop (in the product) | Killed at its 2,000 ms deadline, at about 2.1 s measured. The app stays healthy and a follow-up run passes. | yes |
+| `rm -rf /` (in the product) | A fixed fixture runs it in a fresh container: `rm` exits 1 with about 11,000 removals refused, the container is removed, and the next run from the same pinned image passes. The fixture refuses to run anywhere but inside the gVisor sandbox, so it can't damage a developer machine. | yes |
 | Per-person leak attempt (in the product) | Rejected by the egress gate ("Only allowlisted field names", "Schema matches exactly"). | yes |
 
 The runner reported healthy after the battery.

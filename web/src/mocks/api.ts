@@ -371,8 +371,9 @@ export async function createMockApi(): Promise<Api> {
       { name: "runaway", state: "executing", start: 150, end: 150 + elapsed + 60, detail: "Busy-loop program running · deadline 2,000 ms", doneDetail: `Deadline reached · killed at ${elapsed.toLocaleString("en-US")} ms`, outcome: "failed", execution: 1 },
       { name: "cleanup", state: "executing", start: 150 + elapsed + 60, end: 150 + elapsed + 420, detail: "Supervisor removing the container", doneDetail: "Container removed · no orphans with the job label" },
       { name: "health", state: "validating", start: 150 + elapsed + 420, end: 150 + elapsed + 700, detail: "Checking app and runner health", doneDetail: "App health ok · runner accepting jobs" },
-      { name: "followup", state: "validating", start: 150 + elapsed + 700, end: 150 + elapsed + 1850, detail: "Running a normal job in a fresh sandbox", doneDetail: "exit 0 · gate passed 16/16 checks" },
-      { name: "leak_attempt", state: "validating", start: 150 + elapsed + 1850, end: 150 + elapsed + 2900, detail: "A program tries to export one row per person", doneDetail: "gate rejected the per-user rows: Only allowlisted field names, Schema matches exactly", outcome: "done" },
+      { name: "destructive", state: "executing", start: 150 + elapsed + 700, end: 150 + elapsed + 1900, detail: "Running rm -rf --no-preserve-root / in a fresh sandbox", doneDetail: "exit 1 · read-only root, binaries intact · container removed · next run clean" },
+      { name: "followup", state: "validating", start: 150 + elapsed + 1900, end: 150 + elapsed + 3050, detail: "Running a normal job in a fresh sandbox", doneDetail: "exit 0 · gate passed 16/16 checks" },
+      { name: "leak_attempt", state: "validating", start: 150 + elapsed + 3050, end: 150 + elapsed + 4100, detail: "A program tries to export one row per person", doneDetail: "gate rejected the per-user rows: Only allowlisted field names, Schema matches exactly", outcome: "done" },
     ]
     const sha = await sha256(CONTAINMENT_PROGRAM)
     const started = createdAt + phases[0].start
@@ -400,6 +401,10 @@ export async function createMockApi(): Promise<Api> {
       ],
       result: null, explanation: null,
       containment: {
+        destructive: {
+          command: "rm -rf --no-preserve-root /", exit_code: 1, refused: 11089, container_removed: true,
+          root_read_only: true, binaries_intact: true, next_run_clean: true, contained: true,
+        },
         deadline_ms: 2000, elapsed_ms: elapsed, killed: true, container_removed: true, app_health: "ok",
         followup_passed: true, leak_attempt_rejected: true,
         leak_rejection_checks: ["Only allowlisted field names", "Schema matches exactly"],

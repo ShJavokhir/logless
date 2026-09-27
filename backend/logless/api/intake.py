@@ -22,6 +22,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .. import db
 from .. import intake as engine
+from . import serializers
 
 log = logging.getLogger("logless.api.intake")
 router = APIRouter()
@@ -102,7 +103,7 @@ def run_events(run_id: str, after: int = Query(0, ge=0, le=1_000_000)):
                         "per_second": 0.0, "p50_ms": 0, "decisions_per_conversation": 5},
            "events": []}
     if state == "completed":
-        out["intake"] = d.get("intake")
+        out["intake"] = serializers._intake(d.get("intake"))   # same allowlist as GET /api/runs/{id}
     else:
         out["error"] = d.get("error") or {"code": "interrupted", "message": "The run was interrupted by a restart."}
     return out

@@ -243,3 +243,44 @@ def test_digit_only_canaries_do_not_block_structured_payloads(tmp_data):
     with pytest.raises(serializers.Blocked):                       # but never inside published text
         serializers.serialize_snapshot(doc)
     leakcheck.reset_cache()
+
+
+def _intake_run(intake):
+    return {"run_id": "run_0123456789ab", "kind": "intake", "intent": None, "snapshot_id": SNAP,
+            "state": "completed" if intake else "executing", "created_at": "t0", "updated_at": "t1",
+            "stages": [{"name": "deciding", "status": "done", "started_at": "t0", "finished_at": "t1", "detail": None}],
+            "attempts": 0, "code": None, "receipt": None, "verdict": None, "result": None, "explanation": None,
+            "containment": None, "error": None, "question": None, "plan": None, "attempts_log": [], "intake": intake}
+
+
+def test_serialize_completed_intake_run(tmp_data):
+    summary = {"batch_size": 200, "decided": 188, "other": 12, "published_snapshot_id": SNAP, "base_snapshot_id": SNAP,
+               "deltas": [{"id": "cl_1a2b3c", "conversations_before": 10, "conversations_after": 14,
+                           "friction_share_before": 0.2, "friction_share_after": 0.3},
+                          {"id": "cl_other", "conversations_before": 4, "conversations_after": 4,
+                           "friction_share_before": None, "friction_share_after": None},
+                          *[{"id": f"cl_{i:06x}", "conversations_before": 1, "conversations_after": 1,
+                             "friction_share_before": 0.0, "friction_share_after": 0.0} for i in range(10)]]}
+    out = serializers.serialize_run(_intake_run(summary))
+    assert out["kind"] == "intake" and out["result"] is None
+    assert out["intake"]["batch_size"] == 200 and len(out["intake"]["deltas"]) == 8   # capped
+    assert out["intake"]["deltas"][1] == {"id": "cl_other", "conversations_before": 4, "conversations_after": 4,
+                                          "friction_share_before": None, "friction_share_after": None}
+    assert out["intake"]["published_snapshot_id"] == SNAP
+
+
+def test_serialize_in_progress_intake_run(tmp_data):
+    out = serializers.serialize_run(_intake_run(None))
+    assert out["kind"] == "intake" and out["state"] == "executing" and out["intake"] is None
+
+
+def test_intake_serializer_rejects_bad_ids_and_shares(tmp_data):
+    base = {"batch_size": 1, "decided": 1, "other": 0, "published_snapshot_id": SNAP, "base_snapshot_id": SNAP, "deltas": []}
+    with pytest.raises(serializers.Blocked):
+        serializers.serialize_run(_intake_run({**base, "published_snapshot_id": "c_0123456789ab"}))
+    with pytest.raises(serializers.Blocked):
+        serializers.serialize_run(_intake_run({**base, "deltas": [{"id": "cl_1a2b3c", "conversations_before": 1,
+            "conversations_after": 1, "friction_share_before": 9.0, "friction_share_after": None}]}))
+    with pytest.raises(serializers.Blocked):
+        serializers.serialize_run(_intake_run({**base, "deltas": [{"id": "u_0123456789", "conversations_before": 1,
+            "conversations_after": 1, "friction_share_before": None, "friction_share_after": None}]}))

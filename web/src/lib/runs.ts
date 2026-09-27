@@ -76,6 +76,7 @@ const STAGE_NAMES: Record<string, string> = {
   runaway: "Runaway program",
   cleanup: "Cleanup",
   health: "Health check",
+  destructive: "Destructive command",
   followup: "Follow-up run",
   leak_attempt: "Leak attempt",
 }

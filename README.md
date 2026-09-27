@@ -28,7 +28,7 @@ No one can open a conversation.
 - **Search:** "Find a workflow…" highlights the matching published clusters, using one Jev call per query.
 - **Detail panel:** needs and problems backed by evidence IDs, four friction signals (correction, repeated request, assistant limit, complaint), and top languages.
 - **Fictional user story:** generated only from the published cluster, labelled as fiction, and validated before display.
-- **Run details:** the generated code, the execution receipt (runtime, limits, timing, container removed) and the gate's verdict, plus a **containment check**. A runaway program is killed at its 2 s deadline, and a program that tries to export per-person rows is rejected by the gate.
+- **Run details:** the generated code, the execution receipt (runtime, limits, timing, container removed) and the gate's verdict, plus a **containment check**. A runaway program is killed at its 2 s deadline; `rm -rf --no-preserve-root /` hits a read-only root (about 11,000 removals refused), the container is destroyed and the next run is clean; and a program that tries to export per-person rows is rejected by the gate.
 - **Evaluation:** agreement with an LLM-assisted reference set (two independent model labellers, Claude Opus and GLM 5.3, blind to the pipeline) and with published labels from Microsoft WildFeedback. Also zero detected canary leaks, metric reconciliation, gate attack tests and containment.
 
 ## Architecture

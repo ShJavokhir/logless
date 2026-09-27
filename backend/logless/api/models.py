@@ -214,15 +214,44 @@ class Explanation(_Out):
     metric_refs: list[str]
 
 
+class Destructive(_Out):
+    command: str
+    exit_code: int | None
+    refused: int | None
+    container_removed: bool
+    root_read_only: bool | None
+    binaries_intact: bool | None
+    next_run_clean: bool
+    contained: bool
+
+
 class Containment(_Out):
     deadline_ms: int
     elapsed_ms: int
     killed: bool
     container_removed: bool
     app_health: Literal["ok", "degraded"]
+    destructive: Destructive | None
     followup_passed: bool
     leak_attempt_rejected: bool
     leak_rejection_checks: list[str]
+
+
+class IntakeDelta(_Out):
+    id: str
+    conversations_before: int
+    conversations_after: int
+    friction_share_before: float | None
+    friction_share_after: float | None
+
+
+class IntakeSummary(_Out):
+    batch_size: int
+    decided: int
+    other: int
+    published_snapshot_id: str
+    base_snapshot_id: str
+    deltas: list[IntakeDelta]
 
 
 class Error(_Out):
@@ -232,7 +261,7 @@ class Error(_Out):
 
 class Run(_Out):
     run_id: str
-    kind: Literal["analysis", "story", "containment"]
+    kind: Literal["analysis", "story", "containment", "intake"]
     intent: Literal["question"] | None
     snapshot_id: str
     state: Literal["queued", "planning", "executing", "validating", "repairing", "explaining", "completed", "failed"]
@@ -250,6 +279,7 @@ class Run(_Out):
     question: str | None
     plan: Plan | None
     attempts_log: list[Attempt]
+    intake: IntakeSummary | None
 
 
 class Story(_Out):
