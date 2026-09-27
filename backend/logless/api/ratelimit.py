@@ -12,6 +12,7 @@ from dataclasses import dataclass
 LIMITS: dict[str, tuple[float, float]] = {
     "default": (60, 10.0),         # snapshot, run polling, health, eval
     "search": (8, 1.0),
+    "canvas": (6, 1 / 5),
     "analysis": (4, 1 / 15),
     "story": (6, 1 / 10),
     "prd": (6, 1 / 10),
@@ -55,6 +56,7 @@ class RateLimiter:
 BUDGET_DEFAULTS: dict[str, tuple[str, int, str]] = {
     # kind: (env var, default per hour, label shown to people)
     "search": ("LOGLESS_BUDGET_SEARCH_PER_HOUR", 600, "searches"),
+    "canvas": ("LOGLESS_BUDGET_CANVAS_PER_HOUR", 120, "generated views"),
     "analysis": ("LOGLESS_BUDGET_ANALYSES_PER_HOUR", 120, "live analyses"),
     "story": ("LOGLESS_BUDGET_STORIES_PER_HOUR", 60, "user stories"),
     "prd": ("LOGLESS_BUDGET_PRDS_PER_HOUR", 60, "PRD drafts"),
@@ -66,6 +68,7 @@ WINDOW_S = 3600.0
 
 PRESENTER_BUDGET_DEFAULTS: dict[str, tuple[str, int]] = {
     "search": ("PRESENTER_BUDGET_SEARCH", 300),
+    "canvas": ("PRESENTER_BUDGET_CANVAS", 60),
     "analysis": ("PRESENTER_BUDGET_ANALYSES", 60),
     "story": ("PRESENTER_BUDGET_STORIES", 30),
     "prd": ("PRESENTER_BUDGET_PRDS", 30),

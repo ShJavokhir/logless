@@ -325,7 +325,7 @@ export default function App() {
           ) : null}
         </section>
 
-        <aside aria-label="Details" className={`flex min-h-0 flex-col gap-3 ${machine ? "lg:hidden" : ""}`}>
+        <aside aria-label="Details" className={`flex min-h-0 flex-col gap-3 lg:overflow-y-auto ${machine ? "lg:hidden" : ""}`}>
           {index && askOpen && !intakeActive ? (
             <AnswerCard
               run={activeRun}

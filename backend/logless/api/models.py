@@ -511,6 +511,13 @@ class AnalysisIn(_In):
     question: str = Field(min_length=1, max_length=200)
 
 
+class CanvasIn(_In):
+    snapshot_id: str = Field(max_length=40)
+    run_id: str = Field(pattern=r"^run_[0-9a-f]{12}$")
+    instruction: str = Field(default="", max_length=200)
+    previous: list[Literal["ranking", "cards", "friction", "signals", "needs"]] = Field(default_factory=list, max_length=3)
+
+
 class StoryIn(_In):
     snapshot_id: str = Field(max_length=40)
 
