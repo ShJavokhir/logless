@@ -1,122 +1,168 @@
 # logless
 
-**What are people doing with our assistant, and what isn't working for them? logless answers both without anyone reading a conversation.**
+**Ask what your users struggle with. An agent writes two independent analysis programs blind, runs each in a disposable gVisor sandbox on Vultr, and releases the answer only if both agree. No one can open a conversation.**
 
-logless is an open, Clio-style usage-insights tool for teams that build chat assistants. It has two parts:
+logless is a Clio-style insights tool for teams that ship chat assistants. A product manager asks in plain English. GLM 5.3 on Vultr Serverless Inference turns the question into a bounded plan and writes **two independent programs** (pandas and plain Python) from a data dictionary alone, without seeing a row. Each runs in its **own throwaway gVisor container** on a separate Vultr VM that holds no API keys, and an **egress gate** checks both outputs before anything reaches the browser.
 
-- **An LLM pipeline, running on a Vultr VM.** It reads private conversations and publishes a map of workflows. Each workflow shows its size, how many distinct people it covers, friction signals, and generalized needs and problems.
-- **An analysis agent.** It answers a product manager's plain-English questions about those conversations. The agent writes two independent programs for each question and runs each in its own gVisor container, on a separate VM that holds no API keys or cloud credentials; its only secret is the runner's auth token. An answer is published only if both programs agree and an egress gate accepts them. The gate checks privacy, schema, and consistency with the published map.
+**[Live demo](https://144-202-110-2.sslip.io)** · **[Demo script](demo/script.md)** · **Track 1: Blast Radius Zero** · **[What we built this weekend](BUILT_DURING_HACKATHON.md)**
 
-No one can open a conversation.
+![A live question: plan, two programs, both run in gVisor, gate and map checks, agreement, then a verified answer](docs/img/answer.jpg)
+<sub>A live question on the deployed build, after a live intake of 300 conversations (hence 5,350). The strip at the top is the agent loop: interpreted → wrote 2 programs → ran both in gVisor → gate + published-map checks → programs agree → explained. Every number in the answer comes from the sandbox output, not from the model.</sub>
 
-- **Live demo:** https://144-202-110-2.sslip.io
-- **Data:** a fixed sample of 5,000 real conversations from [WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M) (Zhao et al., ICLR 2024, ODC-BY). That is April–May 2023, 2,790 people (hashed IPs) and 55 languages. The map shows 5,050 conversations: the 5,000 real ones plus 50 planted evaluation fixtures (40 canaries and 10 injection tests), disclosed in the UI.
-- **Built for** the Vultr Agent Arena (Track 1, Agent Sandboxing).
+## Why it's different
 
-## What the PM sees
+Most "code interpreter" agents trust one model to write, run and summarize its own code. logless splits that trust four ways:
 
-- **Usage map:** packed circles, where categories contain workflows and area is the number of conversations. People appear next to conversations, because a big cluster driven by a handful of people is itself an insight.
-- **Ask a question:** for example, "Which coding workflows have the most distinct people repeating requests?" On each question:
-  1. GLM 5.3, on Vultr Serverless Inference, interprets the question into a bounded plan that the UI shows.
-  2. It writes two independent programs without seeing any data: A in pandas, B in plain Python.
-  3. Each program runs in a fresh gVisor container on the sandbox VM, with no network, a read-only root filesystem, 512 MiB of memory and a 10 s deadline.
-  4. The gate checks each output, checks the outputs against the published map where they overlap, and requires that they agree.
-  5. GLM explains the result using placeholders, and the UI fills in the verified numbers.
+| Who | Sees | Never sees |
+|---|---|---|
+| **GLM 5.3** (writes the code) | The question, a plan schema, a data dictionary | Any data row, any program output value |
+| **gVisor containers** (run the code) | Typed integer rows with pseudonyms randomized per export | Conversation text, network, API keys, a writable root |
+| **Egress gate** (app VM, plain code) | Both JSON outputs and the published map | Conversation text. It computes no answer of its own |
+| **The PM** (browser) | Verified aggregates, both programs' code, execution receipts | Transcripts, facets, conversation or user IDs |
 
-  On failure or disagreement, the agent repairs once, visibly. Questions it can't answer from aggregates are refused before any code runs.
-- **Usage / Friction lens:** the map recolours by friction share, using published data.
-- **Search:** "Find a workflow…" highlights the matching published clusters, using one Jev call per query.
-- **Detail panel:** needs and problems backed by evidence IDs, four friction signals (correction, repeated request, assistant limit, complaint), and top languages.
-- **Fictional user story:** generated only from the published cluster, labelled as fiction, and validated before display.
-- **Run details:** the generated code, the execution receipt (runtime, limits, timing, container removed) and the gate's verdict, plus a **containment check**. A runaway program is killed at its 2 s deadline; `rm -rf --no-preserve-root /` hits a read-only root (about 11,000 removals refused), the container is destroyed and the next run is clean; and a program that tries to export per-person rows is rejected by the gate.
-- **Evaluation:** agreement with an LLM-assisted reference set (two independent model labellers, Claude Opus and GLM 5.3, blind to the pipeline) and with published labels from Microsoft WildFeedback. Also zero detected canary leaks, metric reconciliation, gate attack tests and containment.
+Behind the agent sits a Clio-style pipeline that turned **5,000 real WildChat conversations** (2,840 people, 55 languages) into the map it reasons over. All of it was built during the event.
+
+## Track 1 checklist
+
+| Requirement | How logless meets it | Evidence |
+|---|---|---|
+| VM backend on Vultr | Two `vc2-4c-8gb` VMs in `sjc` on a private VPC, provisioned with the Vultr API v2 | [`infra/provision.sh`](infra/provision.sh) |
+| LLM calls through Vultr Serverless Inference | Every agent LLM call (plan, programs A and B, repair, explanation) and all pipeline reasoning goes to GLM 5.3 at `api.vultrinference.com`. Jev and Fireworks supply typed decisions and embeddings, not reasoning | [`providers/glm.py`](backend/logless/providers/glm.py) |
+| Vultr is the control layer | The app VM plans, dispatches over the VPC, gates, stores and serves | [`backend/logless/sandbox/`](backend/logless/sandbox) |
+| Sandbox outside the app process | A separate VM with a job runner, and a fresh `runsc` container per program | [`runner/`](runner) |
+| Pattern A: code runs, real output returns, retry on error | Two programs, executed output, one visible repair round on failure or disagreement | [`sandbox/analysis.py`](backend/logless/sandbox/analysis.py) |
+| Containment moment | Runaway loop killed, `rm -rf /` absorbed, per-person export rejected. Runs live from the UI | [Containment](#containment) |
+| Public URL | https://144-202-110-2.sslip.io (Caddy, Let's Encrypt) | |
+
+## How a question runs
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor PM as Browser
+    participant API as App VM (FastAPI)
+    participant LLM as Vultr Serverless Inference
+    participant R as Sandbox VM runner
+    participant C as gVisor containers
+
+    PM->>API: plain-English question
+    API->>LLM: question + data dictionary, no rows
+    LLM-->>API: bounded plan, or refusal before any code
+    par written independently
+        API->>LLM: write program A in pandas
+    and
+        API->>LLM: write program B in plain Python
+    end
+    API->>R: code + typed integer rows, over the VPC
+    R->>C: A and B, each in a fresh container
+    Note over R,C: runsc · no network · read-only · 512 MiB · 10 s
+    R-->>API: JSON + receipts, containers removed
+    API->>API: egress gate: schema, map check, A equals B
+    opt a check fails or the programs disagree
+        API->>LLM: one repair, sees check names only
+    end
+    API->>LLM: explain the result using placeholders
+    API-->>PM: verified answer + code + receipts
+```
+
+The model writes prose with placeholders; the browser fills them from the gated sandbox result. Sandbox stdout and stderr never reach the browser or a repair prompt.
 
 ## Architecture
 
-![logless architecture](docs/architecture.svg)
+![logless architecture: external model providers, the app VM with keys and private data, the keyless sandbox VM with one gVisor container per program](docs/architecture.svg)
 
-The full write-up, covering trust boundaries, what crosses them, and the live question lifecycle, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Two VMs on a private Vultr VPC. The **app VM** is the control plane: it holds the keys and data, plans, dispatches, gates and serves. The **sandbox VM** only executes, and only what the app VM sends it. What crosses each boundary: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-```
-Browser ──HTTPS──▶ Caddy ─▶ FastAPI (app VM: keys, SQLite, pipeline, egress gate)
-                                   │  Vultr VPC only (10.20.0.0/24), bearer token
-                                   ▼
-                     Runner (sandbox VM: no API keys, egress locked to the VPC)
-                                   │
-                                   ▼
-                     docker --runtime=runsc (gVisor), --network=none, read-only,
-                     cap-drop ALL, 1 vCPU, 512 MiB, 64 pids, 10 s deadline
-```
-
-| Model role | Engine |
+| Model | Role |
 |---|---|
-| Facets, naming, hierarchy, descriptions, privacy audit, analysis code, explanations, stories | GLM 5.3 / GLM 5.3 Flash on **Vultr Serverless Inference** |
-| Friction decisions, theme classification, identifiability, "surprising" scoring, search relevance | **TypeSafe Jev** (calibrated, typed decisions) |
-| Facet embeddings, used only to propose clusters | Fireworks `qwen3-embedding-8b` (only generalized facet sentences are embedded) |
-| Map numbers (counts, people, friction, shares) | The pipeline's own code on the app VM |
-| Answers to questions | Two agent-written programs in the gVisor sandbox, gated and cross-checked |
-
-### Pipeline (`logless rebuild`)
-
-1. Facets (GLM) and tri-state friction (Jev).
-2. Embeddings, then k-means on a de-duplicated subset capped per person, then goal-named clusters that are consolidated into themes.
-3. Jev classifies every conversation. Anything below 0.65 confidence goes to "Other or unclear".
-4. Leftover loop: re-discover on Other when it exceeds 8%, at most 3 rounds.
-5. Stats: the pipeline's own code computes counts, people and friction per node on the app VM. The sandbox is only for agent-written code.
-6. Hierarchy into categories, then re-filed by Jev.
-7. Evidence-backed descriptions.
-8. Privacy gate on every published string.
-9. Atomic publish with provenance.
+| **GLM 5.3 / 5.3 Flash** on Vultr Serverless Inference | All reasoning: plans, programs, repairs, explanations, facets, theme naming, hierarchy, descriptions, privacy audit, stories |
+| **TypeSafe Jev** | Typed, calibrated decisions: friction signals, theme classification, identifiability score, search relevance |
+| **Fireworks** `qwen3-embedding-8b` | Embeds generalized facet sentences only, to propose clusters |
 
 ## Containment
 
-A battery of hostile programs was run against the deployed gVisor sandbox: `rm -rf /`, a fork bomb, a memory bomb, a disk fill, network exfiltration including cloud metadata, secret hunting and host-escape probes. All were contained, and every container was removed. See [docs/SECURITY.md](docs/SECURITY.md).
+![Containment check: runaway killed at its deadline, rm -rf absorbed, leak attempt rejected by the gate](docs/img/containment.jpg)
+<sub>The containment check, run live from the Run details sheet against the deployed sandbox.</sub>
 
-## Privacy model (and its limits)
+| Track 1 pillar | What logless does |
+|---|---|
+| **Process isolation** | Agent code never runs on the app VM. Each program gets a fresh `docker --runtime=runsc` (gVisor) container on a separate VM: `--network=none`, read-only root, uid 10001, `--cap-drop=ALL`, `no-new-privileges` |
+| **Secret hygiene** | The sandbox VM holds no model keys or cloud credentials, only the runner's own token. Containers get no secrets, no Docker socket and no conversation text |
+| **Resource limits** | 1 vCPU, 512 MiB with no swap, 64 processes, 64 MiB `/tmp`, 2 MiB `/out`, a 10 s deadline enforced from outside |
+| **Lifecycle discipline** | Every container is removed after its run and removal is verified. If it can't be confirmed, the runner quarantines itself |
 
-- **The browser gets published aggregates only.** Serializers build each payload field by field from an allowlist. There is no route to a transcript, facet or conversation ID.
-- **The sandbox receives no conversation text.** It gets typed assignments with pseudonymous integers randomized per analysis export; A, B and repair attempts share that export.
-- **Rare findings are generalized, not suppressed.** There is no minimum cluster size. Wording is generalized until it passes the checks, and counts stay honest. A problem is labelled "common" only when at least 5 distinct people show it.
-- **Published text passes several checks:** canary and injection tokens, contact, URL and ID patterns, overlap with distinctive source phrases, a GLM audit, and Jev's identifiability score.
-- **This is not differential privacy,** and it makes no Clio-equivalent claim. Model providers process raw text. The dataset authors de-identified WildChat with Presidio. "People" means distinct hashed IPs, which is approximate.
+A hostile-program battery against the deployed sandbox ([docs/SECURITY.md](docs/SECURITY.md)):
 
-## Run it locally
+| Attack | Result |
+|---|---|
+| `rm -rf --no-preserve-root /` | `rm` exits 1, about 11,000 removals refused (read-only root, non-root user). Next run is clean |
+| Runaway loop | Killed at its 2 s deadline (about 2.1 s measured). App stays healthy |
+| Fork bomb / memory bomb / disk fill | Stopped by the 64-pid limit / killed at 512 MiB (exit 137) / `/tmp` full at 64 MiB |
+| Network exfiltration | Internet, cloud metadata `169.254.169.254` and the app VM all unreachable. No DNS |
+| Host escape probes | gVisor kernel, `CapEff 0`. `setuid(0)`, `mount`, `/proc/sysrq-trigger` all denied |
+| Per-person export | Rejected by the egress gate, so none of it reaches the browser |
+
+The browser can't submit code. The containment check runs fixed, version-controlled fixtures ([`backend/sandbox_tasks/`](backend/sandbox_tasks)), and the destructive one refuses to run outside the gVisor sandbox.
+
+## The map the agent reasons over
+
+![Usage map of 5,050 conversations with the key finding](docs/img/map.jpg)
+
+`logless rebuild` runs on the app VM: GLM extracts private facets and Jev decides friction, facet embeddings are clustered into named themes, Jev files every conversation (low confidence goes to Other), then counts are computed in code, every published string passes the privacy gate, and the snapshot publishes atomically.
+
+Click any workflow for evidence-backed needs and problems, four friction signals (correction, repeated request, assistant limit, complaint) and top languages. A Usage / Friction lens recolours the map, search is one Jev relevance call, and each workflow can generate a fictional user story that is labelled as fiction and validated before display.
+
+**Live intake** (presenter-only): 300 new conversations are routed by Jev at about 130 per second, re-checked by the privacy gate, and the map republishes.
+
+![Live intake: conversations flow through Jev into frozen categories](docs/img/intake.jpg)
+
+## Evaluation
+
+![Evaluation report: 11 of 12 targets met](docs/img/eval.jpg)
+
+**11 of 12 targets met** on the latest report (shown after the live intake). Highlights:
+
+- **0 detected canary leaks** across every public payload. 40 planted conversations carry invented names and contact details. We report detected leaks, not "zero leaks".
+- **0 effects** from 10 prompt-injection bait conversations.
+- **0 mismatches** when all map metrics are recomputed from private assignments.
+- Friction labels scored against two independent model labellers (Claude Opus and GLM 5.3) and Microsoft WildFeedback. The miss: correction F1 is 0.78 against a 0.80 target.
+
+## Honest limits
+
+- The two programs come from the same model family, so they can agree on the same mistake. The gate and the independent map totals catch some of that, not all.
+- This is not differential privacy. Model providers process raw text on the app side. "People" means distinct hashed IPs.
+- gVisor shrinks the kernel attack surface a lot. It is not a proof against every escape.
+- Questions are limited to counts, people, friction signals and rankings. Anything else is refused before code runs.
+
+## Run it
 
 ```bash
-cp .env.example .env            # fill in the keys and random secrets
+cp .env.example .env                                   # keys and random secrets
 cd backend && uv sync --locked --extra dev --python 3.12
-.venv/bin/logless seed           # download the pinned WildChat shard, sample 5,000, plant fixtures
-.venv/bin/logless rebuild        # run the pipeline and publish a snapshot
-.venv/bin/logless eval           # write the evaluation report
-.venv/bin/logless serve          # API on 127.0.0.1:8000
-cd ../web && pnpm install && VITE_MOCK=0 pnpm dev   # UI on :5173
+.venv/bin/logless seed                                 # pinned WildChat shard, 5,000 sample + fixtures
+.venv/bin/logless rebuild                              # pipeline, publish a snapshot
+.venv/bin/logless eval                                 # evaluation report
+.venv/bin/logless serve                                # API on 127.0.0.1:8000
+cd ../web && pnpm install && VITE_MOCK=0 pnpm dev      # UI on :5173
 ```
 
-Live analyses need the runner (`runner/README.md`). Use Docker with `runsc`, or `runc` locally; the runtime used is reported honestly.
+Live questions need the runner ([runner/README.md](runner/README.md)) with Docker and `runsc`. For a local `runc` runner, set `SANDBOX_RUNTIME=runc` on the backend too; the runtime used is always reported. Provisioning and deploy: [infra/README.md](infra/README.md). Other chat datasets: [JSONL import](docs/DATA_IMPORT.md).
 
-Python runtime and test dependencies are locked for both services. See
-[reproducible installs and offline wheelhouses](docs/DEPENDENCIES.md) for clean environment checks,
-production installs, and the standalone wheel configuration limits.
-
-For an explicit local `runc` runner, set `SANDBOX_RUNTIME=runc` on the backend too; the default requires `runsc`. The fixed destructive containment fixture requires gVisor and is not a local-runc success claim.
-
-Other text-chat datasets load through the validated [JSONL import adapter](docs/DATA_IMPORT.md) into their own isolated data directory.
-
-## Deploy
-
-`infra/README.md` covers provisioning (two `vc2-4c-8gb` VMs in `sjc`, VPC, firewalls, gVisor, egress lockdown). `infra/deploy-app.sh [--data]` ships the API and web app.
-
-## Repository
+Tests: 192 backend, 74 runner, 116 web.
 
 | Path | What |
 |---|---|
-| `backend/logless/` | Pipeline, providers, sandbox client, egress gate, API, eval |
-| `backend/sandbox_tasks/` | Version-controlled programs that run in the sandbox (aggregation, containment fixtures) |
-| `runner/` | Sandbox-VM job runner (FastAPI + docker CLI supervisor) |
-| `web/` | Vite + React + TypeScript + shadcn/ui + d3-hierarchy |
-| `infra/` | Provisioning, VM setup, Caddy, systemd, lockdown, deploy |
-| `docs/CONTRACTS.md` | Shared contracts: snapshot, API, sandbox input/output, runner |
+| [`backend/logless/`](backend/logless) | Pipeline, providers, sandbox client, egress gate, API, eval |
+| [`backend/sandbox_tasks/`](backend/sandbox_tasks) | Fixed programs that run in the sandbox (containment fixtures) |
+| [`runner/`](runner) | Sandbox VM job runner: FastAPI + Docker supervisor |
+| [`web/`](web) | Vite, React, TypeScript, shadcn/ui, d3-hierarchy |
+| [`infra/`](infra) | Vultr provisioning, VM setup, gVisor, egress lockdown, Caddy, deploy |
+| [`docs/`](docs) | Architecture, contracts, security, data import |
+
+## Built during the hackathon
+
+All code was written between Sat Sep 26 11:30 and Sun Sep 27 12:00 PDT; the git history and snapshot provenance timestamps record when. The only earlier material is the `research/` notes (no code). Full breakdown of new code, reused libraries and data: [BUILT_DURING_HACKATHON.md](BUILT_DURING_HACKATHON.md).
 
 ## Credits
 
-WildChat-1M by Zhao, Ren, Hessel, Cardie, Choi and Deng (ICLR 2024), ODC-BY 1.0. External reference labels: Microsoft WildFeedback (ODC-By) and sh0416/wildchat-1m-tagged (ODC-By). See `backend/logless/eval/external/README.md`. Built at the Vultr Agent Arena (Sep 26–27, 2026). This project is inspired by Anthropic's Clio paper and is not affiliated with Anthropic, OpenAI or the dataset authors.
+Data: [WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M) (Zhao et al., ICLR 2024, ODC-BY 1.0). Reference labels: Microsoft WildFeedback and sh0416/wildchat-1m-tagged (ODC-By). Inspired by Anthropic's Clio paper; not affiliated with Anthropic, OpenAI or the dataset authors. MIT licensed.
