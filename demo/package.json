@@ -1,0 +1,14 @@
+{
+  "name": "logless-demo-video",
+  "private": true,
+  "type": "module",
+  "description": "Records and assembles the logless one-minute demo video (see script.md).",
+  "scripts": {
+    "rehearse": "./build.sh --dry",
+    "record": "./build.sh --record",
+    "build": "./build.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.57.0"
+  }
+}

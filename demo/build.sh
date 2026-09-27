@@ -32,6 +32,8 @@ node voice.mjs "$WORK"
 if [[ $RECORD == 1 || ! -f "$WORK/rec/marks.json" ]]; then
   echo "== recording ${DRY:-live}"
   node record.mjs "$WORK" $DRY
+  echo "== narration again, with the numbers read off the screen during the take"
+  node voice.mjs "$WORK"
 fi
 
 echo "== cards + captions"

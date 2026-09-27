@@ -15,6 +15,18 @@ const dur = (f) => +execFileSync("ffprobe", ["-v", "error", "-show_entries", "fo
 // trim leading/trailing silence so chunk timing is exact
 const TRIM = "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,areverse"
 
+// {placeholders} come from what the last take read off the screen (rec/facts.json),
+// falling back to beats.json "defaults" (used only to pace a take before it exists)
+let facts = { ...(cfg.defaults ?? {}) }
+try {
+  facts = { ...facts, ...JSON.parse(readFileSync(join(WORK, "rec", "facts.json"), "utf8")) }
+} catch {}
+const fill = (t) => t?.replace(/\{(\w+)\}/g, (_, k) => {
+  if (facts[k] === undefined || facts[k] === null) throw new Error(`no value for {${k}}`)
+  return String(facts[k])
+})
+for (const beat of cfg.beats) for (const c of beat.chunks) Object.assign(c, { spoken: fill(c.spoken), caption: fill(c.caption) })
+
 const out = { voice: cfg.voice, rate: cfg.rate, gap: cfg.gap, beats: {} }
 let words = 0
 for (const beat of cfg.beats) {

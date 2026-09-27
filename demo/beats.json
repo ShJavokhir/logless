@@ -2,6 +2,9 @@
   "voice": "Samantha",
   "rate": 175,
   "gap": 0.14,
+  "defaults": {
+    "targets": "13 of 15"
+  },
   "beats": [
     {
       "id": "title",
@@ -98,9 +101,9 @@
       "id": "eval",
       "chunks": [
         {
-          "caption": "13 of 14 evaluation targets met, with 0 detected canary leaks.",
-          "spoken": "Thirteen of fourteen evaluation targets met, with zero detected canary leaks.",
-          "at": "eval_start+0.25"
+          "caption": "{targets} evaluation targets met, with 0 detected canary leaks.",
+          "spoken": "{targets} evaluation targets met, with zero detected canary leaks.",
+          "at": "eval_open-0.8"
         }
       ]
     }

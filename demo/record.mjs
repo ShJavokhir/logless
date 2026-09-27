@@ -6,7 +6,8 @@
 //
 // usage:  node record.mjs <workdir> [--dry]
 //   env:  BASE_URL   (default https://144-202-110-2.sslip.io/)
-//         DSF        device scale factor (default 1.3333333 → 1920×1200 frames from a 1440×900 viewport)
+//         DSF        device scale factor (default 4/3: renders supersampled; the screencast still
+//                    delivers 1440×900 frames, which smooths text edges)
 //         PLAYWRIGHT module path if `playwright` is not installed next to this file
 // out:    <workdir>/rec/frames/NNNNN.jpg, <workdir>/rec/frames.json, <workdir>/rec/marks.json
 // --dry:  skips every paid live step (analysis run, story, containment): map + evaluation only.
@@ -186,6 +187,14 @@ async function abort(msg) {
   process.exit(2)
 }
 
+// facts read off the screen during the take; voice.mjs fills {placeholders} in the
+// narration from these, and mismatches with the script's fixed numbers are flagged.
+const facts = {}
+const expect = (name, ok, got) => {
+  facts.checks = facts.checks ?? {}
+  facts.checks[name] = { ok, got }
+  if (!ok) console.warn(`! narration fact "${name}" not on screen (got: ${got})`)
+}
 const circle = (prefix) => page.locator(`svg g[role=button][aria-label^="${prefix}"]`).first()
 const gap = voice.gap
 
@@ -198,6 +207,12 @@ await glideTo(circle("Learn and get explanations"), 1300, 10, 30)
 await holdUntil(marks.map_start + 0.2 + vdur("map", 0) + gap - 1.0)
 await glideTo(circle("Probe and test the assistant"), 1000, 6, 30)
 mark("map_probe")
+{
+  const tip = await page.evaluate(() => document.body.innerText)
+  expect("probe workflow 207 conversations / 185 people", /Probe and test the assistant[\s\S]{0,120}207[\s\S]{0,80}185/.test(tip), tip.match(/Probe and test[^\n]*\n?[^\n]*\n?[^\n]*\n?[^\n]*/)?.[0])
+  const hdr = await page.evaluate(() => document.body.innerText.match(/(\d+) workflows/)?.[1])
+  expect("34 workflows", hdr === "34", hdr)
+}
 await sleep((vdur("map", 1) + 1.2) * 1000)
 mark("map_end")
 
@@ -212,6 +227,7 @@ if (!DRY) {
   const chip = await page.locator('[aria-labelledby="answer-h"] header').innerText()
   if (!/Verified/.test(chip)) await abort(`analysis run did not verify: ${chip.replace(/\s+/g, " ")}`)
   mark("run_verified")
+  facts.verified = chip.replace(/\s+/g, " ").match(/Verified · [\d.]+ s/)?.[0]
   await sleep(500)
   // rest on the hottest software workflow: tooltip shows its friction share on the lens
   await glideTo(circle("Diagnose and fix technical errors"), 1000, 24, 16) // lower right of the circle, so its 39.5% label stays visible
@@ -228,6 +244,10 @@ if (!DRY) {
   await sleep(250)
   await glide(1150, 600, 420)
   mark("story_detail")
+  {
+    const d = await page.locator("aside").innerText()
+    expect("Fixing errors friction 39.5%", /Diagnose and fix technical errors[\s\S]*39\.5%/.test(d), d.match(/FRICTION\s*\n?\s*[\d.]+%/i)?.[0])
+  }
   await sleep(900)
   // scroll the detail panel down to the story button
   const panel = page.locator("aside [class*='overflow-y-auto']").last()
@@ -302,6 +322,7 @@ if (!DRY) {
   await sleep((vdur("contain", voice.beats.contain.length - 1) + 2.5) * 1000)
   mark("contain_end")
   writeFileSync(join(REC, "containment.txt"), ctext)
+  facts.kill_ms = ctext.match(/([\d,]+) ms\s*\n?\s*measured/)?.[1]
 }
 
 // ================================================================ beat: evaluation
@@ -315,6 +336,14 @@ await click(120)
 await page.getByRole("dialog").getByText(/targets met/).waitFor({ state: "visible" })
 await sleep(300)
 mark("eval_open")
+{
+  const t = await page.getByRole("dialog").innerText()
+  const m = t.match(/(\d+) of (\d+) targets met/)
+  facts.targets = m ? `${m[1]} of ${m[2]}` : null
+  facts.canary = /0 detected canary leaks/.test(t)
+  expect("0 detected canary leaks", facts.canary, t.match(/\d+ detected canary leaks/)?.[0])
+  if (!m) console.warn("! could not read the evaluation target count")
+}
 await glide(700, 222, 800) // rest beside "0 detected canary leaks"
 await sleep((vdur("eval", 0) + 2.5) * 1000)
 mark("eval_end")
@@ -324,6 +353,8 @@ await cdp.send("Page.stopScreencast")
 await sleep(200)
 mark("end")
 writeFileSync(join(REC, "frames.json"), JSON.stringify(frames))
+writeFileSync(join(REC, "facts.json"), JSON.stringify(facts, null, 1))
+console.log("facts", JSON.stringify(facts))
 writeFileSync(join(REC, "marks.json"), JSON.stringify({ dry: DRY, dsf: DSF, viewport: [VW, VH], base: BASE, recorded_at: new Date().toISOString(), marks }, null, 1))
 console.log(`${frames.length} frames over ${now().toFixed(1)} s (${(frames.length / now()).toFixed(1)} fps avg)`)
 console.log(consoleErrors.length ? "console errors:\n" + consoleErrors.join("\n") : "no console errors")
