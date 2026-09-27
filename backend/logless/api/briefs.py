@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import sqlite3
 
 from pydantic import BaseModel
 
@@ -29,14 +30,15 @@ LABEL = ("Video brief · Directed by GLM 5.3 from published aggregates only. "
          "Every number is filled from published metrics.")
 FPS, WIDTH, HEIGHT = 30, 1920, 1080
 PIPELINE = "GLM 5.3 · Jev · gVisor sandbox"
-TYPES = ("intro", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro")
+TYPES = ("intro", "change", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro")
 SIGNALS = ("correction", "repeat_request", "assistant_limit", "complaint")
 SIGNAL_LABELS = {"correction": "Corrected the assistant", "repeat_request": "Asked again",
                  "assistant_limit": "Assistant couldn't help", "complaint": "Complained"}
 GLOBAL_PH = ("conversations", "people", "languages", "friction_share", "top_workflow", "top_workflow_share",
              "hotspot", "hotspot_friction_share")
 SPOT_PH = ("share", "friction_share_here", "conversations_here", "people_here")
-NAME_PH = {"top_workflow", "hotspot"}      # filled with a published short title, not a number
+CHANGE_PH = ("new_conversations", "fastest_growing", "friction_share_before")   # only after an intake
+NAME_PH = {"top_workflow", "hotspot", "fastest_growing"}      # filled with a published short title, not a number
 TOP_N = 6
 MIN_RATE_BASE = 50      # friction-share ranking in the facts sheet only counts workflows this large
 MIN_SCENES, MAX_SCENES = 6, 10
@@ -102,16 +104,65 @@ def spot_values(node: dict) -> dict[str, str]:
             "conversations_here": f"{int(node['conversations']):,}", "people_here": f"{int(node.get('users') or 0):,}"}
 
 
+def baseline(snapshot: dict) -> dict | None:
+    """The published snapshot a live intake grew this one from, if any (same workflows, fewer conversations)."""
+    try:
+        row = db.private().execute("SELECT base_snapshot_id FROM intake_batches WHERE ingested_snapshot_id = ?",
+                                   (snapshot["snapshot_id"],)).fetchone()
+    except sqlite3.Error:
+        return None
+    if not row or not row["base_snapshot_id"]:
+        return None
+    raw = db.public().execute("SELECT json FROM snapshots WHERE snapshot_id = ?", (row["base_snapshot_id"],)).fetchone()
+    if not raw:
+        return None
+    base = json.loads(raw["json"])
+    if {c["id"] for c in base["clusters"]} != {c["id"] for c in snapshot["clusters"]}:
+        return None
+    if int(snapshot["totals"]["conversations"]) <= int(base["totals"]["conversations"]):
+        return None
+    return base
+
+
+def change_data(snapshot: dict, base: dict) -> dict:
+    """Before → after per workflow, from the two published snapshots (never from the model)."""
+    before = {c["id"]: c for c in base["clusters"]}
+    items = []
+    for c in rankable(snapshot["clusters"]):
+        o = before.get(c["id"])
+        if o is None:
+            continue
+        items.append({"id": c["id"], "title": _short(c), "before": int(o["conversations"]), "after": int(c["conversations"]),
+                      "friction_share_before": _fr(o).get("share"), "friction_share_after": _fr(c).get("share")})
+    items.sort(key=lambda d: (-(d["after"] - d["before"]), -d["after"], d["id"]))
+    bt, at = int(base["totals"]["conversations"]), int(snapshot["totals"]["conversations"])
+    return {"base_snapshot_id": base["snapshot_id"], "conversations_before": bt, "conversations_after": at,
+            "added_conversations": at - bt, "friction_share_before": _fr(base["totals"]).get("share"),
+            "friction_share_after": _fr(snapshot["totals"]).get("share"), "items": items[:TOP_N]}
+
+
+def change_values(snapshot: dict, base: dict | None) -> dict[str, str]:
+    if base is None:
+        return {}
+    d = change_data(snapshot, base)
+    vals = {"new_conversations": f"{d['added_conversations']:,}", "friction_share_before": _pct(d["friction_share_before"])}
+    if d["items"] and d["items"][0]["after"] > d["items"][0]["before"]:
+        vals["fastest_growing"] = d["items"][0]["title"]
+    return vals
+
+
 PH_MEANING = {
     "conversations": "conversations in the published map", "people": "distinct people",
     "languages": "languages seen", "friction_share": "share of all conversations with a friction signal",
     "top_workflow": "short title of the largest workflow", "top_workflow_share": "its share of all conversations",
     "hotspot": "short title of the workflow with the most conversations showing friction",
     "hotspot_friction_share": "friction share inside that workflow",
+    "new_conversations": "conversations added by the latest batch", "fastest_growing": "short title of the workflow that grew most",
+    "friction_share_before": "overall friction share before the latest batch",
 }
 
 
-def facts(snapshot: dict) -> dict:
+def facts(snapshot: dict, base: dict | None = None) -> dict:
     """The compact facts sheet GLM sees: published aggregates and texts only, numbers rounded for reasoning."""
     t, ds, ws = snapshot["totals"], snapshot["dataset"], snapshot["workspace"]
     cats = {c["id"]: c for c in snapshot["categories"]}
@@ -121,7 +172,7 @@ def facts(snapshot: dict) -> dict:
     size_rank = {c["id"]: i for i, c in enumerate(sorted(real, key=lambda c: -int(c["conversations"])), 1)}
     fric_rank = {c["id"]: i for i, c in enumerate(sorted(real, key=lambda c: -(_fr(c).get("share") or 0)), 1)}
     cat_of = lambda n: _short(cats[n["parent_id"]]) if n.get("parent_id") in cats else None  # noqa: E731
-    return {
+    sheet = {
         "dataset": {"name": ds["name"], "workspace": ws["name"], "about": ws.get("description", ""),
                     "period": f"{ds['period_start']} to {ds['period_end']}"},
         "placeholders": {k: f"{gv[k]}  ({PH_MEANING[k]})" for k in GLOBAL_PH if k in gv},
@@ -146,6 +197,18 @@ def facts(snapshot: dict) -> dict:
                        "conversations": f"{int(c['conversations']):,}", "share": _pct(c.get("share")),
                        "friction_share": _pct(_fr(c).get("share"))} for c in _by_conversations(snapshot)],
     }
+    if base is not None:
+        d, cv = change_data(snapshot, base), change_values(snapshot, base)
+        sheet["placeholders"].update({k: f"{v}  ({PH_MEANING[k]})" for k, v in cv.items()})
+        sheet["changes"] = {
+            "what": "a new batch of conversations was just added to the previous published map",
+            "conversations": f"{d['conversations_before']:,} before, {d['conversations_after']:,} now (+{d['added_conversations']:,})",
+            "friction_share": f"{_pct(d['friction_share_before'])} before, {_pct(d['friction_share_after'])} now",
+            "workflows_that_grew_most": [f"{x['title']}: {x['before']:,} to {x['after']:,} conversations, friction "
+                                         f"{_pct(x['friction_share_before'])} to {_pct(x['friction_share_after'])}"
+                                         for x in d["items"]],
+        }
+    return sheet
 
 
 SYSTEM = (
@@ -163,6 +226,11 @@ SYSTEM = (
     "failed: say 'hits friction', 'struggles' or 'pushes back', never 'fails' or 'broken'.\n"
     "SCENES (type: what the screen shows):\n"
     "- intro: title card over counters of conversations, people and languages. headline, optional kicker (subtitle).\n"
+    "- change: ONLY when the facts sheet has 'changes' (a new batch of conversations just arrived); then it is "
+    "REQUIRED and comes right after intro. Shows before-and-after bars for the workflows that grew most and the "
+    "overall friction share before and now. Its headline says what the new data changed. With a change scene, drop "
+    "languages or the second spotlight to stay within ten scenes. Placeholders {new_conversations}, "
+    "{fastest_growing} and {friction_share_before} exist only then.\n"
     "- map: treemap of every category and its workflows, sized by share of conversations, coloured by friction.\n"
     "- top_workflows: ranked bars of the six largest workflows.\n"
     "- friction: ranked bars of the six workflows with the most conversations showing friction, against the overall "
@@ -305,7 +373,7 @@ def normalize_seconds(proposed: list[int], target: int = 58) -> list[int]:
     return secs
 
 
-def validate(out: _BriefOut, snapshot: dict) -> tuple[list[str], dict]:
+def validate(out: _BriefOut, snapshot: dict, base: dict | None = None) -> tuple[list[str], dict]:
     """Returns (problems, filled). Problem strings are ours (fixed vocabulary); `filled` is empty on failure."""
     probs: list[str] = []
     scenes = out.scenes
@@ -327,6 +395,10 @@ def validate(out: _BriefOut, snapshot: dict) -> tuple[list[str], dict]:
     for t in ("map", "friction"):
         if t not in types:
             probs.append(f"a {t} scene is required")
+    if base is None and "change" in types:
+        probs.append("a change scene is only allowed when the facts sheet has changes")
+    if base is not None and (n < 2 or types[1] != "change"):
+        probs.append("new data arrived: a change scene is required right after intro")
     pool = {c["id"]: c for c in rankable(snapshot["clusters"])}
     spots = [s for s, t in zip(scenes, types) if t == "spotlight"]
     if not (1 <= len(spots) <= 2):
@@ -342,13 +414,13 @@ def validate(out: _BriefOut, snapshot: dict) -> tuple[list[str], dict]:
     secs = normalize_seconds(proposed) if MIN_SCENES <= n <= MAX_SCENES else proposed
     total = sum(secs)
 
-    gv = global_values(snapshot)
-    base = {k for k in GLOBAL_PH if k in gv}
+    gv = {**global_values(snapshot), **change_values(snapshot, base)}
+    allowed_base = {k for k in (*GLOBAL_PH, *CHANGE_PH) if k in gv}
     title = _clean(out.title)
-    probs += _text_problems("title", title, base, 3, 10)
+    probs += _text_problems("title", title, allowed_base, 3, 10)
     texts: list[tuple[int, str, str]] = []   # (scene index, field, raw text) for filling
     for i, (s, t) in enumerate(zip(scenes, types), 1):
-        allowed = base | (set(SPOT_PH) if t == "spotlight" else set())
+        allowed = allowed_base | (set(SPOT_PH) if t == "spotlight" else set())
         where = f"scene {i} ({t if t in TYPES else 'unknown'})"
         head = _clean(s.headline)
         probs += _text_problems(f"{where} headline", head, allowed, 2, 10)
@@ -394,7 +466,7 @@ def validate(out: _BriefOut, snapshot: dict) -> tuple[list[str], dict]:
             sc["insight"] = fill(_clean(s.insight), node)
         if t == "takeaways":
             sc["bullets"] = [fill(_clean(b), node) for b in s.bullets or []]
-        data = _scene_data(t, node, snapshot)
+        data = change_data(snapshot, base) if t == "change" and base is not None else _scene_data(t, node, snapshot)
         if data is not None:
             sc["data"] = data
         out_scenes.append(sc)
@@ -414,6 +486,8 @@ def validate(out: _BriefOut, snapshot: dict) -> tuple[list[str], dict]:
         "no medical conditions, places, ages, contact details or canary tokens",
         "every chart's data attached by code from the published snapshot",
     ]
+    if base is not None:
+        checks.append(f"change scene compares against the previous published snapshot {base['snapshot_id']}")
     return [], {"title": filled_title, "scenes": out_scenes, "duration_frames": frame,
                 "metrics_used": [{"name": k, "value": v} for k, v in used.items()], "checks": checks}
 
@@ -449,9 +523,9 @@ def _save(brief: dict) -> None:
                     (brief["brief_id"], brief["snapshot_id"], json.dumps(brief), brief["generated_at"]))
 
 
-def user_prompt(snapshot: dict) -> str:
+def user_prompt(snapshot: dict, base: dict | None = None) -> str:
     return ("Facts sheet (published aggregates only; the figures are for your judgement, never to be written):\n"
-            + json.dumps(facts(snapshot), ensure_ascii=False, separators=(",", ":")) + RETURN)
+            + json.dumps(facts(snapshot, base), ensure_ascii=False, separators=(",", ":")) + RETURN)
 
 
 def direct(prompt: str) -> tuple[_BriefOut | None, dict]:
@@ -475,9 +549,12 @@ def run_brief(run: Run, *, snapshot: dict) -> None:
 def _run(run: Run, snapshot: dict) -> None:
     run.state("planning")
     run.stage("reading", "running", "facts sheet from the published map (aggregates only, no conversations)")
-    user = user_prompt(snapshot)
+    base = baseline(snapshot)
+    user = user_prompt(snapshot, base)
     run.stage("reading", "done", f"{len(rankable(snapshot['clusters']))} workflows, "
-                                 f"{len(snapshot['categories'])} categories, no conversation text")
+                                 f"{len(snapshot['categories'])} categories, no conversation text"
+              + (f"; compared with the previous map ({int(snapshot['totals']['conversations']) - int(base['totals']['conversations']):,} new conversations)"
+                 if base is not None else ""))
     problems: list[str] = []
     for attempt in (1, 2):
         if attempt == 2:
@@ -495,7 +572,7 @@ def _run(run: Run, snapshot: dict) -> None:
         if out is None:
             problems, filled = ["return valid JSON matching the schema"], {}
         else:
-            problems, filled = validate(out, snapshot)
+            problems, filled = validate(out, snapshot, base)
         if not problems:
             brief = assemble(filled, snapshot, model=meta.get("model", glm.GLM), attempts=attempt)
             _save(brief)

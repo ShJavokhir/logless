@@ -26,6 +26,7 @@ type Phase =
 
 const SCENE_LABEL: Record<Scene["type"], string> = {
   intro: "Intro",
+  change: "What changed",
   map: "Usage map",
   top_workflows: "Top workflows",
   friction: "Friction",

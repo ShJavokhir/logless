@@ -7,7 +7,7 @@
  "fps": 30,
  "width": 1920,
  "height": 1080,
- "duration_frames": 1830,
+ "duration_frames": 1860,
  "title": "What 5,350 conversations say about your assistant",
  "dataset": {
   "name": "WildChat-1M",
@@ -31,6 +31,71 @@
    "kicker": "A one-minute brief on the published usage map",
    "from_frame": 0,
    "frames": 180
+  },
+  {
+   "type": "change",
+   "seconds": 7,
+   "headline": "300 new conversations push Everyday questions further ahead",
+   "data": {
+    "base_snapshot_id": "snap_20260927T040954_6a04",
+    "conversations_before": 5050,
+    "conversations_after": 5350,
+    "added_conversations": 300,
+    "friction_share_before": 0.1996,
+    "friction_share_after": 0.1989,
+    "items": [
+     {
+      "id": "cl_4f1f8f",
+      "title": "Everyday questions",
+      "before": 786,
+      "after": 831,
+      "friction_share_before": 0.2392,
+      "friction_share_after": 0.2335
+     },
+     {
+      "id": "cl_679651",
+      "title": "Original fiction",
+      "before": 549,
+      "after": 582,
+      "friction_share_before": 0.0747,
+      "friction_share_after": 0.0773
+     },
+     {
+      "id": "cl_ba74da",
+      "title": "Concepts & documents",
+      "before": 693,
+      "after": 725,
+      "friction_share_before": 0.0952,
+      "friction_share_after": 0.0966
+     },
+     {
+      "id": "cl_c9b677",
+      "title": "Code questions",
+      "before": 281,
+      "after": 302,
+      "friction_share_before": 0.242,
+      "friction_share_after": 0.2517
+     },
+     {
+      "id": "cl_e88dfa",
+      "title": "Coursework texts",
+      "before": 288,
+      "after": 298,
+      "friction_share_before": 0.1215,
+      "friction_share_after": 0.1208
+     },
+     {
+      "id": "cl_5e5dc0",
+      "title": "Marketing copy",
+      "before": 156,
+      "after": 165,
+      "friction_share_before": 0.1667,
+      "friction_share_after": 0.1697
+     }
+    ]
+   },
+   "from_frame": 180,
+   "frames": 210
   },
   {
    "type": "map",
@@ -334,7 +399,7 @@
      }
     ]
    },
-   "from_frame": 180,
+   "from_frame": 390,
    "frames": 240
   },
   {
@@ -393,7 +458,7 @@
      }
     ]
    },
-   "from_frame": 420,
+   "from_frame": 630,
    "frames": 210
   },
   {
@@ -447,40 +512,8 @@
      }
     ]
    },
-   "from_frame": 630,
+   "from_frame": 840,
    "frames": 240
-  },
-  {
-   "type": "signals",
-   "seconds": 6,
-   "headline": "Most friction shows up as people asking again",
-   "data": {
-    "friction_conversations": 1064,
-    "items": [
-     {
-      "signal": "repeat_request",
-      "label": "Asked again",
-      "conversations": 636
-     },
-     {
-      "signal": "assistant_limit",
-      "label": "Assistant couldn't help",
-      "conversations": 442
-     },
-     {
-      "signal": "correction",
-      "label": "Corrected the assistant",
-      "conversations": 343
-     },
-     {
-      "signal": "complaint",
-      "label": "Complained",
-      "conversations": 132
-     }
-    ]
-   },
-   "from_frame": 870,
-   "frames": 180
   },
   {
    "type": "spotlight",
@@ -514,7 +547,7 @@
      "Get step-by-step how-to guidance for recipes, health, vehicles, and software"
     ]
    },
-   "from_frame": 1050,
+   "from_frame": 1080,
    "frames": 270
   },
   {
@@ -556,7 +589,7 @@
      }
     ]
    },
-   "from_frame": 1320,
+   "from_frame": 1350,
    "frames": 150
   },
   {
@@ -568,7 +601,7 @@
     "Make coding answers run the first time",
     "Treat a repeated request as a failed answer"
    ],
-   "from_frame": 1470,
+   "from_frame": 1500,
    "frames": 240
   },
   {
@@ -579,7 +612,7 @@
     "snapshot_id": "snap_20260927T140846_8a58",
     "pipeline": "GLM 5.3 \u00b7 Jev \u00b7 gVisor sandbox"
    },
-   "from_frame": 1710,
+   "from_frame": 1740,
    "frames": 120
   }
  ],

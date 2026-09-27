@@ -51,6 +51,17 @@ Rules enforced by the gate:
   In a spotlight scene additionally: `{share}`, `{friction_share_here}`, `{conversations_here}`, `{people_here}`.
 - Same privacy checks as PRDs (no medical conditions, places, ages; `leakcheck.problems` on the filled text).
 
+## What changed (after a live intake)
+
+When the current snapshot was published by a live intake, `briefs.baseline()` finds the snapshot it grew from
+(`intake_batches.ingested_snapshot_id → base_snapshot_id`, same workflows, fewer conversations). The facts sheet then
+gains a `changes` section, a `change` scene becomes **required right after intro**, and three more placeholders are
+allowed: `{new_conversations}`, `{fastest_growing}`, `{friction_share_before}`. The scene's data is computed by code
+from the two published snapshots: added conversations, overall friction share before → now, and the six workflows
+that grew most (before, after, friction share before → after). Without a previous snapshot a `change` scene is
+rejected. This is the honest version of "trends": the sample covers a 26-day window with no time series, so the
+only change we show is the one we measured.
+
 ## Brief the API returns (`GET/POST /api/brief`)
 
 ```json

@@ -4,7 +4,7 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion"
 import { C, FONT, MONO, frictionColor, hue, int, pct } from "../theme"
 import { CountUp, Eyebrow, Headline, Stage } from "../kit"
 import { clamp, easeOut, useProgress, useSpring } from "../anim"
-import type { FrictionScene, LanguagesScene, MapCategory, MapScene, SignalsScene, SpotlightScene, TopScene } from "../types"
+import type { ChangeScene, FrictionScene, LanguagesScene, MapCategory, MapScene, SignalsScene, SpotlightScene, TopScene } from "../types"
 
 /* ---------------------------------------------------------------- map */
 
@@ -469,6 +469,81 @@ function LangLabel({ left, name, share, color, delay }: { left: number; name: st
     <div style={{ position: "absolute", left: `${left}%`, opacity: s, paddingLeft: 4, borderLeft: `3px solid ${color}`, paddingTop: 4 }}>
       <div style={{ fontSize: 28, fontWeight: 540, whiteSpace: "nowrap", paddingLeft: 10 }}>{name}</div>
       <div style={{ fontFamily: MONO, fontSize: 22, color: C.muted, paddingLeft: 10 }}>{pct(share)}</div>
+    </div>
+  )
+}
+
+/* ---------------------------------------------------------------- what changed */
+
+export function Change({ scene }: { scene: ChangeScene }) {
+  const d = scene.data
+  const max = Math.max(...d.items.map((i) => i.after), 1)
+  const frame = useCurrentFrame()
+  const arrow = interpolate(frame, [30, 50], [0, 1], { ...clamp, easing: easeOut })
+  return (
+    <Stage>
+      <Eyebrow color={C.accent}>What changed · new conversations since the last map</Eyebrow>
+      <Headline text={scene.headline} size={62} maxWidth={1680} />
+      <div style={{ display: "flex", gap: 90, marginTop: 44 }}>
+        <div style={{ width: 420, display: "flex", flexDirection: "column", gap: 36 }}>
+          <div>
+            <CountUp
+              value={d.added_conversations}
+              format={(x) => `+${int(x)}`}
+              delay={8}
+              duration={40}
+              style={{ fontSize: 120, fontWeight: 500, letterSpacing: "-0.04em", color: C.accent }}
+            />
+            <div style={{ fontSize: 28, color: C.muted, marginTop: 4 }}>new conversations</div>
+            <div style={{ fontFamily: MONO, fontSize: 22, color: C.faint, marginTop: 10 }}>
+              {int(d.conversations_before)} → {int(d.conversations_after)}
+            </div>
+          </div>
+          <div style={{ opacity: arrow }}>
+            <div style={{ fontFamily: MONO, fontSize: 20, color: C.friction, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Friction share
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 18, marginTop: 8, fontFamily: MONO, fontSize: 44 }}>
+              <span style={{ color: C.muted }}>{pct(d.friction_share_before)}</span>
+              <span style={{ color: C.faint, fontSize: 32 }}>→</span>
+              <span style={{ color: frictionColor(d.friction_share_after) }}>{pct(d.friction_share_after)}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
+          {d.items.map((it, k) => (
+            <GrowRow key={it.id} item={it} max={max} delay={14 + k * 5} />
+          ))}
+          <div style={{ fontFamily: MONO, fontSize: 19, color: C.faint }}>
+            Workflows that grew most · faint bar = previous map · compared with {d.base_snapshot_id}
+          </div>
+        </div>
+      </div>
+    </Stage>
+  )
+}
+
+function GrowRow({ item, max, delay }: { item: ChangeScene["data"]["items"][number]; max: number; delay: number }) {
+  const s = useSpring(delay)
+  const grow = useProgress(delay + 10, delay + 40)
+  const before = item.before / max
+  const after = item.after / max
+  const now = before + (after - before) * grow
+  const gain = item.after - item.before
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "400px 1fr 120px", alignItems: "center", gap: 24, opacity: s }}>
+      <div style={{ fontSize: 32, fontWeight: 560, letterSpacing: "-0.02em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {item.title}
+      </div>
+      <div style={{ position: "relative", height: 30 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: 8, background: "oklch(1 0 0 / 0.04)" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${now * 100}%`, borderRadius: 8, background: C.accent, boxShadow: `0 0 30px ${C.accent}` }} />
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${before * 100}%`, borderRadius: 8, background: "oklch(0.5 0.02 265)" }} />
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 30, textAlign: "right", color: gain > 0 ? C.accent : C.muted }}>
+        {gain > 0 ? "+" : ""}
+        {int(gain * grow)}
+      </div>
     </div>
   )
 }

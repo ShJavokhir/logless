@@ -5,11 +5,12 @@ import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } 
 import { C, FONT, MONO } from "./theme"
 import { clamp, modelName } from "./anim"
 import type { Brief, BriefVideoProps, Scene } from "./types"
-import { Friction, Languages, MapPack, Signals, Spotlight, TopWorkflows } from "./scenes/charts"
+import { Change, Friction, Languages, MapPack, Signals, Spotlight, TopWorkflows } from "./scenes/charts"
 import { Intro, Outro, Takeaways } from "./scenes/text"
 
 const SCENE_NAMES: Record<Scene["type"], string> = {
   intro: "Intro",
+  change: "What changed",
   map: "Map",
   top_workflows: "Top workflows",
   friction: "Friction",
@@ -27,6 +28,8 @@ function SceneView({ scene, brief }: { scene: Scene; brief: Brief }) {
   switch (scene.type) {
     case "intro":
       return <Intro scene={scene} brief={brief} />
+    case "change":
+      return <Change scene={scene} />
     case "map":
       return <MapPack scene={scene} />
     case "top_workflows":

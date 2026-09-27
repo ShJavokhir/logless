@@ -330,3 +330,59 @@ def test_normalize_keeps_gate_bounds_for_every_scene_count():
         for x in (1, 3, 7, 12, 30):
             out = normalize_seconds([x] * n)
             assert all(3 <= s <= 12 for s in out) and 50 <= sum(out) <= 62
+
+
+# ---------------------------------------------------------------- what changed (after a live intake)
+
+def _base_of(snap):
+    """A previous snapshot with the same workflows and fewer conversations."""
+    base = copy.deepcopy(snap)
+    base["snapshot_id"] = "snap_20260926T000000_0000"
+    added = 0
+    for i, c in enumerate(base["clusters"]):
+        dec = 0 if c["id"] == "cl_other" else min(int(c["conversations"]) // 3, 5 * (i + 1))
+        c["conversations"] = int(c["conversations"]) - dec
+        c["friction"] = {**c["friction"], "share": 0.05}
+        added += dec
+    base["totals"] = {**base["totals"], "conversations": int(snap["totals"]["conversations"]) - added,
+                      "friction": {**base["totals"]["friction"], "share": 0.1}}
+    return base
+
+
+def with_change(doc):
+    doc = copy.deepcopy(doc)
+    doc["scenes"].insert(1, {"type": "change", "seconds": 6,
+                             "headline": "{new_conversations} new conversations lift {fastest_growing}"})
+    doc["scenes"] = [s for s in doc["scenes"] if s["type"] != "signals"]
+    return doc
+
+
+def test_change_scene_after_intake():
+    base = _base_of(SNAP)
+    probs, filled = validate(_BriefOut.model_validate(with_change(good())), SNAP, base)
+    assert probs == []
+    ch = filled["scenes"][1]
+    d = ch["data"]
+    added = int(SNAP["totals"]["conversations"]) - int(base["totals"]["conversations"])
+    assert ch["type"] == "change" and ch["headline"].startswith(f"{added:,} new conversations lift ")
+    assert d["added_conversations"] == added and d["base_snapshot_id"] == base["snapshot_id"]
+    assert d["items"][0]["after"] - d["items"][0]["before"] == max(x["after"] - x["before"] for x in d["items"])
+    assert all(x["id"] != "cl_other" for x in d["items"])
+    assert any("previous published snapshot" in c for c in filled["checks"])
+    assert serializers.serialize_brief({**_stored_brief(), "scenes": filled["scenes"]})["scenes"][1]["data"]["added_conversations"] == added
+
+
+def test_change_scene_rules():
+    base = _base_of(SNAP)
+    # required right after intro when new data arrived
+    t = text(validate(_BriefOut.model_validate(good()), SNAP, base)[0])
+    assert "change scene is required right after intro" in t
+    # not allowed (nor its placeholders) without a previous snapshot
+    t = text(check(with_change(good()))[0])
+    assert "only allowed when the facts sheet has changes" in t and "placeholders not allowed here" in t
+
+
+def test_facts_include_changes_only_with_base():
+    assert "changes" not in facts(SNAP)
+    f = facts(SNAP, _base_of(SNAP))
+    assert "(+" in f["changes"]["conversations"] and "new_conversations" in f["placeholders"]

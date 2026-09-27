@@ -48,9 +48,22 @@ export type LanguagesScene = Base & {
 }
 export type TakeawaysScene = Base & { type: "takeaways"; bullets: string[] }
 export type OutroScene = Base & { type: "outro"; data: { snapshot_id: string; pipeline: string } }
+export type ChangeScene = Base & {
+  type: "change"
+  data: {
+    base_snapshot_id: string
+    conversations_before: number
+    conversations_after: number
+    added_conversations: number
+    friction_share_before: number | null
+    friction_share_after: number | null
+    items: { id: string; title: string; before: number; after: number; friction_share_before: number | null; friction_share_after: number | null }[]
+  }
+}
 
 export type Scene =
   | IntroScene
+  | ChangeScene
   | MapScene
   | TopScene
   | FrictionScene

@@ -426,8 +426,27 @@ class OutroData(_Out):
     pipeline: str
 
 
+class ChangeItem(_Out):
+    id: str
+    title: str
+    before: int
+    after: int
+    friction_share_before: float | None
+    friction_share_after: float | None
+
+
+class ChangeData(_Out):
+    base_snapshot_id: str
+    conversations_before: int
+    conversations_after: int
+    added_conversations: int
+    friction_share_before: float | None
+    friction_share_after: float | None
+    items: list[ChangeItem]
+
+
 class BriefScene(_Out):
-    type: Literal["intro", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro"]
+    type: Literal["intro", "change", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro"]
     seconds: int
     from_frame: int
     frames: int
@@ -436,7 +455,7 @@ class BriefScene(_Out):
     cluster_id: str | None = None
     insight: str | None = None
     bullets: list[str] | None = None
-    data: (MapData | TopData | FrictionData | SignalsData | SpotlightData | LanguagesData | OutroData | None) = None
+    data: (MapData | TopData | FrictionData | SignalsData | SpotlightData | LanguagesData | OutroData | ChangeData | None) = None
 
 
 class Brief(_Out):

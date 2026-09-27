@@ -423,7 +423,7 @@ def serialize_prd(raw: dict) -> dict:
 
 BRIEF_ID = re.compile(r"^brf_[0-9a-f]{12}$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-SCENE_TYPES = ("intro", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro")
+SCENE_TYPES = ("intro", "change", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro")
 SIGNAL_LABELS = {"correction": "Corrected the assistant", "repeat_request": "Asked again",
                  "assistant_limit": "Assistant couldn't help", "complaint": "Complained"}
 BRIEF_PIPELINE = "GLM 5.3 · Jev · gVisor sandbox"
@@ -474,6 +474,16 @@ def _scene_data(kind: str, d: Any) -> dict | None:
                            "share": _opt_share(x.get("share")) or 0.0} for x in d.get("items") or []][:8]}
     if kind == "outro":
         return {"snapshot_id": _id(d["snapshot_id"], SNAPSHOT_ID), "pipeline": BRIEF_PIPELINE}
+    if kind == "change":
+        return {"base_snapshot_id": _id(d["base_snapshot_id"], SNAPSHOT_ID),
+                "conversations_before": _int(d["conversations_before"]), "conversations_after": _int(d["conversations_after"]),
+                "added_conversations": _int(d["added_conversations"]),
+                "friction_share_before": _opt_share(d.get("friction_share_before")),
+                "friction_share_after": _opt_share(d.get("friction_share_after")),
+                "items": [{"id": _id(x["id"], LEAF_ID), "title": _str(x["title"], 120), "before": _int(x["before"]),
+                           "after": _int(x["after"]), "friction_share_before": _opt_share(x.get("friction_share_before")),
+                           "friction_share_after": _opt_share(x.get("friction_share_after"))}
+                          for x in d.get("items") or []][:6]}
     return None
 
 
