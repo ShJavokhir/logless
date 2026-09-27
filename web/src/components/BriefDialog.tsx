@@ -232,6 +232,7 @@ function Stageboard({
               {shown.metrics_used.map((m) => (
                 <span key={m.name} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-0.5 text-[11.5px]">
                   <span className="font-mono text-muted-foreground">{`{${m.name.split(" · ")[0]}}`}</span>
+                  {m.name.includes(" · ") ? <span className="text-muted-foreground">{m.name.split(" · ").slice(1).join(" · ")}</span> : null}
                   <span className="font-medium">{m.value}</span>
                 </span>
               ))}
