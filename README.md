@@ -68,6 +68,10 @@ Browser ──HTTPS──▶ Caddy ─▶ FastAPI (app VM: keys, SQLite, pipelin
 8. Privacy gate on every published string.
 9. Atomic publish with provenance.
 
+## Containment
+
+A battery of hostile programs was run against the deployed gVisor sandbox: `rm -rf /`, a fork bomb, a memory bomb, a disk fill, network exfiltration including cloud metadata, secret hunting and host-escape probes. All were contained, and every container was removed. See [docs/SECURITY.md](docs/SECURITY.md).
+
 ## Privacy model (and its limits)
 
 - **The browser gets published aggregates only.** Serializers build each payload field by field from an allowlist. There is no route to a transcript, facet or conversation ID.
