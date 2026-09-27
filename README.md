@@ -75,6 +75,16 @@ Two VMs on a private Vultr VPC, provisioned with the Vultr API. The **app VM** p
 | Public web app | https://144-202-110-2.sslip.io (Caddy, HTTPS) |
 | Throwaway instance per task (optional) | Not done. We use a throwaway container per program on a dedicated sandbox VM |
 
+## Loggy's generative answer canvas
+
+Checked answers can now choose their visual form: ranked bars, workflow cards,
+friction plots, signal breakdowns, and published needs/problems. Jev selects and
+orders prepared components; json-render displays them using checked results and
+published aggregate data. Use **Change this view** to reshape an answer and
+**Previous view** to return to an earlier composition. Mock mode works without
+keys and is explicitly labeled. Setup, manual tests, and limits:
+[Generative UI](docs/GENERATIVE_UI.md).
+
 ## Video brief: the map as a one-minute video
 
 **Video brief** turns the published map into a 60-second motion summary for a product team. GLM 5.3 on Vultr is the director. It reads the published aggregates, picks the scenes, their order and pacing, and writes every word on screen, but it may not write a single digit. A gate checks the scene rules, workflow ids, number placeholders and privacy, with one visible repair round. Code then fills every number and attaches each chart's data from the snapshot. Remotion plays the cut instantly in the browser, and the app VM renders a shareable MP4 in the background. The model writes a storyboard, which is data, and the composition is our code, so agent-written code still never runs on the app VM. After a live intake the new snapshot gets a new cut. Details: [docs/VIDEO_BRIEF.md](docs/VIDEO_BRIEF.md).

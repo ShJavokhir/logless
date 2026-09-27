@@ -20,11 +20,13 @@ import type {
   SubthemesResponse,
 } from "./types"
 import type { BriefResponse } from "@/video/types"
+import type { CanvasRequest, CanvasResponse } from "./canvas"
 import { SANDBOX_UNAVAILABLE } from "./copy"
 import { presenterHeaders } from "./presenter"
 
 export interface Api {
   readonly mode: "mock" | "live"
+  composeCanvas(req: CanvasRequest): Promise<CanvasResponse>
   getSnapshot(signal?: AbortSignal): Promise<Snapshot>
   getSubthemes(snapshotId: string, signal?: AbortSignal): Promise<SubthemesResponse>
   search(req: SearchRequest, signal?: AbortSignal): Promise<SearchResponse>
@@ -109,6 +111,7 @@ async function fetchJson<T>(method: "GET" | "POST", path: string, body?: unknown
 
 const live: Api = {
   mode: "live",
+  composeCanvas: (req) => request<CanvasResponse>("POST", "/canvas", req),
   getSnapshot: (signal) => request<Snapshot>("GET", "/snapshot", undefined, signal),
   getSubthemes: (snapshotId, signal) =>
     request<SubthemesResponse>("GET", `/subthemes?snapshot_id=${encodeURIComponent(snapshotId)}`, undefined, signal),
@@ -143,6 +146,7 @@ function impl(): Promise<Api> {
 
 export const api: Api = {
   mode: MOCK_MODE ? "mock" : "live",
+  composeCanvas: async (req) => (await impl()).composeCanvas(req),
   getSnapshot: async (signal) => (await impl()).getSnapshot(signal),
   getSubthemes: async (snapshotId, signal) => (await impl()).getSubthemes(snapshotId, signal),
   search: async (req, signal) => (await impl()).search(req, signal),

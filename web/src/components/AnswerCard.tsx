@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { lazy, Suspense, useState, type FormEvent } from "react"
 import { ArrowRight, Check, ChevronDown, FileCode, LoaderCircle, MessageSquareText, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { QuestionResult, Run } from "@/lib/types"
@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentLoop } from "./AgentLoop"
 import { Bar, Dot } from "./common"
+
+const AnswerCanvas = lazy(() => import("./AnswerCanvas").then((module) => ({ default: module.AnswerCanvas })))
 
 type Props = {
   run: Run | null
@@ -105,7 +107,9 @@ export function AnswerCard(props: Props) {
               {verified && run?.result ? (
                 <>
                   <Explanation run={run} index={props.index} onSelect={props.onSelectCluster} onFocusCategory={props.onFocusCategory} />
-                  {run.result.intent === "question" ? <QuestionRanking result={run.result} {...props} /> : null}
+                  {run.result.intent === "question" ? <Suspense fallback={<QuestionRanking result={run.result} {...props} />}><AnswerCanvas key={`${run.run_id}:${run.snapshot_id}`} run={run} result={run.result} index={props.index}
+                    ranking={<QuestionRanking result={run.result} {...props} />}
+                    open={(id) => props.index.byId.get(id)?.level === 1 ? props.onFocusCategory(id) : props.onSelectCluster(id)} /></Suspense> : null}
                 </>
               ) : done ? (
                 <p className="text-[13px] text-muted-foreground">The run completed without a verified result for this snapshot. Ask again to use the current map.</p>

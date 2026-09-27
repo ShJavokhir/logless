@@ -41,6 +41,7 @@ import { consistencyChecks, interpretQuestion, questionExplanation, questionResu
 import { mockStory } from "./stories"
 import { createIntakeMock } from "./intake"
 import { presenterKey } from "@/lib/presenter"
+import { canvasSpec, type CanvasCandidate } from "@/lib/canvas"
 
 let SNAPSHOT = snapshotJson as unknown as Snapshot
 export const STORY_LABEL = "Fictional user story · Illustrates an aggregate pattern; not a real customer or additional evidence."
@@ -495,6 +496,29 @@ export async function createMockApi(): Promise<Api> {
       runs.set(run.id, run)
       inflight.set(key, run.id)
       return { run_id: run.id }
+    },
+
+    async composeCanvas(req) {
+      await sleep(450)
+      if (budgetOut) throw budget()
+      if (req.snapshot_id !== SNAPSHOT.snapshot_id) throw new ApiError(409, "stale_snapshot", "Reload the current snapshot.")
+      const stored = runs.get(req.run_id)
+      if (!stored || toRun(stored).state !== "completed" || !stored.result || !toRun(stored).verdict?.passed) {
+        throw new ApiError(409, "unverified_result", "A checked answer is required.")
+      }
+      const q = (req.instruction || stored.question || "").toLowerCase()
+      if (req.instruction && /last week|last month|only health|new topic|rank by|count people/.test(q)) {
+        const selected = req.previous.length ? req.previous : ["ranking" as const]
+        return { run_id: req.run_id, snapshot_id: req.snapshot_id, status: "needs_analysis", selected, spec: canvasSpec(selected) }
+      }
+      const ids = new Set(stored.result.rows.map((r) => r.id))
+      const available = SNAPSHOT.clusters.filter((n) => ids.has(n.id) || (n.parent_id && ids.has(n.parent_id)))
+      let selected: CanvasCandidate[] = req.previous.length ? [...req.previous] : ["ranking"]
+      if (/only|just the|ranked bars/.test(q)) selected = ["ranking"]
+      else if (/need|gap|problem.*first/.test(q) && available.some((n) => n?.needs?.length || n?.problems?.length)) selected = ["needs", "ranking"]
+      else if (/friction|frustrat|signal|complaint/.test(q)) selected = /signal.*first/.test(q) ? ["signals", "friction"] : ["friction", "signals"]
+      else if (/card|what.*us.*for/.test(q)) selected = ["cards"]
+      return { run_id: req.run_id, snapshot_id: req.snapshot_id, status: "mock", selected, spec: canvasSpec(selected) }
     },
 
     async getRun(runId) {

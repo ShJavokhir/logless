@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import {
   ArrowRight,
   ArrowUp,
@@ -34,6 +34,10 @@ import { Button } from "@/components/ui/button"
 import { Dot } from "@/components/common"
 import { RunDetailsSheet } from "@/components/RunDetailsSheet"
 import type { BuildTarget } from "./BuildTab"
+import { DetailPanel } from "@/components/DetailPanel"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
+
+const AnswerCanvas = lazy(() => import("@/components/AnswerCanvas").then((module) => ({ default: module.AnswerCanvas })))
 
 type Turn = {
   id: string
@@ -695,6 +699,30 @@ function Answer({ run, result, index, onBuild }: { run: Run; result: QuestionRes
   const max = Math.max(byShare ? 0.0001 : 1, ...rows.map((r) => (byShare ? r.share : r.count)))
   const targets = buildTargets(result, index)
 
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const detailNode = detailId ? index.byId.get(detailId) : undefined
+  const ranking = (
+        <ol className="flex animate-in flex-col gap-2.5 rounded-2xl border bg-card p-3.5 shadow-xs duration-300 fade-in-0 slide-in-from-bottom-2">
+          {rows.map((r, i) => {
+            const node = index.byId.get(r.id)
+            const value = byShare ? r.share : r.count
+            return (
+              <li key={r.id} className="grid animate-in grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 fill-mode-both duration-300 fade-in-0 slide-in-from-left-1" style={{ animationDelay: `${i * 90}ms` }}>
+                <span className="flex min-w-0 items-center gap-2 text-[13.5px]">
+                  <Dot color={index.paletteOf(r.id).dot} />
+                  <span className="truncate">{node ? proseName(node) : r.id}</span>
+                </span>
+                <span className="font-mono text-[12.5px] tabular-nums">
+                  <CountUp value={value} format={byShare ? fmtPct : fmtInt} delay={i * 90} />
+                  <span className="text-muted-foreground"> {byShare ? `of ${fmtInt(r.base)}` : `· ${fmtPct(r.share)}`}</span>
+                </span>
+                <GrowBar value={value / max} delay={i * 90} className={result.plan.signal ? "bg-heat/70" : "bg-brand/70"} />
+              </li>
+            )
+          })}
+        </ol>
+  )
+
   let seen = 0
   return (
     <>
@@ -722,26 +750,18 @@ function Answer({ run, result, index, onBuild }: { run: Run; result: QuestionRes
       </p>
 
       {textDone && rows.length ? (
-        <ol className="flex animate-in flex-col gap-2.5 rounded-2xl border bg-card p-3.5 shadow-xs duration-300 fade-in-0 slide-in-from-bottom-2">
-          {rows.map((r, i) => {
-            const node = index.byId.get(r.id)
-            const value = byShare ? r.share : r.count
-            return (
-              <li key={r.id} className="grid animate-in grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 fill-mode-both duration-300 fade-in-0 slide-in-from-left-1" style={{ animationDelay: `${i * 90}ms` }}>
-                <span className="flex min-w-0 items-center gap-2 text-[13.5px]">
-                  <Dot color={index.paletteOf(r.id).dot} />
-                  <span className="truncate">{node ? proseName(node) : r.id}</span>
-                </span>
-                <span className="font-mono text-[12.5px] tabular-nums">
-                  <CountUp value={value} format={byShare ? fmtPct : fmtInt} delay={i * 90} />
-                  <span className="text-muted-foreground"> {byShare ? `of ${fmtInt(r.base)}` : `· ${fmtPct(r.share)}`}</span>
-                </span>
-                <GrowBar value={value / max} delay={i * 90} className={result.plan.signal ? "bg-heat/70" : "bg-brand/70"} />
-              </li>
-            )
-          })}
-        </ol>
+        <Suspense fallback={ranking}>
+          <AnswerCanvas key={`${run.run_id}:${run.snapshot_id}`} run={run} result={result} index={index} ranking={ranking} open={setDetailId} />
+        </Suspense>
       ) : null}
+      <Dialog open={detailId !== null} onOpenChange={(open) => { if (!open) setDetailId(null) }}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogTitle>Published workflow details</DialogTitle>
+          <DialogDescription>Aggregate patterns from the same snapshot as this answer.</DialogDescription>
+          <DetailPanel index={index} selectedId={detailNode?.level === 2 ? detailId : null} focusId={detailNode?.level === 1 ? detailId : null}
+            onSelectLeaf={setDetailId} onFocusCategory={setDetailId} />
+        </DialogContent>
+      </Dialog>
 
       {textDone && targets.length ? (
         <div className="flex animate-in flex-col gap-2 fill-mode-both delay-500 duration-300 fade-in-0">

@@ -33,7 +33,7 @@ from ..sandbox import runs as runstore
 from ..sandbox.analysis import run_analysis
 from ..sandbox.client import RunnerClient
 from ..sandbox.containment import run_containment
-from . import brief_video, briefs, models, prds, search, serializers, stories
+from . import brief_video, briefs, canvas, models, prds, search, serializers, stories
 from ..sandbox.plan import normalize_question, sanitize_question
 from .ratelimit import HourlyBudget, RateLimiter, presenter_limits
 
@@ -113,6 +113,7 @@ _story_inflight: dict[tuple[str, str], str] = {}
 _prd_inflight: dict[tuple[str, str], str] = {}
 _brief_inflight: dict[str, str] = {}
 _question_inflight: dict[tuple[str, str], str] = {}
+_canvas_slots = threading.BoundedSemaphore(4)
 _runner: RunnerClient | None = None
 _health_cache: tuple[float, str] = (0.0, "unreachable")
 
@@ -270,6 +271,8 @@ def client_ip(request: Request) -> str:
 
 
 def bucket_for(method: str, path: str) -> str:
+    if method == "POST" and path == "/api/canvas":
+        return "canvas"
     if method == "POST":
         if path == "/api/search":
             return "search"
@@ -442,6 +445,33 @@ def create_app() -> FastAPI:
         except asyncio.TimeoutError:
             raise ApiError(503, "search_timeout", "Search took too long; try again.") from None
         return serializers.serialize_search(snap["snapshot_id"], q, results, elapsed)
+
+    @app.post("/api/canvas")
+    def api_canvas(body: models.CanvasIn, request: Request):
+        snap = _require_snapshot(body.snapshot_id)
+        raw = runstore.load(body.run_id)
+        if raw is None:
+            raise ApiError(404, "not_found", "Unknown run.")
+        if raw["kind"] != "analysis" or raw.get("intent") != "question":
+            raise ApiError(409, "unverified_result", "A checked question is required before creating a view.")
+        run = serializers.serialize_run(raw)
+        verdict = run.get("verdict") or {}
+        result = run.get("result") or {}
+        if (run["kind"] != "analysis" or run["state"] != "completed" or not verdict.get("passed")
+                or not verdict.get("checks") or any(not c["passed"] for c in verdict["checks"])
+                or result.get("intent") != "question"):
+            raise ApiError(409, "unverified_result", "A checked answer is required before creating a view.")
+        if run["snapshot_id"] != snap["snapshot_id"] or result.get("snapshot_id") != snap["snapshot_id"]:
+            raise ApiError(409, "stale_snapshot", "That answer belongs to an older snapshot.")
+        if not _canvas_slots.acquire(blocking=False):
+            raise ApiError(429, "busy", "Several views are being composed. Try again shortly.")
+        try:
+            _spend("canvas", request.state.presenter)
+            composed = canvas.compose(snap, run, sanitize_question(body.instruction.strip()), list(dict.fromkeys(body.previous)))
+            _require_snapshot(body.snapshot_id)  # intake may publish while Jev is choosing
+            return composed
+        finally:
+            _canvas_slots.release()
 
     @app.post("/api/analyses")
     def api_analyses(body: models.AnalysisIn, request: Request):
