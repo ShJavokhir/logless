@@ -15,6 +15,8 @@ All code in this repository was written during the Vultr Agent Arena, which ran 
 | Web API, allowlist serializers, leak checks, rate limiting, stories, search | `backend/logless/api/` |
 | Evaluation: reference-set scoring, external-label agreement, ablation, leak scans | `backend/logless/eval/` |
 | Sandbox runner service | `runner/` |
+| Video brief: GLM director, storyboard gate, placeholder filling, MP4 export | `backend/logless/api/briefs.py`, `backend/logless/api/brief_video.py`, `docs/VIDEO_BRIEF.md` |
+| Video brief composition (scenes, motion, player dialog) and render script | `web/src/video/`, `web/src/components/BriefDialog.tsx`, `web/video-render/`, `infra/setup-render.sh` |
 | Web app | `web/src/` |
 | Infrastructure: provisioning, VM setup, lockdown, deploy | `infra/` |
 | Contracts and spec | `docs/` |
@@ -24,6 +26,7 @@ All code in this repository was written during the Vultr Agent Arena, which ran 
 
 - **Backend:** FastAPI, Uvicorn, Pydantic, httpx, NumPy, pandas, PyArrow, scikit-learn, python-dotenv, pytest.
 - **Frontend:** React, Vite, TypeScript, Tailwind CSS, shadcn/ui (Radix primitives), lucide-react, d3-hierarchy, Geist fonts, Vitest, jsdom (tests).
+- **Video brief:** [Remotion](https://www.remotion.dev) 4.0.529 (`remotion`, `@remotion/player`, `@remotion/bundler`, `@remotion/renderer`, used under Remotion's free license for individuals and small teams), the Chrome Headless Shell it downloads, and Node.js 22 on the app VM. The scenes, motion and data wiring are ours.
 - **Infrastructure:** Docker Engine, gVisor (`runsc`), Caddy, Ubuntu 24.04 on Vultr.
 
 ## Data origins

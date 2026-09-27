@@ -42,6 +42,15 @@ Use intake after rehearsing the main sequence comfortably within three minutes, 
 - An outage or gate rejection is a visible failure. Do not present partial events as published successful intake. Reload to inspect the current snapshot after an unexpected error.
 - Imported custom datasets do not support this WildChat-specific intake adapter yet; rebuild their isolated workspace instead.
 
+## Video brief beat (optional, 20–30 s)
+
+Best right after an intake publishes a new snapshot, or as the closing beat.
+
+- Click **Video brief** in the toolbar. For a snapshot that already has a brief, it plays at once; otherwise click **Direct the video**. The director takes about 20 s: read the published map → GLM directs the storyboard → the gate checks every word and number. Say: “The model directs and writes the words; it may not write a digit. Every number is filled by code from the published map.”
+- Point at the storyboard rail (click a scene to jump), the **Gate** checks and the **Numbers in the words** strip. **Download MP4** appears when the server render finishes (about 2–3 minutes on the app VM).
+- A cut that fails the gate twice is not shown (`brief_rejected`); say so and use **Direct a new cut** or the previous cut.
+- Before the demo, open the brief once on the snapshot you will start from, so its first cut is cached.
+
 ## Fallbacks
 
 | Condition | Response |

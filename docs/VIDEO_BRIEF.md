@@ -39,7 +39,8 @@ Rules enforced by the gate:
 - 6–10 scenes; first is `intro`, last is `outro`; `takeaways` appears exactly once, right before `outro`.
 - Each type at most once except `spotlight` (1–2 times, distinct `cluster_id`s, each a *rankable* leaf — see
   `prds.rankable`). `map`, `friction` are required.
-- `seconds`: integer 3–12 per scene; total 50–62.
+- `seconds`: pacing is not a fact, so it is normalised by code rather than rejected: each scene is clamped to 3–12 s
+  and, if the total falls outside 50–62 s, rescaled to 58 s. The `checks` line says when that happened.
 - `headline`: 2–10 words. `kicker` (intro only, optional): ≤ 12 words. `insight` (spotlight): ≤ 30 words.
   `bullets` (takeaways): exactly 3, each ≤ 14 words. `title`: 3–10 words.
 - No digits, `%`, or number words (zero…twenty, dozen, hundred, thousand, million, billion, half, twice, double,
@@ -75,7 +76,7 @@ Rules enforced by the gate:
                          "conversations": 831}]}},                                 // top 6 rankable by friction_conversations
     {"type": "signals", "…": "…", "data": {"friction_conversations": 1064,
               "items": [{"signal": "repeat_request", "label": "Asked again", "conversations": 636}, "…"]}},
-    {"type": "spotlight", "…": "…", "insight": "…filled…",
+    {"type": "spotlight", "…": "…", "cluster_id": "cl_…", "insight": "…filled…",
      "data": {"id": "cl_…", "title": "…", "category": "…", "description": "…", "share": 0.155,
               "conversations": 831, "people": 577, "friction_share": 0.23,
               "signals": {"correction": 34, "repeat_request": 71, "assistant_limit": 134, "complaint": 19},
@@ -88,9 +89,14 @@ Rules enforced by the gate:
   "metrics_used": [{"name": "friction_share", "value": "19.9%"}],
   "checks": ["…human-readable gate results…"],
   "attempts": 1,
-  "video_url": null
+  "video_status": "ready",          // ready | rendering | failed | none | unavailable (MP4 export)
+  "video_url": "/api/brief/brf_…/video.mp4"   // only when video_status is ready
 }
 ```
+
+Shares (`share`, `friction_share`, `overall_share`, `totals.friction_share`) may be `null` when a denominator is
+empty. `metrics_used` names inside a spotlight are scoped, e.g. `"share · Everyday questions"`, since two spotlights
+can both use `{share}`. `kicker` is present only on intro; intro and takeaways carry no `data`.
 
 Signal labels: correction → "Corrected the assistant", repeat_request → "Asked again", assistant_limit →
 "Assistant couldn't help", complaint → "Complained".
@@ -105,3 +111,21 @@ Signal labels: correction → "Corrected the assistant", repeat_request → "Ask
   capacity + spend like PRDs. Run stages: `reading` (facts sheet from the published map), `directing` (GLM
   storyboard), `checking` (gate), with one repair round re-inserting `directing`, `checking`.
 - Briefs are stored in `public.db` table `briefs(brief_id PK, snapshot_id, json, created_at)`; latest wins.
+- `GET /api/brief/{brief_id}/video.mp4` → the MP4 export (range requests supported), 404 until rendered.
+
+## Playback and MP4 export
+
+- **Player.** `web/src/video/BriefVideo.tsx` is a Remotion composition: every frame is a pure function of the frame
+  number and the brief. The app plays it with `@remotion/player` the moment the brief exists (lazy-loaded chunk).
+- **MP4.** After a brief is saved, `backend/logless/api/brief_video.py` queues one background render (single worker,
+  `nice -n 10`, concurrency 2, 10-minute timeout, minimal environment with no provider keys) of the same composition
+  from a pre-built bundle: `node web/video-render/render.mjs brief.json out.mp4 --bundle … --height 720`. The file is
+  written to a temp name and renamed when complete, under `/var/lib/logless/briefs/`. About 2.5 minutes for a 59 s
+  cut on the 4-vCPU app VM; the player needs none of it.
+- **Why this runs on the app VM.** The model returns a storyboard (JSON data that passed the gate); the composition is
+  our code. Nothing model-written is executed, so the rule that agent-written code only runs in the gVisor sandbox
+  still holds. The render runs as the `logless` user under the API service's systemd hardening.
+- **Setup.** `infra/setup-render.sh` (once) installs a checksum-verified Node 22 tarball in `/opt/node`, Chrome's
+  shared libraries and `@remotion/renderer` + Chrome Headless Shell in `/opt/logless/render`. `infra/deploy-app.sh`
+  then builds and ships the bundle and sets `BRIEF_RENDER_*` in `/etc/logless/env`. Without it, briefs are
+  player-only (`video_status: "unavailable"`).
