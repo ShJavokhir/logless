@@ -18,7 +18,7 @@ import type {
 } from "@/lib/types"
 import { SIGNALS } from "@/lib/types"
 
-const BATCH = 300
+const BATCH = Number(import.meta.env?.VITE_MOCK_BATCH) || 300
 const round4 = (x: number) => Math.round(x * 10000) / 10000
 const iso = (ms: number) => new Date(ms).toISOString()
 
