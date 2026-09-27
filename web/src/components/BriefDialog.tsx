@@ -241,7 +241,8 @@ function Stageboard({
           </div>
         ) : null}
         <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground">
-          Chart values on every scene are attached by code from the published snapshot; the model never sees or writes them.
+          The model reads rounded published aggregates to choose scenes and words, but may not write a digit; every number on
+          screen, in the words and in the charts, is filled by code from the snapshot.
         </p>
       </div>
     )

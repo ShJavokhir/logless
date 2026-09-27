@@ -26,7 +26,7 @@ All code in this repository was written during the Vultr Agent Arena, which ran 
 
 - **Backend:** FastAPI, Uvicorn, Pydantic, httpx, NumPy, pandas, PyArrow, scikit-learn, python-dotenv, pytest.
 - **Frontend:** React, Vite, TypeScript, Tailwind CSS, shadcn/ui (Radix primitives), lucide-react, d3-hierarchy, Geist fonts, Vitest, jsdom (tests).
-- **Video brief:** [Remotion](https://www.remotion.dev) 4.0.529 (`remotion`, `@remotion/player`, `@remotion/bundler`, `@remotion/renderer`, used under Remotion's free license for individuals and small teams), the Chrome Headless Shell it downloads, and Node.js 22 on the app VM. The scenes, motion and data wiring are ours.
+- **Video brief:** [Remotion](https://www.remotion.dev) 4.0.529 (`remotion`, `@remotion/player`, `@remotion/bundler`, `@remotion/renderer`, used under Remotion's free license for individuals and companies of up to three people), the Chrome Headless Shell it downloads, and Node.js 22 on the app VM. The scenes, motion and data wiring are ours.
 - **Infrastructure:** Docker Engine, gVisor (`runsc`), Caddy, Ubuntu 24.04 on Vultr.
 
 ## Data origins
