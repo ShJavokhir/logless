@@ -1,0 +1,74 @@
+Use case: infographic-diagram.
+Create a polished, high-resolution LANDSCAPE editorial infographic for Logless. Original design inspired by the Clio diagram's left-to-right flow, aligned conversation/summary cards, connecting arrows and nested workflow groups. This is a new graphic, not a screenshot or web UI. Approximately 2400 x 1500 composition with generous margins and exceptionally legible, accurate typography.
+
+Title, upper left: "How Logless turns conversations into insights"
+Subtitle: "Understand what people need from their personal AI assistant—without opening their conversations."
+
+Palette: International Klein Blue #002FA7 is the ONLY chromatic accent. White and very pale blue backgrounds, charcoal text, subtle gray rules. No red, orange, green, purple, gradients, 3D, glows, or stock illustrations. Confident Swiss editorial design: clean sans-serif headings, elegant readable serif request text, small restrained uppercase metadata. Thin blue routed connectors, white cards with softly rounded corners. Prioritize text readability and visual hierarchy.
+
+Five columns, arranged left to right. First FOUR columns share a faint blue private-processing background. A clear vertical hatched IKB privacy boundary with lock icon separates column 4 from column 5. A bracket above columns 1–4 reads "PRIVATE PROCESSING". Above column 5, an eye icon and "VISIBLE TO THE TEAM". Private means hidden from the analyst, not hidden from inference providers.
+
+COLUMN 1:
+Heading "1. Conversations"
+Subheading "Requests, context and tool outcomes"
+Four aligned example cards:
+A: "Move dinner to Friday. Check the group chat and update the calendar."
+Small outcome: "Event moved; one invite failed."
+B: "Rotate the chores between us and remind whoever is up next."
+Small outcome: "Turns assigned; reminders created."
+C: "Find a refundable stay near the station. Ask before booking."
+Small outcome: "User corrected a non-refundable option."
+D: "Brief me each morning from my inbox, calendar and saved links."
+Small outcome: "User complained about a missed urgent reply."
+
+COLUMN 2:
+Heading "2. Private facets"
+Subheading "GLM extracts the goal and outcome"
+Four corresponding compact cards, linked one-to-one from column 1:
+A title "Coordinate a group event"
+Outcome "One invitation not delivered"
+B title "Share recurring responsibilities"
+Outcome "Rotation and reminders set"
+C title "Find a stay within constraints"
+Outcome "Refundability requirement missed"
+D title "Prioritize daily information"
+Outcome "Urgent reply omitted"
+Small discreet footer for this column: "Personal details generalized; facets stay private."
+
+COLUMN 3:
+Heading "3. Workflow themes"
+Subheading "GLM discovers themes and defines rules"
+Three grouped containers, with arrows gathering corresponding facets:
+"Coordination" containing "Group scheduling" and "Shared responsibilities"
+"Travel planning" containing "Constraint-based stays"
+"Daily information" containing "Morning briefings"
+An outlined blue stamp beneath: "FREEZE THE TAXONOMY"
+A small caption: "Clear names, membership rules and exclusions"
+
+COLUMN 4:
+Heading "4. Jev decisions"
+Subheading "One primary workflow per interaction"
+Four neat rows aligned logically with the examples:
+"Group scheduling" / "Action error: observed"
+"Shared responsibilities" / "No friction observed"
+"Constraint-based stays" / "Correction: observed"
+"Morning briefings" / "Complaint: observed"
+Then a thin divider and small note: "Correction, complaint and unresolved action error are assessed independently."
+Small outlined pill: "Other or unclear is retained"
+A subtle caption at the base: "Batch questions. Count decisions in code."
+
+COLUMN 5:
+Heading "5. Published insights"
+Subheading "Generalized workflows and aggregate metrics"
+Three attractive nested blue-tinted containers, showing an analyst-visible hierarchy:
+"Coordination" with pills "Group scheduling" and "Shared responsibilities"
+"Planning" with pill "Travel constraints"
+"Information" with pill "Morning briefings"
+Below: "Workflow volumes + friction patterns"
+Small privacy note: "No transcripts. No individual records."
+Only connectors representing grouped summaries cross the privacy boundary; no raw transcript connectors skip intermediate columns. Do NOT invent numeric metrics or percentages.
+
+Along the bottom, below the private processing region, a thin return arrow from Jev decisions back to workflow themes, labelled "Review unclear cases → version the taxonomy → reclassify".
+Bottom footnote: "Illustrative personal-assistant scenarios—not measured product findings."
+Use the text as supplied, preserve exact product spelling "Logless", "GLM", "Jev". Avoid third-party product logos or implied affiliation with Muse, Grok or OpenClaw. These examples illustrate contemporary personal-assistant usage without claiming features of a particular product.
+The finished image should feel precise, spacious and publication-ready, like a beautiful research-paper explainer.

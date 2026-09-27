@@ -122,6 +122,7 @@ export function StoryApp({ step }: { step: number }) {
               </a>
             ))}
           </nav>
+          <a href="#/how-it-works" className="ml-auto text-[12.5px] text-muted-foreground hover:text-foreground">How it works</a>
           <a
             href={EXPLORE_HREF}
             className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:ml-0"

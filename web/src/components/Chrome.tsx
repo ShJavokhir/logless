@@ -41,6 +41,7 @@ export function Header({ snapshot }: { snapshot: Snapshot | null }) {
         ) : null}
       </div>
       <div className="ml-auto flex items-center gap-2">
+        <a href="#/how-it-works" className="whitespace-nowrap text-[12px] text-muted-foreground hover:text-foreground">How it works</a>
         <Hint label={d ? provenanceHint(d.conversations, d.fixtures) : "No one can open a conversation here."} side="bottom">
           <button
             type="button"
