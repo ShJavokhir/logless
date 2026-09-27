@@ -27,7 +27,7 @@ export function destructiveView(d: DestructiveResult | null | undefined, stage: 
     exitCode: d?.exit_code ?? null,
     refused: d?.refused ?? null,
     checks: [
-      { key: "readonly", label: "Read-only filesystem · nothing deleted", note: "reported from inside the sandbox", state: readOnly },
+      { key: "readonly", label: "Read-only root · removals refused, interpreter intact", note: "reported from inside the sandbox", state: readOnly },
       { key: "removed", label: "Container destroyed", state: d ? d.container_removed : live },
       { key: "clean", label: "Next run clean — fresh container from the same pinned image", state: d ? d.next_run_clean : live },
     ],

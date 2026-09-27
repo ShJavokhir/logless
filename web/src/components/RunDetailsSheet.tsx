@@ -439,7 +439,8 @@ function Models({ snapshot }: { snapshot: Snapshot }) {
 
 // ---------------------------------------------------------------- containment
 
-function Containment() {
+/** Also shown on its own in the story's Ask step (`fill={false}` keeps its height natural). */
+export function Containment({ fill = true }: { fill?: boolean } = {}) {
   const sectionRef = useRef<HTMLElement>(null)
   const [runId, setRunId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -463,7 +464,7 @@ function Containment() {
 
   const active = !!run && run.state !== "completed" && run.state !== "failed"
   return (
-    <section ref={sectionRef} id="containment" aria-labelledby="rd-contain" className={cn("scroll-mt-4 rounded-xl border bg-muted/30 p-4", (runId || starting) && "min-h-[calc(100dvh-190px)]")}>
+    <section ref={sectionRef} id="containment" aria-labelledby="rd-contain" className={cn("scroll-mt-4 rounded-xl border bg-muted/30 p-4", fill && (runId || starting) && "min-h-[calc(100dvh-190px)]")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3 id="rd-contain" className="flex items-center gap-1.5 text-[14px] font-semibold">
