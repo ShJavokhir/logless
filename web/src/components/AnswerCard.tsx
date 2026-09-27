@@ -3,7 +3,7 @@ import { ArrowRight, Check, ChevronDown, FileCode, LoaderCircle, MessageSquareTe
 import { cn } from "@/lib/utils"
 import type { QuestionResult, Run } from "@/lib/types"
 import type { SnapshotIndex } from "@/lib/snapshot"
-import { isRunActive, runDurationMs } from "@/lib/runs"
+import { hasVerifiedResult, isRunActive, runDurationMs } from "@/lib/runs"
 import { fillTemplate, resolvePath } from "@/lib/template"
 import { fmtDuration, fmtInt, fmtPct } from "@/lib/format"
 import { planShareNote, planToPhrases } from "@/lib/plan"
@@ -41,6 +41,7 @@ export function AnswerCard(props: Props) {
   const showForm = !run && !error && !props.asking
   const active = !showForm && !unsupported && (isRunActive(run) || (!run && !error))
   const done = run?.state === "completed"
+  const verified = hasVerifiedResult(run, props.index.snapshot.snapshot_id)
   const failed = !unsupported && (run?.state === "failed" || (!!error && !run))
   const duration = runDurationMs(run)
   const title = run?.question ?? (showForm ? ASK_LABEL : "Your question")
@@ -56,7 +57,7 @@ export function AnswerCard(props: Props) {
         <h2 id="answer-h" className="min-w-0 flex-1 truncate text-[14px] font-semibold" title={title}>
           {run?.question ? <span className="font-medium">“{run.question}”</span> : title}
         </h2>
-        {showForm ? null : <StatusChip run={run} error={error} paused={!!paused} unsupported={unsupported} duration={duration} />}
+        {showForm ? null : <StatusChip run={run} verified={verified} error={error} paused={!!paused} unsupported={unsupported} duration={duration} />}
         <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} aria-label={collapsed ? "Expand answer" : "Collapse answer"}>
           <ChevronDown className={cn("transition-transform duration-150", collapsed && "-rotate-90")} />
         </Button>
@@ -80,6 +81,7 @@ export function AnswerCard(props: Props) {
               <AgentLoop run={run} />
               {run?.plan ? <PlanLine run={run} index={props.index} /> : null}
               {active ? <LiveLine run={run} asking={!!props.asking} /> : null}
+              {error && run && !failed ? <p role="alert" className="text-[12.5px] text-destructive">{error}</p> : null}
 
               {failed ? (
                 <div
@@ -100,13 +102,13 @@ export function AnswerCard(props: Props) {
                 </div>
               ) : null}
 
-              {done && run?.result ? (
+              {verified && run?.result ? (
                 <>
                   <Explanation run={run} index={props.index} onSelect={props.onSelectCluster} onFocusCategory={props.onFocusCategory} />
                   {run.result.intent === "question" ? <QuestionRanking result={run.result} {...props} /> : null}
                 </>
               ) : done ? (
-                <p className="text-[13px] text-muted-foreground">The run completed without a publishable result.</p>
+                <p className="text-[13px] text-muted-foreground">The run completed without a verified result for this snapshot. Ask again to use the current map.</p>
               ) : active ? (
                 <div className="flex flex-col gap-2" aria-hidden>
                   <Skeleton className="h-3.5 w-11/12" />
@@ -131,7 +133,7 @@ export function AnswerCard(props: Props) {
                 <span>{failed ? "No run was started" : "Starting…"}</span>
               )}
               <span className="ml-auto flex items-center gap-1">
-                {(done || failed || unsupported) && props.onAskAnother ? (
+                {(done || failed || unsupported || error) && props.onAskAnother ? (
                   <Button variant="ghost" size="xs" onClick={props.onAskAnother}>
                     <MessageSquareText />
                     Ask another
@@ -243,18 +245,20 @@ function PlanLine({ run, index }: { run: Run; index: SnapshotIndex }) {
 
 function StatusChip({
   run,
+  verified,
   error,
   paused,
   unsupported,
   duration,
 }: {
   run: Run | null
+  verified: boolean
   error: string | null
   paused: boolean
   unsupported: boolean
   duration: number | null
 }) {
-  if (run?.state === "completed") {
+  if (verified) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ok-soft px-2 py-0.5 text-[11.5px] font-medium text-ok">
         <Check aria-hidden className="size-3" />
@@ -262,6 +266,7 @@ function StatusChip({
       </span>
     )
   }
+  if (run?.state === "completed") return <span className="shrink-0 rounded-full bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn">Unverified</span>
   if (unsupported) {
     return <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">Not answerable</span>
   }

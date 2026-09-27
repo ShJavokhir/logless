@@ -3,7 +3,7 @@ import { Radio, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { api, describeError, isPause } from "@/lib/api"
 import type { Health, Snapshot } from "@/lib/types"
-import { highlightFromRows, NO_HIGHLIGHT } from "@/lib/search"
+import { createLatestGuard, highlightFromRows, NO_HIGHLIGHT } from "@/lib/search"
 import { indexSnapshot } from "@/lib/snapshot"
 import { layoutOrderOf } from "@/lib/hierarchy"
 import { formatDelta, pickToastDeltas } from "@/lib/intake"
@@ -12,7 +12,7 @@ import { fmtInt } from "@/lib/format"
 import { useIntake } from "@/hooks/useIntake"
 import { IntakeFlow } from "@/components/IntakeFlow"
 import { IntakePanel } from "@/components/IntakePanel"
-import { isRunActive } from "@/lib/runs"
+import { hasVerifiedResult, isRunActive } from "@/lib/runs"
 import { useRun } from "@/hooks/useRun"
 import { useSearch } from "@/hooks/useSearch"
 import { Button } from "@/components/ui/button"
@@ -118,12 +118,13 @@ export default function App() {
     partial: search.highlight.clusters.size - search.highlight.matchCount,
   }
 
-  // §0: the map lens is a view of published data (no run); asking is the one live action.
+  // The map lens is a view of published data; asking starts an analysis run.
   const [lens, setLens] = useState<Lens>("usage")
   const [askOpen, setAskOpen] = useState(false)
   const [runId, setRunId] = useState<string | null>(null)
   const [startError, setStartError] = useState<{ message: string; paused: boolean } | null>(null)
   const [asking, setAsking] = useState(false)
+  const askGuard = useRef(createLatestGuard())
   const question = useRun(runId)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [evalOpen, setEvalOpen] = useState(false)
@@ -131,17 +132,18 @@ export default function App() {
   const askQuestion = useCallback(
     async (text: string) => {
       if (!snapshot) return
+      const token = askGuard.current.begin()
       setAskOpen(true)
       setAsking(true)
       setStartError(null)
       setRunId(null)
       try {
         const { run_id } = await api.startAnalysis({ intent: "question", question: text.slice(0, 200), snapshot_id: snapshot.snapshot_id })
-        setRunId(run_id)
+        if (askGuard.current.isCurrent(token)) setRunId(run_id)
       } catch (err) {
-        setStartError({ message: describeError(err, "The question could not be sent."), paused: isPause(err) })
+        if (askGuard.current.isCurrent(token)) setStartError({ message: describeError(err, "The question could not be sent."), paused: isPause(err) })
       } finally {
-        setAsking(false)
+        if (askGuard.current.isCurrent(token)) setAsking(false)
       }
     },
     [snapshot],
@@ -156,7 +158,7 @@ export default function App() {
 
   // A verified question result lights up its rows' nodes (search wins while active).
   const questionRows =
-    askOpen && question.run?.state === "completed" && question.run.result?.intent === "question" ? question.run.result.rows : null
+    askOpen && hasVerifiedResult(question.run, snapshot?.snapshot_id) && question.run?.result?.intent === "question" ? question.run.result.rows : null
   const questionHighlight = useMemo(
     () => (questionRows && snapshot ? highlightFromRows(questionRows.map((r) => r.id), snapshot.clusters) : NO_HIGHLIGHT),
     [questionRows, snapshot],
@@ -348,7 +350,7 @@ export default function App() {
       </main>
 
       {snapshot ? <RunDetailsSheet open={sheetOpen} onOpenChange={setSheetOpen} run={activeRun} snapshot={snapshot} /> : null}
-      <EvalDialog open={evalOpen} onOpenChange={setEvalOpen} />
+      <EvalDialog key={snapshot?.snapshot_id} snapshotId={snapshot?.snapshot_id} open={evalOpen} onOpenChange={setEvalOpen} />
     </Shell>
   )
 }

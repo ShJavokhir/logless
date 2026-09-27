@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { api, describeError } from "@/lib/api"
+import { ApiError, api, describeError } from "@/lib/api"
 import { createIntakeScheduler, type IntakeScheduler } from "@/lib/intake"
 import { FLOW_HOLD_MS } from "@/lib/intakeFlow"
 import { presenterKey } from "@/lib/presenter"
@@ -62,11 +62,13 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
   const beatRef = useRef(0)
   const lastSeqRef = useRef(0)
   const publishRef = useRef<"no" | "waiting" | "done">("no")
-  const baseIdRef = useRef<string | null>(null)
+  const publishedIdRef = useRef<string | null>(null)
+  const mutationRef = useRef(false)
   const onPublishedRef = useRef(onPublished)
   useEffect(() => {
     onPublishedRef.current = onPublished
   }, [onPublished])
+  useEffect(() => () => { generationRef.current++ }, [])
 
   const refreshStatus = useCallback(async () => {
     if (!presenterKey()) return
@@ -154,7 +156,7 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
             try {
               const s = await api.getSnapshot()
               if (generation !== generationRef.current) return
-              if (s.snapshot_id !== baseIdRef.current) {
+              if (s.snapshot_id === publishedIdRef.current) {
                 deltaRef.current = new Map()
                 setLiveDelta(new Map())
                 setPublished(true)
@@ -185,6 +187,7 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
       try {
         const res = await api.getIntakeEvents(runId, lastSeqRef.current, ctrl.signal)
         if (cancelled) return
+        setError(null)
         if (res.events.length) {
           scheduler.push(res.events, performance.now())
           lastSeqRef.current = Math.max(lastSeqRef.current, ...res.events.map((e) => e.seq))
@@ -200,17 +203,16 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
         }
         // All pages must be queued before an empty scheduler can mean finished.
         if (res.state === "failed") publishRef.current = "no"
-        else if ((res.stage === "evaluating" || res.stage === "done") && publishRef.current === "no") publishRef.current = "waiting"
         if (res.state === "completed" || res.state === "failed") {
-          if (publishRef.current === "no" && res.state === "completed") publishRef.current = "waiting"
-          try {
-            const run = await api.getRun(runId)
-            if (cancelled) return
-            setSummary(run.intake ?? null)
-            if (res.state === "failed") setError(run.error?.message ?? "The intake run failed.")
-          } catch (err) {
-            if (!cancelled) setError(describeError(err, "Couldn't read the intake result."))
+          const run = await api.getRun(runId, ctrl.signal)
+          if (cancelled) return
+          if (res.state === "completed") {
+            if (!run.intake?.published_snapshot_id) throw new Error("The intake publication receipt is not available yet; retrying…")
+            publishedIdRef.current = run.intake.published_snapshot_id
+            if (publishRef.current === "no") publishRef.current = "waiting"
           }
+          setSummary(run.intake ?? null)
+          if (res.state === "failed") setError(run.error?.message ?? "The intake run failed.")
           setPhase(res.state === "completed" ? "done" : "failed")
           void refreshStatus()
           return
@@ -219,6 +221,12 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
         timer = window.setTimeout(poll, INTAKE_POLL_MS)
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return
+        if (err instanceof ApiError && [401, 403, 404, 409].includes(err.status)) {
+          publishRef.current = "no"
+          setError(describeError(err, "This intake run is no longer available."))
+          setPhase("failed")
+          return
+        }
         timer = window.setTimeout(poll, INTAKE_POLL_MS * 3)
         setError(describeError(err, "Lost contact with the intake run; retrying…"))
       }
@@ -242,6 +250,7 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
     expectedRef.current = 0
     lastSeqRef.current = 0
     publishRef.current = "no"
+    publishedIdRef.current = null
     setFeed([])
     setLiveDelta(new Map())
     setLandedEvents([])
@@ -255,8 +264,9 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
   }, [scheduler])
 
   const start = useCallback(async () => {
+    if (!snapshot || active || mutationRef.current) return
+    mutationRef.current = true
     clearLocal()
-    baseIdRef.current = snapshot?.snapshot_id ?? null
     setPhase("starting")
     try {
       const { run_id } = await api.startIntake()
@@ -265,10 +275,14 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
     } catch (err) {
       setError(describeError(err, "The intake couldn't start."))
       setPhase("failed")
+    } finally {
+      mutationRef.current = false
     }
-  }, [snapshot, clearLocal])
+  }, [snapshot, active, clearLocal])
 
   const reset = useCallback(async () => {
+    if (active || mutationRef.current) return
+    mutationRef.current = true
     try {
       await api.resetIntake()
       const s = await api.getSnapshot()
@@ -279,14 +293,16 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
       void refreshStatus()
     } catch (err) {
       setError(describeError(err, "Reset failed."))
+    } finally {
+      mutationRef.current = false
     }
-  }, [refreshStatus, clearLocal])
+  }, [active, refreshStatus, clearLocal])
 
   const close = useCallback(() => {
-    if (phase === "running" || phase === "starting") return
+    if (active || mutationRef.current) return
     clearLocal()
     setPhase("idle")
-  }, [phase, clearLocal])
+  }, [active, clearLocal])
 
   return {
     presenter,

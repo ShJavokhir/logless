@@ -153,12 +153,12 @@ export function IntakeFlow({ intake, index }: { intake: Intake; index: SnapshotI
         </div>
         <div className="absolute z-10 w-[88px] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-brand/25 bg-card px-3 py-3 text-center shadow-xs" style={{ left: jev.x, top: jev.y }}>
           <span className="text-[20px] font-semibold tracking-tight text-brand">Jev</span>
-          <p className="font-mono text-[9px] text-subtle">5 decisions</p>
+          <p className="font-mono text-[9px] text-subtle">{intake.counters?.decisions_per_conversation ?? "—"} decisions</p>
         </div>
         {!compact ? <p className="absolute text-[10px] text-muted-foreground" style={{ left: jev.x - 34, top: jev.y + 55 }}>
-          <span className="font-mono">≥ 0.65</span> to a theme<br />otherwise Other
+          Confident theme<br />otherwise Other
         </p> : null}
-        <p className="absolute font-mono text-[10px] text-subtle" style={{ left: rowLeft + 2, top: rowTop - 23 }}>{compact ? "≥ 0.65 to theme · otherwise Other" : "FROZEN CATEGORIES · new arrivals"}</p>
+        <p className="absolute font-mono text-[10px] text-subtle" style={{ left: rowLeft + 2, top: rowTop - 23 }}>{compact ? "Confident theme · otherwise Other" : "FROZEN CATEGORIES · new arrivals"}</p>
         <ol aria-label="Conversations filed by category">
           {rows.map((row, i) => (
             <li key={row.node.id} data-flow-row={row.node.id} data-count={row.events.length} className="absolute rounded-md border" style={{ left: rowLeft, top: rowTop + i * 51, width: rowWidth, height: 46, background: base.paletteOf(row.node.id).fill, borderColor: base.paletteOf(row.node.id).stroke }}>

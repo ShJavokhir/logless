@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { deriveSteps, runDurationMs, stageLabel } from "./runs"
+import { deriveSteps, hasVerifiedResult, runDurationMs, stageLabel } from "./runs"
 import type { Run, RunStage } from "./types"
 
 const st = (name: string, status: RunStage["status"], a: string | null = null, b: string | null = null): RunStage => ({
@@ -63,6 +63,30 @@ describe("deriveSteps with a pre-check repair", () => {
   it("shows Repairing when two program versions exist even with one execution", () => {
     const steps = deriveSteps({ state: "completed", attempts: 1, stages: [st("planning", "done", "t")], attempts_log: [{}, {}] as never })
     expect(steps.some((s) => s.key === "repairing")).toBe(true)
+  })
+  it("does not invent a repair when A and B each ran once", () => {
+    const steps = deriveSteps({ state: "completed", attempts: 2, stages: [], attempts_log: [{ program: "A" }, { program: "B" }] as never })
+    expect(steps.some((s) => s.key === "repairing")).toBe(false)
+  })
+})
+
+describe("verified results", () => {
+  const run = {
+    state: "completed", snapshot_id: "current", result: { snapshot_id: "current" },
+    verdict: { passed: true, checks: [{ name: "Schema", passed: true }] },
+  } as Run
+  it("requires a current result and explicit passing checks", () => {
+    expect(hasVerifiedResult(run, "current")).toBe(true)
+    expect(hasVerifiedResult(run, "newer")).toBe(false)
+    expect(hasVerifiedResult({ ...run, result: null })).toBe(false)
+    expect(hasVerifiedResult({ ...run, verdict: null })).toBe(false)
+    expect(hasVerifiedResult({ ...run, verdict: { passed: true, checks: [] } })).toBe(false)
+    expect(hasVerifiedResult({ ...run, verdict: { passed: true, checks: [{ name: "Failed", passed: false, detail: "" }] } })).toBe(false)
+  })
+  it("does not infer agreement from a completed two-program run", () => {
+    const two = { ...run, attempts_log: [{ program: "A", verdict: { passed: true, checks: [] }, receipt: {} }, { program: "B", verdict: { passed: true, checks: [] }, receipt: {} }] } as unknown as Run
+    expect(hasVerifiedResult(two)).toBe(false)
+    expect(hasVerifiedResult({ ...two, verdict: { passed: true, checks: [{ name: "Two independent programs agree", passed: true, detail: "" }] } })).toBe(true)
   })
 })
 

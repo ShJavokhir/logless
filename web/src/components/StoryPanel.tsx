@@ -88,7 +88,7 @@ export function StoryPanel({
   const runFailed = phase.kind === "pending" && run?.state === "failed"
   const errorMessage =
     phase.kind === "error" ? phase.message : runFailed ? (run?.error?.message ?? "The story could not be generated.") : runError
-  const busy = (phase.kind === "requesting" || phase.kind === "pending") && !runFailed
+  const busy = (phase.kind === "requesting" || phase.kind === "pending") && !runFailed && !runError
   const liveStage = run?.stages.find((s) => s.status === "running")
 
   return (

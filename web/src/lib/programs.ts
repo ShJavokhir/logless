@@ -10,6 +10,31 @@ export const PROGRAM_KIND_LONG: Record<ProgramId, string> = {
   B: "standard library only (csv, json, collections)",
 }
 
+/** A missing receipt alone does not establish whether the runner started. */
+export function missingReceiptCopy(attempt: Pick<Attempt, "verdict">) {
+  const failed = attempt.verdict.checks.filter((check) => check.passed === false)
+  const execution = failed.find((check) => check.name === "Execution evidence")
+  if (execution && /^job did not start(?: \([a-z_]+\))?$/.test(execution.detail)) {
+    return {
+      label: "not started",
+      message: "Runner did not start the job.",
+      repairLabel: "was not started by the runner",
+    }
+  }
+  if (!execution && failed.some((check) => check.name === "Static pre-check")) {
+    return {
+      label: "pre-check",
+      message: "Static pre-check rejected the program before it reached the sandbox.",
+      repairLabel: "was stopped by the static pre-check",
+    }
+  }
+  return {
+    label: "no execution receipt",
+    message: "No execution receipt is available; execution status is unknown.",
+    repairLabel: "has no execution receipt",
+  }
+}
+
 export type ProgramTrack = {
   program: ProgramId
   attempts: Attempt[]

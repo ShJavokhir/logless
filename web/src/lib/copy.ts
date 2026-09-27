@@ -5,9 +5,9 @@ import { fmtInt } from "./format"
 export const STORY_LABEL = "Fictional user story · Illustrates an aggregate pattern; not a real customer or additional evidence."
 
 export const RUN_SUBTITLE =
-  "GLM wrote two independent programs for the validated plan without seeing any data. Each ran in its own gVisor sandbox with no network; the gate checked both outputs, cross-checked them against the published map where the plan allows, and required them to agree."
+  "GLM wrote two independent programs for the validated plan from the data dictionary alone, without seeing a single row. Each ran in its own gVisor sandbox with no network; the gate checked both outputs, cross-checked them against the published map where the plan allows, and required them to agree."
 
-export const PEOPLE_HINT = "Distinct people, approximated from hashed IP addresses (shared or changing IPs make this approximate)"
+export const PEOPLE_HINT = "Distinct people, approximated from the source's pseudonymous identifiers (shared or changing identifiers make this approximate)"
 
 export const ASK_LABEL = "Ask a question"
 
@@ -31,9 +31,9 @@ export function fixtureCount(f: Fixtures | undefined): number {
 }
 
 /** "5,050 conversations (5,000 WildChat + 50 test fixtures)" */
-export function conversationsPhrase(total: number, f: Fixtures | undefined): string {
+export function conversationsPhrase(total: number, f: Fixtures | undefined, datasetName = "source"): string {
   const fx = fixtureCount(f)
-  return fx ? `${fmtInt(total)} conversations (${fmtInt(total - fx)} WildChat + ${fmtInt(fx)} test fixtures)` : `${fmtInt(total)} conversations`
+  return fx ? `${fmtInt(total)} conversations (${fmtInt(total - fx)} ${datasetName} + ${fmtInt(fx)} test fixtures)` : `${fmtInt(total)} conversations`
 }
 
 /** Honest provenance for the header tooltip (§0: the map is pipeline-computed). */
@@ -57,4 +57,4 @@ export function fixturesShort(f: Fixtures | undefined): string | null {
 
 /** §11 product copy (the contract's sentence). */
 export const INTAKE_COPY =
-  "Live intake shows a generalized, PII-checked one-line summary for each new conversation as it is classified. Transcripts are never shown."
+  "Presenter-only live intake shows classification and routing progress. Conversation text and summaries are withheld."

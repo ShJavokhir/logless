@@ -39,17 +39,20 @@ Mock-only URL switches: `?sandbox=down` (health degraded, questions return
   Labels fade with available screen space; reduced motion skips camera easing.
   Zoom uses the published aggregates and makes no model calls.
 - **Map lens** (Usage | Friction): recolours the map from the published snapshot; no run.
-- **Ask a question** (CONTRACTS §0/§8b) is the only live action. The answer card shows the
+- **Ask a question** (CONTRACTS §0/§8b) starts live analysis. The answer card shows the
   interpreted plan in words, the agent loop (two independent programs, A pandas and B plain
   Python: shas, gVisor times, gate n/n, published-map cross-checks, agreement, repairs) and the
   verified rows. Run details shows both programs with every version, receipt and gate verdict.
+- **Semantic search** and **fictional stories** also call live services; they do not execute
+  generated analysis programs. Stories are explicitly labeled as invented illustrations.
 - **Presenter capacity**: open the app once with `?presenter=<key>`; the key is moved to
   localStorage, stripped from the URL, and sent as `X-Logless-Presenter` on every API call.
 - **Live intake** (CONTRACTS §11, presenter-only): with a presenter key stored and a batch ready,
   a "Live intake" control appears in the map header. The map crossfades into a routing diagram:
   incoming conversation tiles pass through Jev into the frozen categories, with a separate
   Other or unclear row. Each landed tile increments its row; orange marks observed friction.
-  The panel shows stages, rates and a sampled feed of PII-checked one-line summaries. The flow
+  The panel shows stages, rates and a sampled feed of presenter-only classification metadata.
+  Conversation text and summaries are withheld. The flow
   retains its totals for 1.2 seconds after publication, then returns to the updated map and toast.
   Reduced motion files decisions without flights; resize and background catch-up preserve counts.
   Failed runs return immediately to the map. "Reset intake" re-publishes the base

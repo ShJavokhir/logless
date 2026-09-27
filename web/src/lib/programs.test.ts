@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Attempt, GateCheck, Run } from "./types"
-import { crossChecks, isTwoProgram, programGateTally, programTracks, repairs, splitProgramPrefix } from "./programs"
+import { crossChecks, isTwoProgram, missingReceiptCopy, programGateTally, programTracks, repairs, splitProgramPrefix } from "./programs"
 
 const chk = (name: string, passed = true): GateCheck => ({ name, passed, detail: "" })
 const att = (program: "A" | "B" | undefined, attempt: 1 | 2, passed: boolean, reason: string | null = null): Attempt => ({
@@ -67,5 +67,25 @@ describe("crossChecks", () => {
     expect(splitProgramPrefix("Program B: Strict JSON parse")).toEqual({ program: "B", name: "Strict JSON parse" })
     expect(splitProgramPrefix("A · Size within 1 MiB")).toEqual({ program: "A", name: "Size within 1 MiB" })
     expect(splitProgramPrefix("Accurate total")).toEqual({ program: null, name: "Accurate total" })
+  })
+})
+
+describe("missing execution receipts", () => {
+  const evidence = (name: string, detail: string, passed = false) => ({ verdict: { passed: false, checks: [{ name, detail, passed }] } })
+  it("distinguishes a never-started job from a static rejection", () => {
+    expect(missingReceiptCopy(evidence("Execution evidence", "job did not start (image_missing)")).message).toBe("Runner did not start the job.")
+    expect(missingReceiptCopy(evidence("Static pre-check", "disallowed import")).label).toBe("pre-check")
+  })
+  it("does not infer nonexecution from missing or unverified evidence", () => {
+    for (const attempt of [
+      evidence("Execution evidence", "execution could not be verified (runner_error)"),
+      evidence("Execution evidence", "unknown future diagnostic"),
+      evidence("Other check", "job did not start (runner_error)"),
+      evidence("Execution evidence", "job did not start (runner_error)", true),
+      { verdict: { passed: false, checks: [] } },
+    ]) {
+      expect(missingReceiptCopy(attempt).label).toBe("no execution receipt")
+      expect(missingReceiptCopy(attempt).message).toContain("execution status is unknown")
+    }
   })
 })

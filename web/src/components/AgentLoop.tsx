@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 import type { Run, StageStatus } from "@/lib/types"
 import { deriveSteps, type StepStatus } from "@/lib/runs"
 import { fmtMs } from "@/lib/format"
-import { crossChecks, isTwoProgram, PROGRAM_KIND, programGateTally, programTracks, repairs } from "@/lib/programs"
+import { crossChecks, isTwoProgram, missingReceiptCopy, PROGRAM_KIND, programGateTally, programTracks, repairs } from "@/lib/programs"
 
 type LoopStep = { key: string; label: string; status: StepStatus; values: string[] }
 
@@ -26,7 +26,9 @@ export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQue
   const explaining = status("explaining")
 
   const shaLines = tracks.map((t) => `${t.program} ${t.latest.code_sha256.slice(0, 8)}`)
-  const timeLines = tracks.map((t) => `${t.program} ${t.latest.receipt ? fmtMs(t.latest.receipt.elapsed_ms) : "not run"}`)
+  const timeLines = tracks.map((t) => `${t.program} ${t.latest.receipt ? fmtMs(t.latest.receipt.elapsed_ms) : missingReceiptCopy(t.latest).label}`)
+  const receipts = tracks.flatMap((t) => t.latest.receipt ? [t.latest.receipt] : [])
+  const runtime = receipts.length && receipts.every((r) => r.runtime === "runsc") ? "gVisor" : "sandbox"
   const gateLines: string[] = []
   if (tally) gateLines.push(`${tally.passed}/${tally.total}${tally.passed === tally.total ? "" : " ✕"}`)
   else if (run?.verdict) gateLines.push(`${run.verdict.checks.filter((c) => c.passed).length}/${run.verdict.checks.length}`)
@@ -38,21 +40,21 @@ export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQue
   let agree: StepStatus = "pending"
   if (cross.agreement) agree = cross.agreement.passed ? "done" : "failed"
   else if (run?.state === "failed") agree = "skipped"
-  else if (explaining !== "pending") agree = "done"
+  else if (run?.state === "completed") agree = "skipped"
 
   const loop: LoopStep[] = [
     ...(steps.some((s) => s.key === "interpreting")
-      ? [{ key: "interpreting", label: done(status("interpreting")) ? "Interpreted" : "Interpreting", status: status("interpreting"), values: status("interpreting") === "done" ? ["plan ready"] : status("interpreting") === "failed" ? ["no plan"] : [] }]
+      ? [{ key: "interpreting", label: status("interpreting") === "failed" ? "Interpretation failed" : done(status("interpreting")) ? "Interpreted" : "Interpreting", status: status("interpreting"), values: status("interpreting") === "done" ? ["plan ready"] : status("interpreting") === "failed" ? ["no plan"] : [] }]
       : []),
     {
       key: "planning",
-      label: done(planning) ? (two ? `Wrote ${Math.max(tracks.length, 2)} programs` : "Wrote program") : two ? "Writing 2 programs" : "Writing program",
+      label: planning === "failed" ? "Writing failed" : done(planning) ? (tracks.length ? `Wrote ${tracks.length} ${tracks.length === 1 ? "program" : "programs"}` : "Programs written") : two ? "Writing 2 programs" : "Writing program",
       status: planning,
       values: shaLines.length ? shaLines : done(planning) ? ["written"] : [],
     },
     {
       key: "executing",
-      label: done(executing) ? (two ? "Ran both in gVisor" : "Ran in gVisor") : "Running in gVisor",
+      label: executing === "failed" ? "Execution failed" : done(executing) ? `Ran ${receipts.length === 2 ? "both " : ""}in ${runtime}` : "Sandbox execution",
       status: executing,
       values: timeLines,
     },
@@ -62,7 +64,7 @@ export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQue
       status: validating,
       values: done(validating) || tally ? gateLines : [],
     },
-    ...(two ? [{ key: "agree", label: agree === "failed" ? "Programs differ" : "Programs agree", status: agree, values: agree === "done" ? ["identical"] : agree === "failed" ? ["mismatch"] : [] }] : []),
+    ...(two ? [{ key: "agree", label: agree === "failed" ? "Programs differ" : agree === "done" ? "Programs agree" : "Agreement check", status: agree, values: agree === "done" ? ["identical"] : agree === "failed" ? ["mismatch"] : [] }] : []),
     { key: "explaining", label: done(explaining) ? "Explained" : "Explaining", status: explaining, values: explaining === "done" ? ["checked"] : [] },
   ]
 
@@ -103,8 +105,8 @@ export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQue
 
       {two ? (
         <p className="text-[11.5px] leading-snug text-muted-foreground">
-          <span className="font-medium text-foreground/80">A</span> {PROGRAM_KIND.A} · <span className="font-medium text-foreground/80">B</span> {PROGRAM_KIND.B} — written independently, each run in its own container
-          {cross.consistency.length ? ", cross-checked against the published map" : ""}.
+          Requested: <span className="font-medium text-foreground/80">A</span> {PROGRAM_KIND.A} · <span className="font-medium text-foreground/80">B</span> {PROGRAM_KIND.B}, written independently for separate containers.
+          {cross.consistency.length ? " Published-map checks are shown in run details." : ""}
         </p>
       ) : null}
 
@@ -118,7 +120,7 @@ export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQue
             {fixes.map((f) => (
               <div key={`${f.program}-${f.failed.attempt}`}>
                 <span className="font-medium">
-                  Program {f.program} v{f.failed.attempt} {f.failed.receipt ? "rejected" : "stopped by the static pre-check"}
+                  Program {f.program} v{f.failed.attempt} {f.failed.receipt ? "rejected" : missingReceiptCopy(f.failed).repairLabel}
                 </span>
                 {f.reason ? <span className="text-muted-foreground">: {f.reason}</span> : null}
               </div>

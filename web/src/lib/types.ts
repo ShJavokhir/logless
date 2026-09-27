@@ -56,10 +56,10 @@ export type Snapshot = {
   created_at: string
   workspace: { name: string; description: string }
   dataset: {
-    name: "WildChat-1M"
+    name: string
     source_url: string
     revision: string
-    license: "ODC-BY-1.0"
+    license: string
     attribution: string
     period_start: string // YYYY-MM-DD
     period_end: string // YYYY-MM-DD
@@ -183,8 +183,9 @@ export type Containment = {
 
 /**
  * One program version of an analysis (§8b "Attempt history"). `receipt` is null
- * when the static pre-check rejected the program before it ran (its verdict is
- * then a single "Static pre-check" check). `attempt` numbers program versions;
+ * when the static pre-check rejected the program, or the runner supplied no
+ * verifiable execution receipt. Failed check names/details distinguish these
+ * cases; absence alone does not prove the program never ran. `attempt` numbers program versions;
  * `Run.attempts` counts sandbox executions. `repair_reason` says why this
  * version did not pass (fixed vocabulary) and is null when it passed.
  */
@@ -208,7 +209,7 @@ export type Run = {
   created_at: string
   updated_at: string
   stages: RunStage[]
-  attempts: number // sandbox executions used (max 2 for analyses)
+  attempts: number // sandbox executions used (up to 2 versions per program)
   code: string | null // the GLM-written program (contains no data)
   receipt: Receipt | null // last sandbox execution
   verdict: Verdict | null
@@ -323,7 +324,7 @@ export type IntakeEvent = {
   friction: Record<Signal, Decision>
   language: string
   turns: number
-  summary: string | null // generalized facet task (≤ 90 chars); null → "summary withheld"
+  summary: string | null // withheld by the live API; legacy/mock summaries are never rendered
 }
 
 export type IntakeCounters = {

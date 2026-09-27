@@ -599,7 +599,7 @@ function MapLegend({ lens }: { lens: Lens }) {
       {lens === "friction" ? (
         <>
           <span className="font-medium text-foreground">Friction · share with ≥1 observed signal</span>
-          <span className="flex items-center gap-2.5" role="img" aria-label="Friction scale from 0% to 30% or more; darker fill and a thicker ring mean more friction">
+          <span className="flex items-center gap-2.5" role="img" aria-label={`Friction scale from 0% to ${Math.round(FRICTION_MAX * 100)}% or more; darker fill and a thicker ring mean more friction`}>
             {FRICTION_LEGEND.map((s) => (
               <span key={s} className="flex items-center gap-1">
                 <svg width="14" height="14" aria-hidden>

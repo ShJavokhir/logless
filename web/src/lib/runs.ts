@@ -1,5 +1,6 @@
 import type { Run, RunStage, StageStatus } from "./types"
 import { durationMs } from "./format"
+import { crossChecks, isTwoProgram, programTracks } from "./programs"
 
 export type StepKey = "interpreting" | "planning" | "executing" | "validating" | "repairing" | "explaining"
 export type StepStatus = "pending" | "running" | "done" | "failed" | "skipped"
@@ -25,7 +26,9 @@ export function deriveSteps(
 ): Step[] {
   const stages = run?.stages ?? []
   // A static pre-check rejection can yield two program versions with one execution.
-  const repaired = stages.some((s) => s.name === "repairing") || (run?.attempts ?? 0) >= 2 || (run?.attempts_log?.length ?? 0) >= 2
+  const log = run?.attempts_log ?? []
+  const repaired = stages.some((s) => s.name === "repairing") || programTracks(run).some((t) => t.repaired) ||
+    (!log.length && (run?.attempts ?? 0) >= 2)
   const interprets = forQuestion || run?.intent === "question" || stages.some((s) => s.name === "interpreting")
   const keys: StepKey[] = [
     ...(interprets ? (["interpreting"] as const) : []),
@@ -52,6 +55,19 @@ export function currentStage(run: Run | null): RunStage | null {
 
 export function isRunActive(run: Run | null | undefined): boolean {
   return !!run && run.state !== "completed" && run.state !== "failed"
+}
+
+/** Completion alone is not evidence that a result passed the gate. */
+export function hasVerifiedResult(run: Run | null | undefined, snapshotId?: string): boolean {
+  if (!run || run.state !== "completed" || !run.result || !run.verdict?.passed || !run.verdict.checks.length) return false
+  if (run.verdict.checks.some((check) => !check.passed)) return false
+  if (run.result.snapshot_id !== run.snapshot_id || (snapshotId && run.snapshot_id !== snapshotId)) return false
+  if (isTwoProgram(run)) {
+    const tracks = programTracks(run)
+    if (tracks.length !== 2 || !crossChecks(run).agreement?.passed) return false
+    if (tracks.some((track) => !track.latest.verdict.passed || !track.latest.receipt)) return false
+  }
+  return true
 }
 
 /** Wall-clock duration of a run from its first stage start to last finish. */

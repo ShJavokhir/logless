@@ -13,7 +13,7 @@ import { useRun } from "@/hooks/useRun"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ASK_LABEL, RUN_SUBTITLE } from "@/lib/copy"
-import { crossChecks, PROGRAM_KIND, PROGRAM_KIND_LONG, programTracks, type ProgramTrack } from "@/lib/programs"
+import { crossChecks, missingReceiptCopy, PROGRAM_KIND, PROGRAM_KIND_LONG, programTracks, type ProgramTrack } from "@/lib/programs"
 import { planShareNote, planToWords } from "@/lib/plan"
 import { proseName } from "@/lib/labels"
 
@@ -138,7 +138,7 @@ function Programs({ tracks }: { tracks: ProgramTrack[] }) {
                 <div className="mt-1 font-mono text-[11px] leading-relaxed text-muted-foreground tabular-nums">
                   <div>sha256 {t.latest.code_sha256.slice(0, 12)}</div>
                   <div>
-                    {t.latest.receipt ? `${fmtMs(t.latest.receipt.elapsed_ms)} · exit ${t.latest.receipt.exit_code ?? "—"}` : "not executed"} · gate {v.checks.filter((c) => c.passed).length}/{v.checks.length}
+                    {t.latest.receipt ? `${fmtMs(t.latest.receipt.elapsed_ms)} · exit ${t.latest.receipt.exit_code ?? "—"}` : missingReceiptCopy(t.latest).label} · gate {v.checks.filter((c) => c.passed).length}/{v.checks.length}
                   </div>
                   <div>{t.attempts.length > 1 ? `${t.attempts.length} versions · repaired` : "1 version"}</div>
                 </div>
@@ -175,14 +175,14 @@ function ProgramVersions({ track }: { track: ProgramTrack }) {
               )}
             >
               {att.verdict.passed ? <CircleCheck aria-hidden className="size-3.5 text-ok" /> : <CircleX aria-hidden className="size-3.5 text-destructive" />}
-              Version {att.attempt} · {att.verdict.passed ? "passed" : att.receipt ? "rejected" : "pre-check"}
+              Version {att.attempt} · {att.verdict.passed ? "passed" : att.receipt ? "rejected" : missingReceiptCopy(att).label}
             </button>
           ))}
         </div>
       ) : null}
       {a.repair_reason ? (
         <p className="rounded-lg border border-dashed px-3 py-2 text-[12.5px]">
-          Did not pass: <span className="font-medium">{a.repair_reason}</span>. The repair prompt got only this fixed-vocabulary reason, never values or sandbox output.
+          Did not pass: <span className="font-medium">{a.repair_reason}</span>. This is a fixed-vocabulary diagnostic; raw sandbox output is never included in repair prompts.
         </p>
       ) : null}
       <div role="tabpanel" className="flex flex-col gap-5">
@@ -191,7 +191,7 @@ function ProgramVersions({ track }: { track: ProgramTrack }) {
           <ReceiptGrid receipt={a.receipt} />
         ) : (
           <p className="rounded-lg border border-dashed px-3 py-2 text-[12.5px] text-muted-foreground">
-            Not executed: the static pre-check rejected this program before it reached the sandbox.
+            {missingReceiptCopy(a).message}
           </p>
         )}
         <GateVerdict verdict={a.verdict} attempts={a.attempt} title={`Gate · program ${track.program}`} />

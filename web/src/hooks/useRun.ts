@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { api, describeError } from "@/lib/api"
+import { ApiError, api, describeError } from "@/lib/api"
 import type { Run } from "@/lib/types"
 
 export const POLL_MS = 1000
@@ -38,6 +38,10 @@ export function useRun(runId: string | null) {
         if (!isTerminal(run)) timer = setTimeout(tick, POLL_MS)
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return
+        if (err instanceof ApiError && [401, 403, 404, 410].includes(err.status)) {
+          setState((s) => ({ ...s, error: describeError(err, "This run is no longer available.") }))
+          return
+        }
         failures++
         // keep the last good run; surface the error after repeated failures
         if (failures >= 3) setState((s) => ({ ...s, error: describeError(err, "Lost contact with this run.") }))

@@ -35,7 +35,7 @@ export function Header({ snapshot }: { snapshot: Snapshot | null }) {
           <>
             <span className="whitespace-nowrap text-muted-foreground">{fmtDateRange(d.period_start, d.period_end)}</span>
             <span className="text-[12.5px] text-muted-foreground tabular-nums lg:whitespace-nowrap">
-              {conversationsPhrase(d.conversations, d.fixtures)} · {fmtInt(d.users)} people · {fmtInt(d.languages)} languages
+              {conversationsPhrase(d.conversations, d.fixtures, d.name)} · {fmtInt(d.users)} people · {fmtInt(d.languages)} languages
             </span>
           </>
         ) : null}
@@ -50,17 +50,21 @@ export function Header({ snapshot }: { snapshot: Snapshot | null }) {
             Aggregate insights only
           </button>
         </Hint>
-        {d ? (
+        {d?.source_url ? (
           <a
             href={d.source_url}
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-[12px] whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={`WildChat data, ${d.license} licence (opens the dataset page)`}
+            aria-label={`${d.name}, ${d.license} licence (opens the dataset page)`}
           >
-            WildChat data · ODC-BY
+            {d.name} · {d.license}
             <ExternalLink aria-hidden className="size-3" />
           </a>
+        ) : d ? (
+          <span className="inline-flex h-6 items-center rounded-full border px-2.5 text-[12px] whitespace-nowrap text-muted-foreground">
+            {d.name} · {d.license}
+          </span>
         ) : null}
       </div>
     </header>
@@ -253,18 +257,18 @@ export function Footer({ snapshot, mock, onEval }: { snapshot: Snapshot | null; 
           <FlaskConical />
           Evaluation
         </Button>
-        <span className="whitespace-nowrap">
+        {snapshot ? <span className="whitespace-nowrap" title={snapshot.dataset.attribution}>
           Data:{" "}
-          <a
-            href={snapshot?.dataset.source_url ?? "https://huggingface.co/datasets/allenai/WildChat-1M"}
+          {snapshot.dataset.source_url ? <a
+            href={snapshot.dataset.source_url}
             target="_blank"
             rel="noreferrer"
             className={cn("underline decoration-border underline-offset-2 hover:text-foreground hover:decoration-foreground/40")}
           >
-            WildChat-1M (Zhao et al., 2024)
-          </a>
-          , ODC-BY
-        </span>
+            {snapshot.dataset.name}
+          </a> : snapshot.dataset.name}
+          , {snapshot.dataset.license}
+        </span> : null}
       </span>
     </footer>
   )

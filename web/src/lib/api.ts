@@ -52,8 +52,23 @@ export const MOCK_MODE: boolean =
   import.meta.env.VITE_MOCK === "1" || (import.meta.env.DEV && import.meta.env.VITE_MOCK !== "0")
 
 const BASE = "/api"
+export const REQUEST_TIMEOUT_MS = 30_000
 
 async function request<T>(method: "GET" | "POST", path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const timeout = new AbortController()
+  const combined = signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal
+  const timer = setTimeout(() => timeout.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetchJson<T>(method, path, body, combined)
+  } catch (err) {
+    if (timeout.signal.aborted && !signal?.aborted) throw new ApiError(0, "timeout", "The API took too long to respond. Try again.")
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function fetchJson<T>(method: "GET" | "POST", path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -145,6 +160,8 @@ const FRIENDLY: Record<string, string> = {
   presenter_required: "Live intake is presenter-only.",
   intake_not_ready: "No intake batch is prepared right now.",
   intake_in_flight: "A live intake is already running.",
+  stale_intake: "The published snapshot changed. Reload the map before starting or resetting intake.",
+  timeout: "The API took too long to respond. Try again.",
   interpretation_failed: "The question couldn't be interpreted this time. Try rephrasing it.",
   story_rejected: "The story didn't pass the privacy check twice, so nothing is shown.",
   payload_too_large: "That request was too large.",

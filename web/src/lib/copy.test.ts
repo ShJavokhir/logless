@@ -5,7 +5,8 @@ const f = { canary_conversations: 40, injection_conversations: 10 }
 
 describe("provenance copy", () => {
   it("splits the total into WildChat conversations and test fixtures", () => {
-    expect(conversationsPhrase(5050, f)).toBe("5,050 conversations (5,000 WildChat + 50 test fixtures)")
+    expect(conversationsPhrase(5050, f, "WildChat-1M")).toBe("5,050 conversations (5,000 WildChat-1M + 50 test fixtures)")
+    expect(conversationsPhrase(5050, f, "Support export")).toBe("5,050 conversations (5,000 Support export + 50 test fixtures)")
     expect(conversationsPhrase(800, undefined)).toBe("800 conversations")
   })
   it("states who computes what, exactly as agreed", () => {

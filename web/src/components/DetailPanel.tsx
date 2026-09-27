@@ -33,7 +33,7 @@ type Props = {
 export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusCategory, onShowFinding, onAsk }: Props) {
   const leaf = selectedId ? index.byId.get(selectedId) : undefined
   if (leaf && leaf.level === 2) {
-    return <LeafDetail key={leaf.id} index={index} leaf={leaf} onClose={() => onSelectLeaf(null)} onFocusCategory={onFocusCategory} />
+    return <LeafDetail key={`${index.snapshot.snapshot_id}:${leaf.id}`} index={index} leaf={leaf} onClose={() => onSelectLeaf(null)} onFocusCategory={onFocusCategory} />
   }
   const cat = focusId ? index.byId.get(focusId) : undefined
   return (
@@ -306,7 +306,7 @@ function Overview({
                 {fmtInt(s.dataset.languages)} languages
                 {fixtureCount(s.dataset.fixtures) ? (
                   <span className="block text-[11.5px] text-subtle">
-                    {fmtInt(node.conversations - fixtureCount(s.dataset.fixtures))} WildChat + {fixturesShort(s.dataset.fixtures)}
+                    {fmtInt(node.conversations - fixtureCount(s.dataset.fixtures))} {s.dataset.name} + {fixturesShort(s.dataset.fixtures)}
                   </span>
                 ) : null}
               </>

@@ -78,7 +78,6 @@ export function uniqueModelLabels(models: Record<string, string>): string[] {
   const out: string[] = []
   const order = (id: string) => (id.startsWith("glm") ? 0 : id.startsWith("jev") ? 1 : 2)
   for (const id of Object.values(models).sort((a, b) => order(a) - order(b) || a.localeCompare(b))) {
-    if (id.includes("flash")) continue
     const label = modelLabel(id)
     if (!seen.has(label)) {
       seen.add(label)

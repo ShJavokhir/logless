@@ -8,25 +8,37 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 
-export function EvalDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function EvalDialog({ open, onOpenChange, snapshotId }: { open: boolean; onOpenChange: (o: boolean) => void; snapshotId?: string }) {
   const [report, setReport] = useState<EvalReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [scope, setScope] = useState({ open, snapshotId, attempt })
+  if (scope.open !== open || scope.snapshotId !== snapshotId || scope.attempt !== attempt) {
+    setScope({ open, snapshotId, attempt })
+    setReport(null)
+    setError(null)
+  }
 
   useEffect(() => {
-    if (!open || report) return
+    if (!open) return
+    let cancelled = false
     const ctrl = new AbortController()
     api
       .getEval(ctrl.signal)
       .then((r) => {
+        if (cancelled) return
+        if (snapshotId && r.snapshot_id !== snapshotId) {
+          setError("The evaluation report for this snapshot is not ready yet. Retry shortly.")
+          return
+        }
         setReport(r)
         setError(null)
       })
       .catch((err) => {
-        if (!(err instanceof DOMException && err.name === "AbortError")) setError(describeError(err, "The evaluation report could not be loaded."))
+        if (!cancelled && !ctrl.signal.aborted) setError(describeError(err, "The evaluation report could not be loaded."))
       })
-    return () => ctrl.abort()
-  }, [open, report, attempt])
+    return () => { cancelled = true; ctrl.abort() }
+  }, [open, snapshotId, attempt])
 
   const scored = report?.checks.filter((c) => c.passed !== null) ?? []
   const met = scored.filter((c) => c.passed).length
@@ -47,7 +59,7 @@ export function EvalDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 {fmtClock(report.generated_at)} UTC
               </>
             ) : (
-              "How far to trust these numbers: agreement with independent labels, leak tests, reconciliation and containment."
+              "How far to trust these numbers: agreement with reference labels, leak tests, reconciliation and containment."
             )}
           </DialogDescription>
         </DialogHeader>

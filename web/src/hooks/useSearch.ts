@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ApiError, api, describeError } from "@/lib/api"
-import { createLatestGuard, highlightFromResults, NO_HIGHLIGHT, type HighlightState } from "@/lib/search"
+import { highlightFromResults, NO_HIGHLIGHT, type HighlightState } from "@/lib/search"
 import type { SearchResponse, Snapshot } from "@/lib/types"
 
 export const SEARCH_DEBOUNCE_MS = 300
@@ -11,68 +11,57 @@ export const SEARCH_DEBOUNCE_MS = 300
  */
 export function useSearch(snapshot: Snapshot | null) {
   const [query, setQuery] = useState("")
-  const [response, setResponse] = useState<SearchResponse | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const guard = useRef(createLatestGuard())
-  const ctrl = useRef<AbortController | null>(null)
+  const [state, setState] = useState<{
+    query: string
+    snapshotId: string
+    response: SearchResponse | null
+    loading: boolean
+    error: string | null
+  } | null>(null)
 
-  const trimmed = query.trim()
+  const trimmed = query.trim().slice(0, 200)
+  const snapshotId = snapshot?.snapshot_id
 
   useEffect(() => {
-    if (!snapshot) return
-    if (!trimmed) {
-      guard.current.invalidate()
-      ctrl.current?.abort()
-      return
-    }
+    if (!snapshotId || !trimmed) return
+    let cancelled = false
+    const ctrl = new AbortController()
+    const scope = { query: trimmed, snapshotId }
     const timer = setTimeout(async () => {
-      const token = guard.current.begin()
-      ctrl.current?.abort()
-      const c = new AbortController()
-      ctrl.current = c
-      setLoading(true)
-      setError(null)
+      setState({ ...scope, response: null, loading: true, error: null })
       try {
-        const res = await api.search({ query: trimmed.slice(0, 200), snapshot_id: snapshot.snapshot_id }, c.signal)
-        if (!guard.current.isCurrent(token)) return
-        setResponse(res)
+        const res = await api.search({ query: trimmed, snapshot_id: snapshotId }, ctrl.signal)
+        if (cancelled) return
+        if (res.snapshot_id !== snapshotId) throw new ApiError(409, "stale_snapshot", "Search returned another snapshot.")
+        setState({ ...scope, response: res, loading: false, error: null })
       } catch (err) {
-        if (!guard.current.isCurrent(token)) return
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setError(
-          err instanceof ApiError && err.code === "budget_exhausted"
+        if (cancelled || ctrl.signal.aborted) return
+        setState({
+          ...scope,
+          response: null,
+          loading: false,
+          error: err instanceof ApiError && err.code === "budget_exhausted"
             ? "Search is paused: the demo's model budget is used up."
             : describeError(err, "Search is unavailable right now."),
-        )
-        setResponse(null)
-      } finally {
-        if (guard.current.isCurrent(token)) setLoading(false)
+        })
       }
     }, SEARCH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [trimmed, snapshot])
-
-  // Typing back to an empty query drops any in-flight response immediately.
-  const updateQuery = useCallback((q: string) => {
-    setQuery(q)
-    if (!q.trim()) {
-      guard.current.invalidate()
-      ctrl.current?.abort()
-      setLoading(false)
-      setError(null)
+    return () => {
+      cancelled = true
+      ctrl.abort()
+      clearTimeout(timer)
     }
-  }, [])
+  }, [trimmed, snapshotId])
 
   const clear = useCallback(() => {
-    guard.current.invalidate()
-    ctrl.current?.abort()
     setQuery("")
-    setResponse(null)
-    setLoading(false)
-    setError(null)
+    setState(null)
   }, [])
 
+  // Hide old results immediately, including the debounce interval before the
+  // next request starts and the render when a new snapshot is published.
+  const current = trimmed && state?.query === trimmed && state.snapshotId === snapshotId ? state : null
+  const response = current?.response ?? null
   const highlight: HighlightState = useMemo(() => {
     if (!snapshot || !trimmed || !response) return NO_HIGHLIGHT
     return highlightFromResults(response, snapshot.clusters)
@@ -80,11 +69,11 @@ export function useSearch(snapshot: Snapshot | null) {
 
   return {
     query,
-    setQuery: updateQuery,
+    setQuery,
     clear,
     highlight,
-    loading: !!trimmed && loading,
-    error: trimmed ? error : null,
+    loading: current?.loading ?? false,
+    error: current?.error ?? null,
     elapsedMs: response?.elapsed_ms ?? null,
   }
 }

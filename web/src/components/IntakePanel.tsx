@@ -18,7 +18,7 @@ const VISIBLE = 8
 export function IntakePanel({ intake, index }: { intake: Intake; index: SnapshotIndex }) {
   const { phase, counters, stage, runState, feed, summary, published, error } = intake
   const states = stageStates(stage, runState)
-  const running = phase === "running" || phase === "starting"
+  const running = phase === "running" || phase === "starting" || (phase === "done" && !published)
   const total = counters?.total ?? intake.status?.batch_size ?? 0
   const decided = counters?.decided ?? 0
   const nameOf = (id: string) => {
@@ -106,12 +106,17 @@ export function IntakePanel({ intake, index }: { intake: Intake; index: Snapshot
       {published && summary ? (
         <div className="rounded-xl border border-ok/25 bg-ok-soft/60 p-3.5 text-[12.5px]">
           <p className="font-medium">
-            Map updated · +{fmtInt(summary.decided)} conversations
+            Map updated · +{fmtInt(summary.batch_size)} conversations
             <span className="font-normal text-muted-foreground">
               {" "}
               ({fmtInt(summary.other)} to Other or unclear)
             </span>
           </p>
+          {summary.decided < summary.batch_size ? (
+            <p className="mt-1.5 text-muted-foreground">
+              {fmtInt(summary.batch_size - summary.decided)} conversations could not be decided and were filed as Other with unclear friction.
+            </p>
+          ) : null}
           <ul className="mt-1.5 flex flex-col gap-0.5 text-muted-foreground">
             {summary.deltas
               .filter((d) => d.id.startsWith("cl_") && d.id !== "cl_other")
@@ -148,7 +153,7 @@ export function IntakePanel({ intake, index }: { intake: Intake; index: Snapshot
                 className="animate-in border-b border-border/60 py-1.5 duration-300 fade-in-0 slide-in-from-top-1 last:border-b-0"
                 style={{ opacity: Math.max(0.28, 1 - i * 0.1) }}
               >
-                <p className={cn("truncate text-[12.5px] leading-snug", !ev.summary && "text-subtle italic")}>{ev.summary ?? "summary withheld"}</p>
+                <p className="truncate text-[12.5px] leading-snug text-subtle">Classification {ev.seq} · conversation text withheld</p>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span className="inline-flex min-w-0 items-center gap-1 rounded-full border bg-card px-1.5 py-px text-foreground">
                     <Dot color={pal.dot} className="size-1.5" />
