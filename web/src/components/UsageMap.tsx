@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Minus, Plus, Scan } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useElementSize } from "@/hooks/useElementSize"
 import { layoutOrderOf, packLayout, zoomTransform, type PackedCircle } from "@/lib/hierarchy"
 import type { Snapshot } from "@/lib/types"
 import { useLayoutTween } from "@/hooks/useLayoutTween"
-import { arcLabelFits, canvasMeasure, ellipsizeLabel, fitCircleLabel, labelText, resetMeasureCache, type CircleLabel } from "@/lib/labels"
+import { useMapCamera } from "@/hooks/useMapCamera"
+import { categoryDetail, smoothStep } from "@/lib/mapCamera"
+import { canvasMeasure, ellipsizeLabel, fitCircleLabel, labelText, resetMeasureCache, type CircleLabel } from "@/lib/labels"
 import { categoryEmphasis, leafEmphasis, type Emphasis, type HighlightState } from "@/lib/search"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { FRICTION_LEGEND, FRICTION_MAX, frictionFill, frictionLabelColor, frictionRingWidth, frictionStroke } from "@/lib/colors"
@@ -33,17 +35,16 @@ type Props = {
 
 const PACK = { categoryPadding: 14, leafPadding: 3, categoryBand: 16, margin: 6 }
 
-const CAT_FONT = 10.5
-const CAT_TRACKING = 0.9
 const CAT_BAND = 16 // px between a category rim and its leaves; holds the curved label
 const LEAF_MIN_LABEL_R = 22 // every leaf at least this big (on screen) gets a label
 const KEY_BELOW_WIDTH = 560 // narrower maps get a category key instead of straight labels
 
-type CategoryLabel =
-  | { mode: "arc"; text: string; fontSize: number }
-  | { mode: "outside"; text: string; fontSize: number; x: number; y: number }
-
 const OPACITY: Record<Emphasis, number> = { none: 1, match: 1, partial: 0.62, dim: 0.14 }
+
+function focusTransform(circle: PackedCircle, width: number, height: number) {
+  const k = Math.max(1.8, zoomTransform(circle, width, height, 0.88).k)
+  return { k, tx: width / 2 - circle.x * k, ty: height / 2 - circle.y * k }
+}
 
 export function UsageMap({
   index,
@@ -60,7 +61,9 @@ export function UsageMap({
   headerControl,
 }: Props) {
   const boxRef = useRef<HTMLDivElement>(null)
-  const { width, height } = useElementSize(boxRef)
+  const { width, height: boxHeight } = useElementSize(boxRef)
+  // A dedicated control strip keeps navigation clear of even the smallest bubble.
+  const height = Math.max(0, boxHeight - 52)
   const [hover, setHover] = useState<string | null>(null)
 
   // Layout depends only on the snapshot and the container size. Updates keep
@@ -75,8 +78,37 @@ export function UsageMap({
   const [reduceMotion] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
   const layout = useLayoutTween(target, 600, reduceMotion)
 
-  const focus = focusId && layout ? layout.byId.get(focusId) ?? null : null
-  const { k, tx, ty } = zoomTransform(focus, width, height, 0.92)
+  const exploring = useRef(false)
+  const { k, tx, ty, move: moveCamera, reset: resetCamera, zoom: zoomCamera, pan: panCamera,
+    surfaceRef, interacting, dragging, canZoomIn } = useMapCamera(width, height, reduceMotion, () => {
+    if (focusId) {
+      exploring.current = true
+      onFocusCategory(null)
+    }
+  })
+  if (interacting && hover) setHover(null)
+  const layoutRef = useRef(layout)
+  useEffect(() => { layoutRef.current = layout }, [layout])
+  const previousFocus = useRef<string | null>(null)
+  useEffect(() => {
+    const previous = previousFocus.current
+    previousFocus.current = focusId
+    if (exploring.current && !focusId) {
+      exploring.current = false
+      return
+    }
+    const focus = focusId ? layoutRef.current?.byId.get(focusId) : null
+    if (focus) moveCamera(focusTransform(focus, width, height))
+    else if (previous) resetCamera()
+  }, [focusId, width, height, moveCamera, resetCamera])
+
+  const resetMap = () => {
+    onFocusCategory(null)
+    onSelectLeaf(null)
+    resetCamera()
+  }
+  const detailOf = (c: PackedCircle) => highlight.active || (selectedId && index.byId.get(selectedId)?.parent_id === c.id)
+    ? 1 : categoryDetail(k, c.r, Math.min(width, height))
 
   // Re-measure labels once the web font has loaded (canvas widths change).
   const [fontsReady, setFontsReady] = useState(0)
@@ -107,59 +139,18 @@ export function UsageMap({
       if (!fit && rs >= LEAF_MIN_LABEL_R) fit = ellipsizeLabel(text, rs, 10, canvasMeasure)
       leaf.set(l.id, fit)
     }
-    const cat = new Map<string, CategoryLabel>()
-    const placed: { x: number; y: number; w: number; h: number }[] = []
-    // Larger categories claim label space first.
-    for (const c of [...layout.categories].sort((a, b) => b.r - a.r)) {
-      const text = labelText(c.node)
-      const labelR = (c.r - CAT_BAND / 2 + 0.5) * k
-      const arcFont = [CAT_FONT, 9.5].find((f) => arcLabelFits(text, labelR, f, CAT_TRACKING, canvasMeasure))
-      if (arcFont) {
-        cat.set(c.id, { mode: "arc", text: text.toUpperCase(), fontSize: arcFont })
-        continue
-      }
-      // Narrow maps show a category key instead of crowded straight labels.
-      if (width < KEY_BELOW_WIDTH) continue
-      // Too small for a curved label: a straight label just outside the rim.
-      // Try below/above (centred and nudged sideways) and keep the candidate
-      // that stays on screen and overlaps other category circles the least.
-      const fs = 11
-      const w = canvasMeasure(text, fs, 560) + 6
-      const h = fs + 4
-      const sx = c.x * k + tx
-      const sy = c.y * k + ty
-      const sr = c.r * k
-      const others = layout.categories.filter((o) => o.id !== c.id).map((o) => ({ x: o.x * k + tx, y: o.y * k + ty, r: o.r * k }))
-      const overlap = (cx: number, cy: number) => {
-        let score = 0
-        for (const p of placed) {
-          if (Math.abs(cx - p.x) * 2 < w + p.w && Math.abs(cy - p.y) * 2 < h + p.h) score += 1000
-        }
-        for (const o of others) {
-          const nx = Math.max(cx - w / 2, Math.min(o.x, cx + w / 2))
-          const ny = Math.max(cy - h / 2, Math.min(o.y, cy + h / 2))
-          const d = Math.hypot(o.x - nx, o.y - ny)
-          if (d < o.r) score += o.r - d
-        }
-        return score
-      }
-      let best: { x: number; y: number; score: number } | null = null
-      for (const dy of [sr + h / 2 + 2, -(sr + h / 2 + 2)]) {
-        for (const shift of [0, -0.25, 0.25, -0.45, 0.45]) {
-          const cy = sy + dy
-          if (cy - h / 2 < 2 || cy + h / 2 > height - 2) continue
-          const cx = Math.min(Math.max(sx + shift * w, w / 2 + 4), width - w / 2 - 4)
-          const score = overlap(cx, cy) + Math.abs(shift) * 2
-          if (!best || score < best.score) best = { x: cx, y: cy, score }
-        }
-      }
-      // No clean spot (it would cover another label): leave it to the key/tooltip.
-      if (!best || best.score >= 1000) continue
-      placed.push({ x: best.x, y: best.y, w, h })
-      cat.set(c.id, { mode: "outside", text, fontSize: fs, x: (best.x - tx) / k, y: (best.y - ty) / k })
+    const cat = new Map<string, CircleLabel | null>()
+    for (const c of layout.categories) {
+      // Screen-space type stays readable as the camera moves. Overview labels
+      // fit inside a quiet centre; child labels take over before they overlap.
+      const rs = c.r * k
+      cat.set(c.id, fitCircleLabel(labelText(c.node), rs * 0.92, {
+        maxFont: Math.min(23, Math.max(13, rs * 0.17)), minFont: 10,
+        maxLines: 3, subLine: rs >= 42, measure: canvasMeasure, weight: 600,
+      }) ?? ellipsizeLabel(labelText(c.node), rs * 0.9, 11, canvasMeasure))
     }
     return { leaf, cat }
-  }, [layout, k, tx, ty, width, height, fontsReady])
+  }, [layout, k, fontsReady])
 
   const onKey = useCallback((e: KeyboardEvent, fn: () => void) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -169,15 +160,17 @@ export function UsageMap({
   }, [])
 
   const handleLeaf = (leaf: PackedCircle) => {
+    const parent = layout?.byId.get(leaf.parentId ?? "")
+    if (parent && detailOf(parent) < 0.55) {
+      handleCategory(parent)
+      return
+    }
     if (focusId && leaf.parentId !== focusId) onFocusCategory(leaf.parentId)
     onSelectLeaf(leaf.id)
   }
 
   const handleCategory = (cat: PackedCircle) => {
-    if (focusId === cat.id) {
-      onSelectLeaf(null)
-      return
-    }
+    moveCamera(focusTransform(cat, width, height))
     onSelectLeaf(null)
     onFocusCategory(cat.id)
   }
@@ -190,30 +183,42 @@ export function UsageMap({
     <div
       className="flex h-full w-full flex-col select-none lg:min-h-[420px]"
       onKeyDown={(e) => {
-        if (e.key === "Escape" && focusId) {
+        if (e.key === "Escape" && (focusId || k > 1.01)) {
           e.stopPropagation()
-          onFocusCategory(null)
+          resetMap()
         }
       }}
     >
-      <MapBar index={index} focusNode={focusNode ?? null} onFocusCategory={onFocusCategory} lens={lens} onLens={onLens} extra={headerControl} />
+      <MapBar index={index} focusNode={focusNode ?? null} onFocusCategory={() => resetMap()} lens={lens} onLens={onLens} extra={headerControl} />
       <div ref={boxRef} className="relative aspect-square min-h-0 w-full overflow-hidden lg:aspect-auto lg:flex-1">
       {layout ? (
         <svg
+          ref={surfaceRef}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomCamera(1.4) }
+            if (e.key === "-") { e.preventDefault(); zoomCamera(1 / 1.4) }
+            if (e.key === "0" || e.key === "Home") { e.preventDefault(); resetMap() }
+            const delta = { ArrowLeft: [64, 0], ArrowRight: [-64, 0], ArrowUp: [0, 64], ArrowDown: [0, -64] }[e.key]
+            if (delta) {
+              e.preventDefault()
+              panCamera(delta[0], delta[1])
+            }
+          }}
           width={width}
           height={height}
           viewBox={`0 0 ${width} ${height}`}
-          className="block"
+          className="map-surface block focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          style={{ cursor: dragging ? "grabbing" : k > 1.01 ? "grab" : "default", touchAction: "none" }}
           role="group"
-          aria-label={`Usage map. ${index.leaves.length} workflow clusters in ${index.categories.length} categories; circle area is proportional to conversations. Use the list view for a table.`}
+          aria-label={`Usage map. ${index.leaves.length} workflow clusters in ${index.categories.length} categories; circle area is proportional to conversations. Scroll or pinch to zoom; drag to pan. Keyboard: plus and minus to zoom, arrows to pan, Escape to reset. Use the list view for a table.`}
         >
           <rect
             width={width}
             height={height}
             fill="transparent"
             onClick={() => {
-              if (focusId) onFocusCategory(null)
-              else onSelectLeaf(null)
+              onSelectLeaf(null)
             }}
           />
           <g className="map-zoom" style={{ transform: `translate(${tx}px, ${ty}px) scale(${k})` }}>
@@ -223,7 +228,7 @@ export function UsageMap({
               const outOfFocus = !!focusId && focusId !== c.id
               const node = c.node
               const labelR = c.r - CAT_BAND / 2 + 0.5
-              const catLabel = labels?.cat.get(c.id) ?? null
+              const detail = detailOf(c)
               const friction = lens === "friction"
               return (
                 <g
@@ -233,13 +238,13 @@ export function UsageMap({
                   tabIndex={0}
                   aria-label={`${node.title} category: ${fmtInt(node.conversations)} conversations, ${fmtInt(node.users)} people, friction ${fmtPct(node.friction.share)}. ${focusId === c.id ? "Focused." : "Press Enter to focus."}`}
                   aria-pressed={focusId === c.id}
-                  style={{ opacity: outOfFocus ? 0.28 : em === "dim" ? 0.4 : 1 }}
+                  style={{ opacity: outOfFocus ? 0.32 : em === "dim" ? 0.4 : 1, cursor: "pointer" }}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleCategory(c)
                   }}
                   onKeyDown={(e) => onKey(e, () => handleCategory(c))}
-                  onMouseEnter={() => setHover(c.id)}
+                  onMouseEnter={() => { if (!interacting) setHover(c.id) }}
                   onMouseLeave={() => setHover((h) => (h === c.id ? null : h))}
                   onFocus={() => setHover(c.id)}
                   onBlur={() => setHover((h) => (h === c.id ? null : h))}
@@ -255,22 +260,16 @@ export function UsageMap({
                     strokeWidth={focusId === c.id ? 1.5 : 1}
                     vectorEffect="non-scaling-stroke"
                   />
-                  {catLabel?.mode === "arc" && !outOfFocus ? (
-                    <>
+                  {detail > 0.01 && !outOfFocus ? (
+                    <g opacity={detail * 0.85} aria-hidden="true" style={{ pointerEvents: "none" }}>
                       <path id={`arc-${c.id}`} d={`M ${c.x - labelR} ${c.y} A ${labelR} ${labelR} 0 0 1 ${c.x + labelR} ${c.y}`} fill="none" />
-                      <text
-                        fontSize={catLabel.fontSize / k}
-                        fontWeight={560}
-                        letterSpacing={`${CAT_TRACKING / k}px`}
-                        fill={friction ? "oklch(0.45 0.008 285)" : pal.label}
-                        dominantBaseline="central"
-                        style={{ pointerEvents: "none" }}
-                      >
+                      <text fontSize={10.5 / k} fontWeight={560} letterSpacing={0.9 / k}
+                        fill={friction ? "oklch(0.45 0.008 285)" : pal.label} dominantBaseline="central">
                         <textPath href={`#arc-${c.id}`} startOffset="50%" textAnchor="middle">
-                          {catLabel.text}
+                          {labelText(node).toUpperCase()}
                         </textPath>
                       </text>
-                    </>
+                    </g>
                   ) : null}
                 </g>
               )
@@ -290,6 +289,9 @@ export function UsageMap({
               const strokeWidth = friction ? frictionRingWidth(share) : em === "match" ? 1.75 : 1
               const textColor = friction ? frictionLabelColor(share) : "oklch(0.24 0.01 285)"
               const subColor = friction ? textColor : "oklch(0.44 0.01 285)"
+              const parent = layout.byId.get(l.parentId ?? "")
+              const detail = parent ? detailOf(parent) : 1
+              const labelOpacity = detail * smoothStep(16, 30, l.r * k)
               const lab = labels?.leaf.get(l.id) ?? null
               const liveConv = node.conversations + (liveDelta?.get(l.id) ?? 0)
               const lines = lab?.lines ?? null
@@ -303,17 +305,18 @@ export function UsageMap({
                   key={l.id}
                   className="map-node map-anim"
                   role="button"
-                  tabIndex={0}
+                  tabIndex={detail > 0.55 && !outOfFocus ? 0 : -1}
+                  aria-hidden={detail <= 0.55 || outOfFocus}
                   aria-label={`${node.title}: ${fmtInt(node.conversations)} conversations (${fmtPct(node.share)} of all), ${fmtInt(node.users)} people, friction ${fmtPct(share)}${node.surprising?.flag ? ", flagged surprising" : ""}.`}
                   aria-pressed={selected}
-                  style={{ opacity: outOfFocus ? Math.min(0.28, OPACITY[em]) : OPACITY[em] }}
+                  style={{ opacity: (outOfFocus ? Math.min(0.28, OPACITY[em]) : OPACITY[em]) * (0.16 + 0.84 * detail), cursor: "pointer" }}
                   onClick={(e) => {
                     e.stopPropagation()
                     handleLeaf(l)
                   }}
                   onKeyDown={(e) => onKey(e, () => handleLeaf(l))}
-                  onMouseEnter={() => setHover(l.id)}
-                  onMouseLeave={() => setHover((h) => (h === l.id ? null : h))}
+                  onMouseEnter={() => { if (!interacting) setHover(detail > 0.55 ? l.id : l.parentId) }}
+                  onMouseLeave={() => setHover(null)}
                   onFocus={() => setHover(l.id)}
                   onBlur={() => setHover((h) => (h === l.id ? null : h))}
                 >
@@ -341,9 +344,10 @@ export function UsageMap({
                     strokeDasharray={em === "partial" || (node.is_other && !friction) ? "3 2.5" : undefined}
                     vectorEffect="non-scaling-stroke"
                   />
-                  {lines && !outOfFocus ? (
+                  {lines && !outOfFocus && labelOpacity > 0.01 ? (
                     <text
                       x={l.x}
+                      opacity={labelOpacity}
                       textAnchor="middle"
                       fontSize={fontPx / k}
                       fontWeight={500}
@@ -373,35 +377,36 @@ export function UsageMap({
                 </g>
               )
             })}
-            {/* straight labels for categories too small for a curved one; drawn
-                last so no circle paints over them; placement avoids other categories */}
-            <g aria-hidden style={{ pointerEvents: "none" }}>
+            {/* Overview names sit above the faint child bubbles and dissolve as
+                the real workflow labels come into focus. No relayout on zoom. */}
+            <g aria-hidden="true" style={{ pointerEvents: "none" }}>
               {layout.categories.map((c) => {
                 const lab = labels?.cat.get(c.id)
-                if (!lab || lab.mode !== "outside") return null
-                const outOfFocus = !!focusId && focusId !== c.id
-                if (outOfFocus) return null
-                const em = categoryEmphasis(highlight, c.id)
+                const detail = detailOf(c)
+                if (!lab || detail >= 0.995) return null
                 const pal = index.palette.get(c.id)!
+                const opacity = (1 - smoothStep(0, 0.72, detail)) * (focusId && focusId !== c.id ? 0.28 : 1)
+                const lineH = lab.lineHeight / k
+                const sub = lab.sub && c.r * k >= 42
+                const metric = lens === "friction" ? fmtPct(c.node.friction.share) : fmtInt(c.node.conversations)
+                const caption = `${metric} ${lens === "friction" ? "friction" : "conversations"}`
+                const subText = canvasMeasure(caption, 10.5) <= c.r * k * 1.6 ? caption : metric
+                const top = c.y - ((lab.lines.length - 1) * lineH + (sub ? 19 / k : 0)) / 2
                 return (
-                  <text
-                    key={c.id}
-                    className="map-anim"
-                    x={lab.x}
-                    y={lab.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={lab.fontSize / k}
-                    fontWeight={560}
-                    fill={lens === "friction" ? "oklch(0.4 0.008 285)" : pal.label}
-                    stroke="var(--card)"
-                    strokeWidth={3.5 / k}
-                    strokeLinejoin="round"
-                    paintOrder="stroke"
-                    style={{ opacity: em === "dim" ? 0.4 : 1 }}
-                  >
-                    {lab.text}
-                  </text>
+                  <g key={c.id} opacity={opacity} data-category-label={c.id}>
+                    <text x={c.x} textAnchor="middle" fontSize={lab.fontSize / k} fontWeight={600}
+                      fill={lens === "friction" ? "var(--foreground)" : pal.label}
+                      stroke={lens === "friction" ? "var(--card)" : pal.fill} strokeWidth={5 / k}
+                      strokeLinejoin="round" paintOrder="stroke">
+                      {lab.lines.map((line, i) => <tspan key={i} x={c.x} y={top + i * lineH} dominantBaseline="central">{line}</tspan>)}
+                    </text>
+                    {sub ? <text x={c.x} y={top + (lab.lines.length - 1) * lineH + 20 / k}
+                      textAnchor="middle" dominantBaseline="central" fontSize={10.5 / k}
+                      fontFamily="var(--font-mono)" fill={pal.label} opacity={0.8}
+                      stroke={pal.fill} strokeWidth={3 / k} paintOrder="stroke">
+                      {subText}
+                    </text> : null}
+                  </g>
                 )
               })}
             </g>
@@ -409,8 +414,21 @@ export function UsageMap({
         </svg>
       ) : null}
 
+      <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
+        <div className="rounded-full border border-border/60 bg-card/90 px-3 py-1.5 text-[11px] text-muted-foreground shadow-xs backdrop-blur-md">
+          <span className="hidden sm:inline">{k > 1.15 ? "Drag to explore · scroll to zoom" : "Scroll to explore the workflows"}</span>
+          <span className="sm:hidden">{k > 1.15 ? "Drag or pinch to explore" : "Pinch or tap to explore"}</span>
+        </div>
+        <div role="group" aria-label="Map zoom controls" className="pointer-events-auto flex shrink-0 items-center rounded-xl border bg-card/95 p-1 shadow-sm backdrop-blur-md">
+          <button type="button" aria-label="Zoom out" title="Zoom out (−)" disabled={k < 1.01} onClick={() => zoomCamera(1 / 1.45)} className="map-zoom-button"><Minus className="size-4" /></button>
+          <span aria-hidden="true" className="w-11 text-center font-mono text-[10px] tabular-nums text-muted-foreground">{k.toFixed(1)}×</span>
+          <button type="button" aria-label="Zoom in" title="Zoom in (+)" disabled={!canZoomIn} onClick={() => zoomCamera(1.45)} className="map-zoom-button"><Plus className="size-4" /></button>
+          <div className="mx-1 h-4 w-px bg-border" />
+          <button type="button" aria-label="Reset map zoom" title="Show all categories (Esc)" disabled={k < 1.01 && !selectedId && !focusId} onClick={resetMap} className="map-zoom-button"><Scan className="size-4" /></button>
+        </div>
+      </div>
       {/* tooltip */}
-      {hovered && layout ? <MapTooltip circle={hovered} k={k} tx={tx} ty={ty} width={width} height={height} total={total} lens={lens} /> : null}
+      {hovered && layout && !interacting && !dragging ? <MapTooltip circle={hovered} k={k} tx={tx} ty={ty} width={width} height={height} total={total} lens={lens} /> : null}
       </div>
       {width > 0 && width < KEY_BELOW_WIDTH ? <CategoryKey index={index} focusId={focusId} onFocusCategory={onFocusCategory} /> : null}
       <MapLegend lens={lens} />
@@ -596,7 +614,7 @@ function MapLegend({ lens }: { lens: Lens }) {
           <span>thicker ring = more · size = conversations</span>
         </>
       ) : (
-        <span>Circle area = conversations · position carries no meaning · click a category to zoom</span>
+        <span>Circle area = conversations · position carries no meaning</span>
       )}
     </div>
   )

@@ -32,6 +32,12 @@ Mock-only URL switches: `?sandbox=down` (health degraded, questions return
 
 ## Live features
 
+- **Semantic map zoom**: the overview shows category names over faint workflow bubbles.
+  Scroll or pinch to reveal workflow labels and counts without rearranging the bubbles;
+  drag to pan, click/tap a category to frame it, or use the on-map zoom controls.
+  With the map focused, `+` / `-` zoom, arrows pan, and `Escape` / `Home` / `0` reset.
+  Labels fade with available screen space; reduced motion skips camera easing.
+  Zoom uses the published aggregates and makes no model calls.
 - **Map lens** (Usage | Friction): recolours the map from the published snapshot; no run.
 - **Ask a question** (CONTRACTS §0/§8b) is the only live action. The answer card shows the
   interpreted plan in words, the agent loop (two independent programs, A pandas and B plain
