@@ -1,0 +1,30 @@
+[Unit]
+Description=logless API (FastAPI on loopback, behind Caddy)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=logless
+Group=logless
+WorkingDirectory=/opt/logless/backend
+EnvironmentFile=/etc/logless/env
+ExecStart=/opt/logless/backend/.venv/bin/logless serve --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=2
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/logless
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

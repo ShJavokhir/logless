@@ -1,0 +1,679 @@
+{"conv_id": "c_68ba0ce02115", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ae30957f6407", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "TECHNOLOGY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_fe513de6e7b5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6c28f723810d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_3869d268b975", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "PHILOSOPHY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_519f52a161af", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e91e716b4de4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LAW AND POLITICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d0dc71b68a78", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4e9248d7bc66", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_785304c8c053", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2ab700a3e23d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_95409d88a855", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bcf77ae0263c", "dissatisfied": true, "dsat_reasons": ["factual_error", "ignored"], "dsat_turns": 2, "user_turns_labelled": 5, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_005f6b9af259", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6ec499af7bb4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_16e91721dd99", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5f1394029ff3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "MANUFACTURING AND MATERIALS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9ac8384b7b5a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_33503ea66bed", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4c2820c8eb73", "dissatisfied": true, "dsat_reasons": ["factual_error", "negative_feedback"], "dsat_turns": 3, "user_turns_labelled": 7, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5959a71d1e7c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_df46a72ce046", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_72a92115bcac", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SOCIAL MEDIA", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_534f5e346c90", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f69c4c13dc55", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_901aae2fc335", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a851b8181771", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1f8e3685b9bc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_8733a86efa14", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "COOKING FOOD AND DRINKS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0eb8f7de4799", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 9, "domain": "CYBERSECURITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ddb75b9f43c2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ec3e9ddf95d3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "DESIGN", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_97085f06370b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_08b69b842bfa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4a8495c3ccc5", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 14, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6404833e3c75", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_1da8b15ee97c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b2f1c25355fa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9cd3cc8d8414", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "DESIGN", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_05ef62307d04", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 7, "domain": "GAMES", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_3fe1de8e4e9f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_366e744a9469", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1c4f5d166a03", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9441224ed3b8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f50746f3720f", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 7, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e269832a000c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ae853d3dbc44", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "HUMOR AND SARCASM", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d83f2457115a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_97cb8aeff137", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_747a8c7a5930", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 8, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_38f40a522172", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_80618f777dd3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_728508014514", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1b6026919c99", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_deea440c7eb5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_af4016916570", "dissatisfied": true, "dsat_reasons": ["ignored", "insufficient_detail", "negative_feedback"], "dsat_turns": 7, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d1f355c13387", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c03ae48738b1", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_25ddd09e20a4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c3417e073eaf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_df8f09b63396", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_78623e8f06be", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_8e701edc422f", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 20, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_694fadbfdbf2", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 6, "domain": "CULTURE AND HISTORY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_d86625d245ad", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d930273b3fc0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_eab6b94ca20e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 18, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_d1b8681b89cf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_39b157ef113f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "HUMOR AND SARCASM", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_58c5cb407033", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f35af05e4635", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_95f2ccb11d23", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_4aa80a6e1c94", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 8, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c3a1cae2539a", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5836109d0156", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_cb3e41ee9e22", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "TRANSPORTATION AUTOMOTIVE AND AEROSPACE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4a99a5325297", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8519d8020551", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_db1a6c096b3f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f9b3805ff485", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e9545bd3a6ae", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_42c4748c97f8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2694bbf66dea", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_401f2cff8669", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_118aeed87712", "dissatisfied": true, "dsat_reasons": ["factual_error", "revision"], "dsat_turns": 4, "user_turns_labelled": 18, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a60605ab8d52", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 12, "domain": "MUSIC AND AUDIO", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7abec7f1443f", "dissatisfied": true, "dsat_reasons": ["ignored", "insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f2d4b0bec9e6", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 6, "user_turns_labelled": 12, "domain": "GAMES", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_a016920210dc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_6cb17446db32", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_90f49aac2445", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b5c013d51340", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9f82de6ec843", "dissatisfied": true, "dsat_reasons": ["revision", "unrealistic_expectation"], "dsat_turns": 2, "user_turns_labelled": 5, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_06a08a04ca40", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_1a0e6ff704a9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_897922d56c23", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ca408b9beb51", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_13a09f26028e", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 7, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_3a60871f9d81", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a563a1198eeb", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_c999c3d900c3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7d10adfc5ae2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_824d3d42832f", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_213cbf71fae6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9f10b428b9a7", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8b6563603fe3", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 6, "domain": "COOKING FOOD AND DRINKS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_26216074db40", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_43e9cc771b84", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SPORTS AND FITNESS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_141df141b44e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_544741f19895", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_913e77395ce2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c8c4e5d6fd84", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c7f1ddd4453c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_56b2c378a626", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8535827e56da", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a3a8a4a91937", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_209ab7554a8c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "CULTURE AND HISTORY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_76708c30a395", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_1eacdf766d24", "dissatisfied": true, "dsat_reasons": ["factual_error", "revision"], "dsat_turns": 3, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4fb3e4302ea4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5a20ae617bdc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_861c33f7bdd0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1f565e17d2c7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ce3a6d278136", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_85312d5a0469", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_34f8c5ff1bb0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_76548aed7027", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_cf1b235a6262", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "LITERATURE AND POETRY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_93b393e9e406", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_66b24905dd44", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5556317bbbf8", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 2, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_6509413d278c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_34793c619e6d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_dbd78d745542", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_bc5e5271d30b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "PETS AND ANIMALS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b3adf1ccc788", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_4c70e52d9012", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c5cda95a55d9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_8e2bd0bc46e8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f0c4180c0998", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "TECHNOLOGY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ce58fb40aab8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_72c8afb6e42a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7f77fee3d3cc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_73daf3ff8a9d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f77e8e6c9379", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_24ed443f28a5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ebcbe0a530a3", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b9803360ef06", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3e62156a43e8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8eedc7f70a77", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_3da3aff290c8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LITERATURE AND POETRY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_8f434139ea9f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ae68e9ad4f79", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3ef5071d8add", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c48822688a6e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0c75e95c4021", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c1979687cf7b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_53de65d54d30", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_41f1f3d5e246", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6e833d78bb28", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_254bd5620b0f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "TRAVEL", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_72005d0c0ab3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6688eb8e4ec8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_11f1e233211d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c31841055139", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "COOKING FOOD AND DRINKS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2db28ae5c664", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SPORTS AND FITNESS", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_e13800406a4c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_813578d37e4b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_68dee451f6b5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_05f9e566a898", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_86f9d44110fa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CYBERSECURITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9c48cefcd598", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6188e1d3ed24", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_463e6377b94e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0f2ab5154340", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a36a5806eefd", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_8fb68245e48a", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_713c3a7161e6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e8e796d8be11", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_653322ea73a9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d56206bb4bb9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d003b43c2205", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 2, "user_turns_labelled": 4, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f8d241ba6b0f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_fbb21d1aea4c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a0c03f7cff14", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_cefb838e47d7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_9acb04803963", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_074488d3dd44", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7d33444c2c73", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_6fc71b8892c1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f0d93d5dc112", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f81b45857c9c", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_430c75009749", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_034571ff6b1c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_09453851a685", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 19, "domain": "SHOPPING AND GIFTS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_842306a3c188", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_7d7762dd0bfa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c8ff7c31d84e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_75eb3b1c62df", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_0206d2d2b21b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_dbc8d5a061de", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8ac19820734f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_43e25479ffe7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0032177f0d9c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e5b632e1c045", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_ef910ac76f74", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_63a2a0da76c8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_186026ef199c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7b6c3ddb3f45", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_9c8427027614", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2b4ee307a035", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2b5540713e12", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_699ba724c12a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_062ffe70596d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4c5e87bdbf31", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9d14feaf3afa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_3a8518ba3b6a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LITERATURE AND POETRY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c8ab5ad3c021", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2607469bf965", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9d5dc2ee260f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c788469d4415", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_27efb8a951db", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_295fc604a650", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8e3bef0cf5c3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ba17b08589e0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a480b2de60b3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_de05abb6b15a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 19, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_15453d8c57cb", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_aff4ca569710", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "DESIGN", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_beb8cf9ef067", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_1f2ccd24db21", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ed02700a59b9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_abaa06a2fa2c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "GEOGRAPHY AND GEOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0b12407d8bdf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b9bcffcea72f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "EDUCATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_454940ae9fa7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_48db797c1a81", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c9c004b19369", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_64f76e0b304c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_0134e4b5243a", "dissatisfied": true, "dsat_reasons": ["ignored", "negative_feedback"], "dsat_turns": 2, "user_turns_labelled": 6, "domain": "PSYCHOLOGY AND EMOTIONS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_889e098d274d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_db6d35f955b6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b3f12eb2eeb5", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f7176f7bbd84", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "ENTERTAINMENT", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_851453224a0f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_63dd4e9df78e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5139f54a478c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ae5931a3f92b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_d0361d9c3a0e", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 5, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d0d2747e9a09", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_175be352b559", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 41, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_08ef00cfbc69", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7239b55b20f9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f95f169f72f0", "dissatisfied": true, "dsat_reasons": ["ignored"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9edd57400b9b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e1729ac22222", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "DESIGN", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_eaba5b404536", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_6a786532b22c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7372dc00e587", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_fbcc2ac5567c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "MANUFACTURING AND MATERIALS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_724658b0c0db", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_df70beaa8234", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1f2e5d3362b2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_114b8732830d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_392bd5ba116d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_80c84de40b90", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d5fcc3da29d1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0df90fe4bc25", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1b2671979999", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "FAMILY PARENTING AND WEDDINGS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b34b4519639e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c0f099771f6c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_664006330686", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_dfe701f6e0e5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_737200088dd6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d7cd30add318", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_acd9febd00af", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9aae6458a38b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a7671c0965db", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8f23096e9c18", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_99e0cb26b81a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3552c2395dea", "dissatisfied": true, "dsat_reasons": ["style"], "dsat_turns": 2, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_74f19ca9d3bd", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 5, "user_turns_labelled": 21, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_08fcbdd19816", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1623680b8fcb", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6c3ee8de76fd", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 2, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2a4c2f3bbfaf", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 11, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_bbb9eec39472", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_eecf2b3acb45", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_42c69e843668", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0c11a8455ce9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_33495c65ee0a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_86ec8611452a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CLOTHING AND FASHION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_47f8fb2c53f3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_a2fe77e729a0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_aae325adaae2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bf01f93f4c9e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "COOKING FOOD AND DRINKS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_04747e122a62", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9b2c8a6187d3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_988dfb58c087", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_21307ba302bd", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_dfe46caecda3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d19d04cc7ecf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c15724d4bf0d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a52ba101d90d", "dissatisfied": true, "dsat_reasons": ["insufficient_detail", "revision"], "dsat_turns": 3, "user_turns_labelled": 9, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_8250101c9d8e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CYBERSECURITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f00ecab39e0b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_774654c4fa79", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bd8087496210", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_31f636f47508", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f3ed81fd58b0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9ea005abdae6", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 5, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_1cc7ea04dc1d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b3b2d39f78df", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_941ed99e1646", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f1f3b910cf91", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b30a92596d5d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b0a964651c40", "dissatisfied": true, "dsat_reasons": ["factual_error", "insufficient_detail"], "dsat_turns": 5, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_17077fd1a8c2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_c9dbd4ed74a8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_391090f14581", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_a489736798cf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5e3395a30eac", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "ENTERTAINMENT", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_85090e92a94c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_335747332f3e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7e7d929f5442", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "LITERATURE AND POETRY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_fb789144f908", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7675d3abe424", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_864067f085d0", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_97457683b94f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_eebae52532f9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_aabf0ef3bdfc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5286f48385db", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 8, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_51433c8d485e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_dc59674c65c2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e7a18475cdc7", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4f00a6ccef54", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TRAVEL", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f98c8c71013f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c5c6e775a3e1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d14bb7da6035", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_95cb09988a50", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5fd8907683a7", "dissatisfied": true, "dsat_reasons": ["factual_error", "insufficient_detail"], "dsat_turns": 11, "user_turns_labelled": 15, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b1913fec2579", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_63d2a4323a6f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4e5ed3641f71", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a174e431b552", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d9608cd65ffc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_64fd7850a44c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c22809d35613", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_234a30214815", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_fa80e66638a7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_45fcb66271dd", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SHOPPING AND GIFTS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e099f6b2f8c9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7edf22be15c5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "TRAVEL", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5487e845d46c", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 2, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_79bb1ac9871b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_cbb29344746a", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 5, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a1561eeebd18", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 3, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7d6b6548b652", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_56937b98fc4b", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 3, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_877e38c77505", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f9650db784f1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_975e0b751a52", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CULTURE AND HISTORY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_dd4c90b45047", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9b08c3001461", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2e397709c41d", "dissatisfied": true, "dsat_reasons": ["revision", "unrealistic_expectation"], "dsat_turns": 2, "user_turns_labelled": 23, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_96bf3fa00c41", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e1625935f85f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4601443b012d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c439ca2663c0", "dissatisfied": true, "dsat_reasons": ["style"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_3ab95bd8f321", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9cacf7c0c126", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b901f250e5c6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_08a7483f9d0d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOCIAL MEDIA", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_34c00c93fc90", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b92c58a8c483", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_674f8be5c816", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8aa82a40d5c4", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_426059730985", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2dc84edcc03d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c6dc4a1ea28e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_73e4b482e1a8", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0a047e0c0f94", "dissatisfied": true, "dsat_reasons": ["unrealistic_expectation"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_67dd06646d26", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_8f4f6a5402f0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_04ad7a57d702", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_97d03279b2cc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_271e755e0d92", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "DESIGN", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_8be7633456f9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LITERATURE AND POETRY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_13dbec061188", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_61c5d6e27fc4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 18, "domain": "SOCIAL MEDIA", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5d14b091b68c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c4801e48e285", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bfdcb770aa06", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7e53b4d836aa", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_2cb020508b1d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_bc8ae65dc8fb", "dissatisfied": true, "dsat_reasons": ["insufficient_detail", "revision"], "dsat_turns": 3, "user_turns_labelled": 6, "domain": "PRODUCTIVITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ff42fcc8bc39", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "PSYCHOLOGY AND EMOTIONS", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_ee449cde4123", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_384975490d97", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e089657cf4ed", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a9ea61fe71e3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5908e77c985d", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 7, "user_turns_labelled": 10, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_6501aad3ddae", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9b3ea137372c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5f1e41a1d170", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "LITERATURE AND POETRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f916125d7333", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_be798d5b3c8e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b43133b640ad", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b5fa1064be5b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 24, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_80ebc5ee375b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0df2d62f85e2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d059a76ff717", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_230be8da1b90", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 20, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f563b351cec2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_44847ee5d2bc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TRANSPORTATION AUTOMOTIVE AND AEROSPACE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0184bfced5c8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_52ab6cbf6f64", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SPORTS AND FITNESS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7dfff50ab1d3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ab0bdce41a38", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 17, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_07add7510f81", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 23, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7ddc20718e94", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "GAMES", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_c49e67082b12", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4bbb8ead2935", "dissatisfied": true, "dsat_reasons": ["factual_error", "style"], "dsat_turns": 5, "user_turns_labelled": 11, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_da3b777971b4", "dissatisfied": true, "dsat_reasons": ["revision", "style"], "dsat_turns": 5, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_d5d9f7119225", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 5, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_69c270e0ece5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "MUSIC AND AUDIO", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5bcab1d486b9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ac5881e48bc9", "dissatisfied": true, "dsat_reasons": ["insufficient_detail", "revision"], "dsat_turns": 2, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_50264a79b8ec", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b70ed6ac67e4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3793a732b99c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b0a5504e74fc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_53b062e58c7d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LITERATURE AND POETRY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_835debca7747", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_22139104db71", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f7e4859ed390", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_97ee9cdde283", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CLOTHING AND FASHION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ce58366db63f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b6a57b6ce2e1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_5a81f746f64c", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 7, "domain": "SOCIAL MEDIA", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c126ec60700a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fe62ebfe60ec", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_aced78c985c3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_77b38e9ff2c9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_47b40be6a39d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_33a6d6742bc3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_874029f9fa16", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_20f1c85e1e6f", "dissatisfied": true, "dsat_reasons": ["insufficient_detail", "negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fe1a0111a459", "dissatisfied": true, "dsat_reasons": ["factual_error", "unrealistic_expectation"], "dsat_turns": 2, "user_turns_labelled": 10, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_be84eba54ef7", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 16, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0ee19c9faff0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_503cd95e9c36", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "CLOTHING AND FASHION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2968bcb2445c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e64b07b8720c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_42bace205e6a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_9524e631b509", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "ENTERTAINMENT", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_230a379bd1f3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_96d86b930ccb", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ebfa39b0e908", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6d8202831f5f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_3293b8b68540", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_319da4acb124", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5d7637e9ddbc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_475fd99fe789", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_935ecb53a6ac", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_4bc1ed683a43", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_386db182333e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bf455f8a760a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_7c5fe1b7940b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_1850c053a313", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_bf13fbd3f7b6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_47a3882ec120", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3a955a82debf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_368b1cc367cc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_33f2641302e3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CYBERSECURITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d1adc30f9500", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e4d72e7826cd", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_34df8c292b07", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4642df5b181b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "TRANSPORTATION AUTOMOTIVE AND AEROSPACE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a47c34661379", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "ENTERTAINMENT", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_21479198b04e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_745b0b15727e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4a39095881a1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_db1711583cb5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_512ecc7b696b", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_aee35073c308", "dissatisfied": true, "dsat_reasons": ["factual_error", "insufficient_detail"], "dsat_turns": 4, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_bcfb0d5a2f8f", "dissatisfied": true, "dsat_reasons": ["negative_feedback", "revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_062fbf3260a6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_881d6836fc0c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_e4a5e2e20762", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a2fa129b3a49", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_659e21caf8b0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 16, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_65027f1fcfc5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_60e6d6fd3d95", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_080701a00cad", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b8aeb7edbf32", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b1848f56f110", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_21c25c10e588", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "ENVIRONMENT AGRICULTURE AND ENERGY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_3ebf74ceefc9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c9742833c1c1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "EDUCATION", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_4fed1199a631", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_33d16f034150", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_332b8188507f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "DESIGN", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_21ecd994e4ea", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5af66cb5dd82", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c7d59c0876fc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0c7836e3ed55", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 13, "domain": "EDUCATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_403fffe9efdf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CAREER AND JOB APPLICATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_babf2b28998b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_02e2cf542195", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0f83d2742b93", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a575d76f331d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2f8e92495b3e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_83099ff60e4f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_66c5c8fbfaf6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_478757e49f6e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_880bbacbf834", "dissatisfied": true, "dsat_reasons": ["ignored"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2691359bbb49", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 21, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2204bcbf522b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_33c8b00a9d43", "dissatisfied": true, "dsat_reasons": ["negative_feedback", "revision"], "dsat_turns": 3, "user_turns_labelled": 22, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d4e52a81a8a7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ced7d479093d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_675103531711", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "MUSIC AND AUDIO", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c86a0b25299a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_82453a9e05c9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_c24e2d539965", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f46058894447", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 11, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_52cda6d161a0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_cdaad62202c2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fde451fe3e87", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 4, "user_turns_labelled": 7, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d0e0636bca6f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c777a527799d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "SHOPPING AND GIFTS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d239c0222a7e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_91bf0095196e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b408ae97b281", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3b81cc64fcc5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_103ec3ffb5d7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 21, "domain": "BIOLOGY AND LIFE SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f8435c80af04", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "TAXATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_abd5ac31510a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "PHILOSOPHY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fd459e22e5b9", "dissatisfied": true, "dsat_reasons": ["negative_feedback", "unrealistic_expectation"], "dsat_turns": 2, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_7f4f363627f1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_e413fdef23bf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b48966f6440f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f92c776c82e2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2f01cd4364d3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "DATING FRIENDSHIPS AND RELATIONSHIPS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_ff6f0233caae", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_cd31e45da979", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0447ca386842", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 9, "domain": "CULTURE AND HISTORY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d72fdff84968", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0a341c2c65f4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "RELIGION AND MYTHOLOGY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5919c0682f0e", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_bba0f696bf84", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5b92ab2b06d4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_56fb13ea0cb0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_ef8b971a1d3d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_4e4fbfe01a85", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0d27b302f67c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "GAMES", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_901a96710cb9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_4d688e3e1822", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_844b8d6d3ef3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_64f586c3c890", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_60d0dd740390", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LITERATURE AND POETRY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_ba9ee1c35f81", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "MUSIC AND AUDIO", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_350f02c43ab7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_41c7b15109be", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 17, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fcaea01f9f8c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_481b6fa406de", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_6bbd964cc904", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_13862bd63ce5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "PHILOSOPHY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_7f5e2e6a4c50", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d55a836c18d4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a8be573b97b5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_79289f378cbd", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_27c3ee05b4d6", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 3, "domain": "SPORTS AND FITNESS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_1e556d24742f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0b93f140eca0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2c42acc6317b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_e3d054417c1a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_3d0718d98778", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "CYBERSECURITY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4335fd2113cf", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4bfaea7a3792", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "CYBERSECURITY", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_0fc5e20ff33f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d6380a7059da", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 17, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_55f67a846c31", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_840f9beeb803", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_c6e67aee0992", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 15, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7a506303886c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_142340a01453", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_462843853e1a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CLOTHING AND FASHION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7dab6de8dfec", "dissatisfied": true, "dsat_reasons": ["negative_feedback", "no_engagement"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_48e7b966983f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_fb7e432e883b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LITERATURE AND POETRY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_028d4e0130ca", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_48e3d95d34dc", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "TAXATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_acc5803657c1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9b0303437021", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f462772fe257", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_aaec25085587", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_d18ccff5f610", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "FINANCE AND ECONOMICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_17d28b4ec0b7", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "HEALTH AND MEDICINE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_78373873410d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_964753c9baca", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MUSIC AND AUDIO", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_06bd415d5d66", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_d8b9731bb096", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_1b12362602c9", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f8fdf445efa0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 14, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2079049d2ba2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TRAVEL", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4c008d2ab0ff", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a63aa275ac67", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "PSYCHOLOGY AND EMOTIONS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_5c406f258da5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5cb04c44852a", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 3, "user_turns_labelled": 7, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_724384a48f7a", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a4650378b3ee", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_f6e7dbb1fb97", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_aad5356e867f", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_acdf56de38e5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "ENTERTAINMENT", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_508fc58d9443", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MUSIC AND AUDIO", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_84b5944a7218", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_7d2700b831dd", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_450284ca8c2b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "CHEMISTRY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_4945860ea6a5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_39990970117f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b4752b31fbf6", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 12, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_3ed0212425b4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b95bc27f4059", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "WRITING JOURNALISM AND PUBLISHING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_1079f0f2d345", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_438d2a7e1bd1", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 8, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_22d487979245", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0b1bcce3f919", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOCIAL MEDIA", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b85bcfe12e60", "dissatisfied": true, "dsat_reasons": ["negative_feedback"], "dsat_turns": 1, "user_turns_labelled": 6, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_6f0f2b4063f4", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "COOKING FOOD AND DRINKS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_432f41e53789", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_c42b81baf561", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d8f7a19ef771", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "OTHER", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_989dc91e1a8c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "TAXATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_22ba12ad2b46", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_0b305fb1687c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_2f4c10db3d65", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "OTHER", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_80523f88f509", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "GAMES", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_e6ce1e5007c8", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bfafab8a7173", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "LANGUAGE", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_58dc844e40f5", "dissatisfied": true, "dsat_reasons": ["ignored", "insufficient_detail"], "dsat_turns": 4, "user_turns_labelled": 13, "domain": "CULTURE AND HISTORY", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f57d50ae742d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_41d54147b527", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_bf0dad854eda", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 11, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_6570744430c5", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "BUSINESS AND MARKETING", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_aa6be5188ec6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_41259d421b9d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_0a20e5a8b5da", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "nan", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_a68851f6f66d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 10, "domain": "ENTERTAINMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_2adfc128ef50", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 17, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_905c0c4e938c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "GAMES", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_b8b5f3300121", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 2, "user_turns_labelled": 4, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_4e8829d31951", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_fac90e97d650", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "OTHER", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_fe8c06a3a05f", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "AI MACHINE LEARNING AND DATA SCIENCE", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_266c5fb1b87f", "dissatisfied": true, "dsat_reasons": ["factual_error", "negative_feedback"], "dsat_turns": 2, "user_turns_labelled": 3, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_841e72fa5cc3", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "EDUCATION", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_59298340fc65", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "ENTERTAINMENT", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f3ad3fd410e9", "dissatisfied": true, "dsat_reasons": ["ignored", "unrealistic_expectation"], "dsat_turns": 3, "user_turns_labelled": 10, "domain": "TECHNOLOGY", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_9ba68ea55818", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 1, "user_turns_labelled": 12, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_d29a71f53ba2", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "CREATION", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_a1428e7bc229", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 19, "domain": "CYBERSECURITY", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_70e03342471f", "dissatisfied": true, "dsat_reasons": ["revision"], "dsat_turns": 1, "user_turns_labelled": 4, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f6c02c018637", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_45358451b816", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 7, "domain": "ENTERTAINMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_b05bdf303c3d", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 9, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_f2adf2541ff6", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 6, "domain": "MATH LOGIC AND STATISTICS", "intent": "INTENT:2-ANALYSIS"}
+{"conv_id": "c_7b24bf7cbd13", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 12, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_147ad7ecc994", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "LAW AND POLITICS", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_303868e6133f", "dissatisfied": true, "dsat_reasons": ["factual_error"], "dsat_turns": 1, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_785bcf6240ae", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_38b05bae3750", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_3812f7a76fda", "dissatisfied": true, "dsat_reasons": ["factual_error", "insufficient_detail", "revision"], "dsat_turns": 7, "user_turns_labelled": 10, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_5f9794e5b9e0", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 4, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:3-CREATION"}
+{"conv_id": "c_875371f60a7c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "SMALL TALK", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_f63dd8f3c34c", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 3, "domain": "PHYSICS CHEMISTRY AND ASTRONOMY", "intent": "INTENT:1-INFORMATION_SEEKING"}
+{"conv_id": "c_34c535e6fd7b", "dissatisfied": false, "dsat_reasons": [], "dsat_turns": 0, "user_turns_labelled": 5, "domain": "TECHNOLOGY", "intent": "INTENT:4-OPEN-ENDED_DISCOVERY"}
+{"conv_id": "c_82e349786645", "dissatisfied": true, "dsat_reasons": ["insufficient_detail"], "dsat_turns": 2, "user_turns_labelled": 6, "domain": "SOFTWARE AND WEB DEVELOPMENT", "intent": "INTENT:1-INFORMATION_SEEKING"}

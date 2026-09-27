@@ -1,0 +1,2543 @@
+{
+  "snapshot_id": "snap_20260927T031412_7c1e",
+  "created_at": "2026-09-27T03:14:12Z",
+  "workspace": {
+    "name": "WildChat · public research sample",
+    "description": "A free public chatbot front-end (GPT-3.5 / GPT-4) whose users consented to research release of their conversations."
+  },
+  "dataset": {
+    "name": "WildChat-1M",
+    "source_url": "https://huggingface.co/datasets/allenai/WildChat-1M",
+    "revision": "7d6490e462285cf85d91eabea0f9a954fbddcd1f",
+    "license": "ODC-BY-1.0",
+    "attribution": "Zhao et al., \"WildChat: 1M ChatGPT Interaction Logs in the Wild\", ICLR 2024",
+    "period_start": "2023-04-09",
+    "period_end": "2023-05-04",
+    "conversations": 5050,
+    "users": 2790,
+    "languages": 55,
+    "sample_note": "Seeded uniform sample of 5,000 conversations from WildChat-1M shard 0, plus 40 planted canary conversations and 10 injection-bait fixtures used by the evaluation.",
+    "fixtures": {
+      "canary_conversations": 40,
+      "injection_conversations": 10
+    }
+  },
+  "totals": {
+    "conversations": 5050,
+    "users": 2790,
+    "share": 1,
+    "friction": {
+      "conversations": 712,
+      "share": 0.141,
+      "unclear": 240,
+      "signals": {
+        "correction": 311,
+        "repeat_request": 291,
+        "assistant_limit": 141,
+        "complaint": 139
+      }
+    },
+    "languages": [
+      {
+        "name": "English",
+        "conversations": 3283
+      },
+      {
+        "name": "Chinese",
+        "conversations": 640
+      },
+      {
+        "name": "Russian",
+        "conversations": 493
+      },
+      {
+        "name": "Spanish",
+        "conversations": 134
+      },
+      {
+        "name": "French",
+        "conversations": 98
+      },
+      {
+        "name": "Other languages",
+        "conversations": 402
+      }
+    ]
+  },
+  "categories": [
+    {
+      "id": "cat_3d23ab",
+      "level": 1,
+      "parent_id": null,
+      "title": "Software development",
+      "short_title": "Software",
+      "description": "People write, fix and explain code across web, data, bots and games.",
+      "conversations": 1116,
+      "users": 796,
+      "share": 0.221,
+      "friction": {
+        "conversations": 216,
+        "share": 0.1935,
+        "unclear": 56,
+        "signals": {
+          "correction": 114,
+          "repeat_request": 98,
+          "assistant_limit": 21,
+          "complaint": 35
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 747
+        },
+        {
+          "name": "Chinese",
+          "conversations": 157
+        },
+        {
+          "name": "Russian",
+          "conversations": 100
+        },
+        {
+          "name": "Portuguese",
+          "conversations": 22
+        },
+        {
+          "name": "Spanish",
+          "conversations": 22
+        },
+        {
+          "name": "Other languages",
+          "conversations": 68
+        }
+      ],
+      "children": [
+        "cl_fceccb",
+        "cl_573700",
+        "cl_b6cf69",
+        "cl_2dca3f",
+        "cl_6558c2"
+      ]
+    },
+    {
+      "id": "cat_fd92d9",
+      "level": 1,
+      "parent_id": null,
+      "title": "Writing & editing",
+      "short_title": "Writing",
+      "description": "People draft, rewrite, translate and condense text for school and work.",
+      "conversations": 880,
+      "users": 661,
+      "share": 0.1743,
+      "friction": {
+        "conversations": 113,
+        "share": 0.1284,
+        "unclear": 42,
+        "signals": {
+          "correction": 41,
+          "repeat_request": 50,
+          "assistant_limit": 25,
+          "complaint": 24
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 423
+        },
+        {
+          "name": "Chinese",
+          "conversations": 198
+        },
+        {
+          "name": "Russian",
+          "conversations": 95
+        },
+        {
+          "name": "French",
+          "conversations": 33
+        },
+        {
+          "name": "Spanish",
+          "conversations": 29
+        },
+        {
+          "name": "Other languages",
+          "conversations": 102
+        }
+      ],
+      "children": [
+        "cl_83c9ca",
+        "cl_0bbea3",
+        "cl_b70543",
+        "cl_0a7cb7"
+      ]
+    },
+    {
+      "id": "cat_d063c3",
+      "level": 1,
+      "parent_id": null,
+      "title": "Creative & role-play",
+      "short_title": "Creative",
+      "description": "People co-write stories, scenarios, poems and interactive role-play.",
+      "conversations": 933,
+      "users": 358,
+      "share": 0.1848,
+      "friction": {
+        "conversations": 121,
+        "share": 0.1297,
+        "unclear": 42,
+        "signals": {
+          "correction": 39,
+          "repeat_request": 51,
+          "assistant_limit": 34,
+          "complaint": 26
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 746
+        },
+        {
+          "name": "Russian",
+          "conversations": 59
+        },
+        {
+          "name": "Chinese",
+          "conversations": 48
+        },
+        {
+          "name": "Spanish",
+          "conversations": 21
+        },
+        {
+          "name": "Portuguese",
+          "conversations": 13
+        },
+        {
+          "name": "Other languages",
+          "conversations": 46
+        }
+      ],
+      "children": [
+        "cl_07509b",
+        "cl_d1aa23",
+        "cl_7ddbe3",
+        "cl_18a3f2"
+      ]
+    },
+    {
+      "id": "cat_cbb2a2",
+      "level": 1,
+      "parent_id": null,
+      "title": "Image-prompt generation",
+      "short_title": "Image prompts",
+      "description": "People use the assistant to write prompts and concepts for image generators.",
+      "conversations": 485,
+      "users": 69,
+      "share": 0.096,
+      "friction": {
+        "conversations": 34,
+        "share": 0.0701,
+        "unclear": 13,
+        "signals": {
+          "correction": 10,
+          "repeat_request": 15,
+          "assistant_limit": 9,
+          "complaint": 8
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 423
+        },
+        {
+          "name": "Chinese",
+          "conversations": 43
+        },
+        {
+          "name": "Russian",
+          "conversations": 8
+        },
+        {
+          "name": "Other languages",
+          "conversations": 11
+        }
+      ],
+      "children": [
+        "cl_6a5c46",
+        "cl_568630"
+      ]
+    },
+    {
+      "id": "cat_ddf481",
+      "level": 1,
+      "parent_id": null,
+      "title": "Learning & homework",
+      "short_title": "Learning",
+      "description": "People work through problems, exam questions and explanations while studying.",
+      "conversations": 801,
+      "users": 571,
+      "share": 0.1586,
+      "friction": {
+        "conversations": 112,
+        "share": 0.1398,
+        "unclear": 40,
+        "signals": {
+          "correction": 74,
+          "repeat_request": 34,
+          "assistant_limit": 11,
+          "complaint": 20
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 404
+        },
+        {
+          "name": "Russian",
+          "conversations": 152
+        },
+        {
+          "name": "Chinese",
+          "conversations": 111
+        },
+        {
+          "name": "Spanish",
+          "conversations": 25
+        },
+        {
+          "name": "French",
+          "conversations": 24
+        },
+        {
+          "name": "Other languages",
+          "conversations": 85
+        }
+      ],
+      "children": [
+        "cl_00ac42",
+        "cl_4516de",
+        "cl_789363",
+        "cl_b5e80d"
+      ]
+    },
+    {
+      "id": "cat_2ff4c1",
+      "level": 1,
+      "parent_id": null,
+      "title": "Business & career",
+      "short_title": "Business",
+      "description": "People write job applications, marketing material and business plans.",
+      "conversations": 422,
+      "users": 331,
+      "share": 0.0836,
+      "friction": {
+        "conversations": 38,
+        "share": 0.09,
+        "unclear": 16,
+        "signals": {
+          "correction": 16,
+          "repeat_request": 18,
+          "assistant_limit": 5,
+          "complaint": 8
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 300
+        },
+        {
+          "name": "Chinese",
+          "conversations": 33
+        },
+        {
+          "name": "Russian",
+          "conversations": 30
+        },
+        {
+          "name": "Spanish",
+          "conversations": 17
+        },
+        {
+          "name": "French",
+          "conversations": 13
+        },
+        {
+          "name": "Other languages",
+          "conversations": 29
+        }
+      ],
+      "children": [
+        "cl_3fea45",
+        "cl_e1bf91",
+        "cl_9faf5c"
+      ]
+    },
+    {
+      "id": "cat_994e8b",
+      "level": 1,
+      "parent_id": null,
+      "title": "Everyday advice",
+      "short_title": "Everyday",
+      "description": "People ask about current events, the assistant itself, and personal decisions.",
+      "conversations": 263,
+      "users": 233,
+      "share": 0.0521,
+      "friction": {
+        "conversations": 58,
+        "share": 0.2205,
+        "unclear": 17,
+        "signals": {
+          "correction": 10,
+          "repeat_request": 18,
+          "assistant_limit": 30,
+          "complaint": 13
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 144
+        },
+        {
+          "name": "Russian",
+          "conversations": 34
+        },
+        {
+          "name": "Chinese",
+          "conversations": 33
+        },
+        {
+          "name": "Spanish",
+          "conversations": 13
+        },
+        {
+          "name": "French",
+          "conversations": 11
+        },
+        {
+          "name": "Other languages",
+          "conversations": 28
+        }
+      ],
+      "children": [
+        "cl_797758",
+        "cl_8c742c",
+        "cl_ee21ee"
+      ]
+    },
+    {
+      "id": "cat_92a262",
+      "level": 1,
+      "parent_id": null,
+      "title": "Other or unclear",
+      "short_title": "Other",
+      "description": "Conversations too short, too mixed or too unclear to place in a specific workflow.",
+      "conversations": 150,
+      "users": 139,
+      "share": 0.0297,
+      "friction": {
+        "conversations": 20,
+        "share": 0.1333,
+        "unclear": 14,
+        "signals": {
+          "correction": 7,
+          "repeat_request": 7,
+          "assistant_limit": 6,
+          "complaint": 5
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 96
+        },
+        {
+          "name": "Chinese",
+          "conversations": 17
+        },
+        {
+          "name": "Russian",
+          "conversations": 15
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 17
+        }
+      ],
+      "children": [
+        "cl_other"
+      ],
+      "is_other": true
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cl_fceccb",
+      "level": 2,
+      "parent_id": "cat_3d23ab",
+      "title": "Debugging Python and JavaScript errors",
+      "short_title": "Debugging errors",
+      "description": "People paste an error or failing snippet and ask for the cause and a working fix.",
+      "conversations": 448,
+      "users": 371,
+      "share": 0.0887,
+      "friction": {
+        "conversations": 96,
+        "share": 0.2143,
+        "unclear": 23,
+        "signals": {
+          "correction": 52,
+          "repeat_request": 43,
+          "assistant_limit": 8,
+          "complaint": 16
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 300
+        },
+        {
+          "name": "Chinese",
+          "conversations": 63
+        },
+        {
+          "name": "Russian",
+          "conversations": 40
+        },
+        {
+          "name": "Portuguese",
+          "conversations": 9
+        },
+        {
+          "name": "Spanish",
+          "conversations": 9
+        },
+        {
+          "name": "Other languages",
+          "conversations": 27
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Explain what a traceback or console error actually means"
+        },
+        {
+          "id": "n2",
+          "text": "Get a minimal fix that runs without rewriting the whole program"
+        },
+        {
+          "id": "n3",
+          "text": "Understand why a library call behaves differently than expected"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Suggested fixes introduce a new error on the next run",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Answers target an older library version than the one installed",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p3",
+          "text": "Long files get truncated, so the fix misses the failing line",
+          "signal": "assistant_limit",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.38
+      }
+    },
+    {
+      "id": "cl_573700",
+      "level": 2,
+      "parent_id": "cat_3d23ab",
+      "title": "Building web apps and APIs",
+      "short_title": "Web apps & APIs",
+      "description": "People scaffold front-end pages, back-end endpoints and database models for small web projects.",
+      "conversations": 321,
+      "users": 262,
+      "share": 0.0636,
+      "friction": {
+        "conversations": 56,
+        "share": 0.1745,
+        "unclear": 15,
+        "signals": {
+          "correction": 26,
+          "repeat_request": 28,
+          "assistant_limit": 7,
+          "complaint": 8
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 215
+        },
+        {
+          "name": "Chinese",
+          "conversations": 45
+        },
+        {
+          "name": "Russian",
+          "conversations": 29
+        },
+        {
+          "name": "Portuguese",
+          "conversations": 6
+        },
+        {
+          "name": "Spanish",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 20
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Generate a complete, runnable project skeleton"
+        },
+        {
+          "id": "n2",
+          "text": "Connect a front-end form to a back-end endpoint"
+        },
+        {
+          "id": "n3",
+          "text": "Add authentication or payments to an existing app"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Generated code stops mid-file and has to be requested again",
+          "signal": "repeat_request",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Framework versions are mixed within one answer",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p3",
+          "text": "Deployment steps assume tools the person does not have",
+          "signal": null,
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.23
+      }
+    },
+    {
+      "id": "cl_b6cf69",
+      "level": 2,
+      "parent_id": "cat_3d23ab",
+      "title": "Building Discord and Telegram bots",
+      "short_title": "Chat bots",
+      "description": "People build chat bots with command handlers, scheduled posts and API integrations.",
+      "conversations": 112,
+      "users": 64,
+      "share": 0.0222,
+      "friction": {
+        "conversations": 23,
+        "share": 0.2054,
+        "unclear": 6,
+        "signals": {
+          "correction": 12,
+          "repeat_request": 11,
+          "assistant_limit": 2,
+          "complaint": 4
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 75
+        },
+        {
+          "name": "Chinese",
+          "conversations": 16
+        },
+        {
+          "name": "Russian",
+          "conversations": 10
+        },
+        {
+          "name": "Other languages",
+          "conversations": 11
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Wire up bot commands and event handlers"
+        },
+        {
+          "id": "n2",
+          "text": "Call a third-party API from inside a bot"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Library APIs changed after the model's training data",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Tokens and intents setup is skipped in the instructions",
+          "signal": "repeat_request",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.3
+      }
+    },
+    {
+      "id": "cl_2dca3f",
+      "level": 2,
+      "parent_id": "cat_3d23ab",
+      "title": "Game scripting for Unity and Roblox",
+      "short_title": "Game scripting",
+      "description": "People write gameplay scripts, movement controllers and UI logic for hobby games.",
+      "conversations": 96,
+      "users": 61,
+      "share": 0.019,
+      "friction": {
+        "conversations": 23,
+        "share": 0.2396,
+        "unclear": 6,
+        "signals": {
+          "correction": 14,
+          "repeat_request": 9,
+          "assistant_limit": 2,
+          "complaint": 4
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 64
+        },
+        {
+          "name": "Chinese",
+          "conversations": 14
+        },
+        {
+          "name": "Russian",
+          "conversations": 9
+        },
+        {
+          "name": "Other languages",
+          "conversations": 9
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Write a character or camera controller from a description"
+        },
+        {
+          "id": "n2",
+          "text": "Fix a script that compiles but does nothing in the game"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Engine-specific APIs are invented or misnamed",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "The model cannot see the scene setup the script depends on",
+          "signal": "assistant_limit",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.29
+      }
+    },
+    {
+      "id": "cl_6558c2",
+      "level": 2,
+      "parent_id": "cat_3d23ab",
+      "title": "Writing SQL and data-analysis scripts",
+      "short_title": "SQL & data scripts",
+      "description": "People write queries, pandas transformations and spreadsheet formulas for their own data.",
+      "conversations": 139,
+      "users": 117,
+      "share": 0.0275,
+      "friction": {
+        "conversations": 18,
+        "share": 0.1295,
+        "unclear": 6,
+        "signals": {
+          "correction": 10,
+          "repeat_request": 7,
+          "assistant_limit": 2,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 93
+        },
+        {
+          "name": "Chinese",
+          "conversations": 19
+        },
+        {
+          "name": "Russian",
+          "conversations": 12
+        },
+        {
+          "name": "Other languages",
+          "conversations": 15
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Turn a plain-language question into a correct query"
+        },
+        {
+          "id": "n2",
+          "text": "Clean and reshape a table before charting it"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Queries use a different SQL dialect than the person's database",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Column names are guessed instead of asked for",
+          "signal": "correction",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.44
+      }
+    },
+    {
+      "id": "cl_83c9ca",
+      "level": 2,
+      "parent_id": "cat_fd92d9",
+      "title": "Rewriting essays to sound human",
+      "short_title": "Humanizing essays",
+      "description": "People ask for essays or paragraphs to be rephrased so they read as human-written and pass AI detectors.",
+      "conversations": 214,
+      "users": 163,
+      "share": 0.0424,
+      "friction": {
+        "conversations": 41,
+        "share": 0.1916,
+        "unclear": 13,
+        "signals": {
+          "correction": 10,
+          "repeat_request": 27,
+          "assistant_limit": 4,
+          "complaint": 10
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 101
+        },
+        {
+          "name": "Chinese",
+          "conversations": 62
+        },
+        {
+          "name": "Russian",
+          "conversations": 21
+        },
+        {
+          "name": "Korean",
+          "conversations": 7
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 18
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Rephrase text so it no longer reads as machine-written"
+        },
+        {
+          "id": "n2",
+          "text": "Keep the original argument while changing the wording"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Rewrites are rejected as still sounding generated, prompting repeated attempts",
+          "signal": "repeat_request",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Meaning drifts after several rounds of paraphrasing",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p3",
+          "text": "The person reports a detector score and asks to try again",
+          "signal": "complaint",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": true,
+        "score": 0.84
+      }
+    },
+    {
+      "id": "cl_0bbea3",
+      "level": 2,
+      "parent_id": "cat_fd92d9",
+      "title": "Translating and polishing work emails",
+      "short_title": "Work emails",
+      "description": "People translate messages between languages and adjust tone for colleagues and clients.",
+      "conversations": 243,
+      "users": 207,
+      "share": 0.0481,
+      "friction": {
+        "conversations": 17,
+        "share": 0.07,
+        "unclear": 8,
+        "signals": {
+          "correction": 11,
+          "repeat_request": 6,
+          "assistant_limit": 1,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 92
+        },
+        {
+          "name": "Chinese",
+          "conversations": 46
+        },
+        {
+          "name": "Russian",
+          "conversations": 32
+        },
+        {
+          "name": "French",
+          "conversations": 17
+        },
+        {
+          "name": "Spanish",
+          "conversations": 15
+        },
+        {
+          "name": "Other languages",
+          "conversations": 41
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Translate a message while keeping a professional tone"
+        },
+        {
+          "id": "n2",
+          "text": "Make a short email more polite or more direct"
+        },
+        {
+          "id": "n3",
+          "text": "Check grammar in a second language before sending"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Formality level does not match the recipient",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Names and product terms get translated when they should not",
+          "signal": "correction",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.14
+      }
+    },
+    {
+      "id": "cl_b70543",
+      "level": 2,
+      "parent_id": "cat_fd92d9",
+      "title": "Drafting academic papers and literature reviews",
+      "short_title": "Academic papers",
+      "description": "People outline, draft and expand thesis chapters, reports and literature reviews.",
+      "conversations": 242,
+      "users": 191,
+      "share": 0.0479,
+      "friction": {
+        "conversations": 39,
+        "share": 0.1612,
+        "unclear": 14,
+        "signals": {
+          "correction": 14,
+          "repeat_request": 12,
+          "assistant_limit": 14,
+          "complaint": 8
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 114
+        },
+        {
+          "name": "Chinese",
+          "conversations": 70
+        },
+        {
+          "name": "Russian",
+          "conversations": 24
+        },
+        {
+          "name": "Korean",
+          "conversations": 7
+        },
+        {
+          "name": "French",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 21
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Expand an outline into a structured chapter"
+        },
+        {
+          "id": "n2",
+          "text": "Find and cite relevant prior work"
+        },
+        {
+          "id": "n3",
+          "text": "Meet a specific word count and format"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Citations are invented or cannot be verified",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Word-count targets are missed and re-requested",
+          "signal": "repeat_request",
+          "support": "common"
+        },
+        {
+          "id": "p3",
+          "text": "The model cannot read papers behind the links provided",
+          "signal": "assistant_limit",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.1
+      }
+    },
+    {
+      "id": "cl_0a7cb7",
+      "level": 2,
+      "parent_id": "cat_fd92d9",
+      "title": "Summarizing and paraphrasing articles",
+      "short_title": "Summaries",
+      "description": "People paste long passages and ask for summaries, key points or simplified versions.",
+      "conversations": 181,
+      "users": 160,
+      "share": 0.0358,
+      "friction": {
+        "conversations": 16,
+        "share": 0.0884,
+        "unclear": 7,
+        "signals": {
+          "correction": 6,
+          "repeat_request": 5,
+          "assistant_limit": 6,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 116
+        },
+        {
+          "name": "Chinese",
+          "conversations": 20
+        },
+        {
+          "name": "Russian",
+          "conversations": 18
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 17
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Condense a long text into a few key points"
+        },
+        {
+          "id": "n2",
+          "text": "Simplify dense material for a younger reader"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Pasted text exceeds the length the model can take in",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Summaries add claims that are not in the source",
+          "signal": "correction",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.15
+      }
+    },
+    {
+      "id": "cl_07509b",
+      "level": 2,
+      "parent_id": "cat_d063c3",
+      "title": "Continuing fan-fiction and story episodes",
+      "short_title": "Fan-fiction episodes",
+      "description": "People develop long-running stories with recurring characters, asking for the next episode again and again.",
+      "conversations": 398,
+      "users": 97,
+      "share": 0.0788,
+      "friction": {
+        "conversations": 47,
+        "share": 0.1181,
+        "unclear": 18,
+        "signals": {
+          "correction": 21,
+          "repeat_request": 24,
+          "assistant_limit": 6,
+          "complaint": 7
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 342
+        },
+        {
+          "name": "Russian",
+          "conversations": 20
+        },
+        {
+          "name": "Chinese",
+          "conversations": 12
+        },
+        {
+          "name": "Spanish",
+          "conversations": 8
+        },
+        {
+          "name": "Portuguese",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 10
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Continue a story consistently from where it stopped"
+        },
+        {
+          "id": "n2",
+          "text": "Keep characters' names, traits and relationships stable"
+        },
+        {
+          "id": "n3",
+          "text": "Write longer episodes with dialogue"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Characters' details drift between episodes",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Episodes end early and have to be continued manually",
+          "signal": "repeat_request",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.36
+      }
+    },
+    {
+      "id": "cl_d1aa23",
+      "level": 2,
+      "parent_id": "cat_d063c3",
+      "title": "Anime and game crossover scenarios",
+      "short_title": "Crossover scenarios",
+      "description": "People write what-if scenes where characters from different franchises meet and react to each other.",
+      "conversations": 206,
+      "users": 38,
+      "share": 0.0408,
+      "friction": {
+        "conversations": 17,
+        "share": 0.0825,
+        "unclear": 8,
+        "signals": {
+          "correction": 7,
+          "repeat_request": 8,
+          "assistant_limit": 3,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 194
+        },
+        {
+          "name": "Russian",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 6
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Stage a crossover between characters from different series"
+        },
+        {
+          "id": "n2",
+          "text": "Produce many short variations on the same premise"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Canon details for lesser-known characters are wrong",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Requests are declined when scenes involve conflict",
+          "signal": "assistant_limit",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.3
+      }
+    },
+    {
+      "id": "cl_7ddbe3",
+      "level": 2,
+      "parent_id": "cat_d063c3",
+      "title": "Role-play with unrestricted personas",
+      "short_title": "Unrestricted personas",
+      "description": "People ask the assistant to adopt a persona that ignores its usual rules, then test what it will say.",
+      "conversations": 157,
+      "users": 121,
+      "share": 0.0311,
+      "friction": {
+        "conversations": 46,
+        "share": 0.293,
+        "unclear": 11,
+        "signals": {
+          "correction": 6,
+          "repeat_request": 14,
+          "assistant_limit": 24,
+          "complaint": 13
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 100
+        },
+        {
+          "name": "Chinese",
+          "conversations": 17
+        },
+        {
+          "name": "Russian",
+          "conversations": 16
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 14
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Keep an assigned persona for the whole conversation"
+        },
+        {
+          "id": "n2",
+          "text": "Get answers the default assistant declines to give"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "The assistant breaks character and declines",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "People complain the persona instructions were ignored",
+          "signal": "complaint",
+          "support": "common"
+        },
+        {
+          "id": "p3",
+          "text": "The same setup prompt is pasted several times in a row",
+          "signal": "repeat_request",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": true,
+        "score": 0.88
+      }
+    },
+    {
+      "id": "cl_18a3f2",
+      "level": 2,
+      "parent_id": "cat_d063c3",
+      "title": "Poems, song lyrics and jokes",
+      "short_title": "Poems & jokes",
+      "description": "People ask for short creative pieces for occasions, friends and social posts.",
+      "conversations": 172,
+      "users": 151,
+      "share": 0.0341,
+      "friction": {
+        "conversations": 11,
+        "share": 0.064,
+        "unclear": 5,
+        "signals": {
+          "correction": 5,
+          "repeat_request": 5,
+          "assistant_limit": 1,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 110
+        },
+        {
+          "name": "Chinese",
+          "conversations": 19
+        },
+        {
+          "name": "Russian",
+          "conversations": 17
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 16
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Write a short poem for a specific person or occasion"
+        },
+        {
+          "id": "n2",
+          "text": "Make a joke or pun on a given topic"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Rhymes and meter break in non-English poems",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Jokes are explained rather than landed",
+          "signal": "complaint",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.08
+      }
+    },
+    {
+      "id": "cl_6a5c46",
+      "level": 2,
+      "parent_id": "cat_cbb2a2",
+      "title": "Writing Midjourney / Stable Diffusion prompts",
+      "short_title": "Image prompts",
+      "description": "A pasted template asks for batches of structured image-generator prompts from a short concept, repeated at high volume.",
+      "conversations": 412,
+      "users": 11,
+      "share": 0.0816,
+      "friction": {
+        "conversations": 22,
+        "share": 0.0534,
+        "unclear": 9,
+        "signals": {
+          "correction": 8,
+          "repeat_request": 11,
+          "assistant_limit": 2,
+          "complaint": 6
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 371
+        },
+        {
+          "name": "Chinese",
+          "conversations": 37
+        },
+        {
+          "name": "Other languages",
+          "conversations": 4
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Turn a one-line concept into several detailed image prompts"
+        },
+        {
+          "id": "n2",
+          "text": "Follow a strict output format with style and aspect-ratio flags"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Output format drifts from the template's required structure",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Batches repeat the same composition with small wording changes",
+          "signal": "repeat_request",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": true,
+        "score": 0.91
+      }
+    },
+    {
+      "id": "cl_568630",
+      "level": 2,
+      "parent_id": "cat_cbb2a2",
+      "title": "Designing logos and visual concepts",
+      "short_title": "Logos & visuals",
+      "description": "People describe a brand or scene and ask for design ideas, color palettes or an image.",
+      "conversations": 73,
+      "users": 61,
+      "share": 0.0145,
+      "friction": {
+        "conversations": 12,
+        "share": 0.1644,
+        "unclear": 4,
+        "signals": {
+          "correction": 2,
+          "repeat_request": 4,
+          "assistant_limit": 7,
+          "complaint": 2
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 52
+        },
+        {
+          "name": "Chinese",
+          "conversations": 6
+        },
+        {
+          "name": "Russian",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 10
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Get concrete visual directions for a logo or poster"
+        },
+        {
+          "id": "n2",
+          "text": "Receive an actual image rather than a description"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "The assistant cannot produce images, only describe them",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Palette suggestions ignore stated brand colors",
+          "signal": "correction",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.26
+      }
+    },
+    {
+      "id": "cl_00ac42",
+      "level": 2,
+      "parent_id": "cat_ddf481",
+      "title": "Solving math and physics problems",
+      "short_title": "Math & physics",
+      "description": "People paste problem sets and ask for step-by-step solutions and final answers.",
+      "conversations": 284,
+      "users": 227,
+      "share": 0.0562,
+      "friction": {
+        "conversations": 66,
+        "share": 0.2324,
+        "unclear": 19,
+        "signals": {
+          "correction": 46,
+          "repeat_request": 20,
+          "assistant_limit": 6,
+          "complaint": 10
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 136
+        },
+        {
+          "name": "Russian",
+          "conversations": 68
+        },
+        {
+          "name": "Chinese",
+          "conversations": 40
+        },
+        {
+          "name": "Ukrainian",
+          "conversations": 9
+        },
+        {
+          "name": "Spanish",
+          "conversations": 7
+        },
+        {
+          "name": "Other languages",
+          "conversations": 24
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "See each step of the solution, not only the answer"
+        },
+        {
+          "id": "n2",
+          "text": "Check their own answer against a worked solution"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Arithmetic slips lead to a wrong final answer",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Diagrams and formulas lose meaning when pasted as text",
+          "signal": "assistant_limit",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.23
+      }
+    },
+    {
+      "id": "cl_4516de",
+      "level": 2,
+      "parent_id": "cat_ddf481",
+      "title": "Answering exam and quiz questions",
+      "short_title": "Exam answers",
+      "description": "People paste multiple-choice or short-answer questions, often many in a row, and ask for the answers.",
+      "conversations": 203,
+      "users": 139,
+      "share": 0.0402,
+      "friction": {
+        "conversations": 23,
+        "share": 0.1133,
+        "unclear": 10,
+        "signals": {
+          "correction": 15,
+          "repeat_request": 7,
+          "assistant_limit": 2,
+          "complaint": 5
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 98
+        },
+        {
+          "name": "Russian",
+          "conversations": 49
+        },
+        {
+          "name": "Chinese",
+          "conversations": 28
+        },
+        {
+          "name": "Ukrainian",
+          "conversations": 6
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 17
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Get the correct option with a one-line reason"
+        },
+        {
+          "id": "n2",
+          "text": "Work through a long list of questions quickly"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Confident answers are wrong and the person corrects them",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Questions that reference a figure cannot be answered",
+          "signal": "assistant_limit",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.09
+      }
+    },
+    {
+      "id": "cl_789363",
+      "level": 2,
+      "parent_id": "cat_ddf481",
+      "title": "Explaining science, history and economics",
+      "short_title": "Explainers",
+      "description": "People ask for plain-language explanations of concepts, events and theories.",
+      "conversations": 196,
+      "users": 176,
+      "share": 0.0388,
+      "friction": {
+        "conversations": 14,
+        "share": 0.0714,
+        "unclear": 7,
+        "signals": {
+          "correction": 8,
+          "repeat_request": 4,
+          "assistant_limit": 2,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 125
+        },
+        {
+          "name": "Chinese",
+          "conversations": 21
+        },
+        {
+          "name": "Russian",
+          "conversations": 20
+        },
+        {
+          "name": "French",
+          "conversations": 6
+        },
+        {
+          "name": "Spanish",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 18
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Understand a concept at a chosen level of detail"
+        },
+        {
+          "id": "n2",
+          "text": "Compare two theories or events side by side"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Dates and figures are stated with false precision",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Explanations stay too abstract for the person's level",
+          "signal": "repeat_request",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.24
+      }
+    },
+    {
+      "id": "cl_b5e80d",
+      "level": 2,
+      "parent_id": "cat_ddf481",
+      "title": "Practising English and other languages",
+      "short_title": "Language practice",
+      "description": "People ask for grammar explanations, vocabulary drills and corrections of their own sentences.",
+      "conversations": 118,
+      "users": 99,
+      "share": 0.0234,
+      "friction": {
+        "conversations": 9,
+        "share": 0.0763,
+        "unclear": 4,
+        "signals": {
+          "correction": 5,
+          "repeat_request": 3,
+          "assistant_limit": 1,
+          "complaint": 2
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 45
+        },
+        {
+          "name": "Chinese",
+          "conversations": 22
+        },
+        {
+          "name": "Russian",
+          "conversations": 15
+        },
+        {
+          "name": "French",
+          "conversations": 8
+        },
+        {
+          "name": "Spanish",
+          "conversations": 7
+        },
+        {
+          "name": "Other languages",
+          "conversations": 21
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Get corrections with the reason for each change"
+        },
+        {
+          "id": "n2",
+          "text": "Practise conversation at a beginner level"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Corrections change the person's meaning",
+          "signal": "correction",
+          "support": "observed"
+        },
+        {
+          "id": "p2",
+          "text": "Replies switch to English when practice was in another language",
+          "signal": "repeat_request",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.18
+      }
+    },
+    {
+      "id": "cl_3fea45",
+      "level": 2,
+      "parent_id": "cat_2ff4c1",
+      "title": "Writing cover letters and resumes",
+      "short_title": "Resumes",
+      "description": "People tailor resumes and cover letters to specific job postings.",
+      "conversations": 129,
+      "users": 118,
+      "share": 0.0255,
+      "friction": {
+        "conversations": 12,
+        "share": 0.093,
+        "unclear": 5,
+        "signals": {
+          "correction": 6,
+          "repeat_request": 5,
+          "assistant_limit": 1,
+          "complaint": 3
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 92
+        },
+        {
+          "name": "Chinese",
+          "conversations": 10
+        },
+        {
+          "name": "Russian",
+          "conversations": 9
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 13
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Match a resume to the wording of a job posting"
+        },
+        {
+          "id": "n2",
+          "text": "Describe experience with stronger, measurable language"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Achievements are inflated beyond what the person gave",
+          "signal": "correction",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Letters are too long for the requested format",
+          "signal": "repeat_request",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.31
+      }
+    },
+    {
+      "id": "cl_e1bf91",
+      "level": 2,
+      "parent_id": "cat_2ff4c1",
+      "title": "Marketing copy, SEO and social posts",
+      "short_title": "Marketing copy",
+      "description": "People produce product descriptions, SEO articles and batches of social media posts.",
+      "conversations": 196,
+      "users": 142,
+      "share": 0.0388,
+      "friction": {
+        "conversations": 20,
+        "share": 0.102,
+        "unclear": 8,
+        "signals": {
+          "correction": 8,
+          "repeat_request": 11,
+          "assistant_limit": 2,
+          "complaint": 4
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 139
+        },
+        {
+          "name": "Chinese",
+          "conversations": 15
+        },
+        {
+          "name": "Russian",
+          "conversations": 14
+        },
+        {
+          "name": "Spanish",
+          "conversations": 8
+        },
+        {
+          "name": "French",
+          "conversations": 6
+        },
+        {
+          "name": "Other languages",
+          "conversations": 14
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Write many variants of a post for different platforms"
+        },
+        {
+          "id": "n2",
+          "text": "Include target keywords without sounding forced"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Copy repeats the same phrasing across variants",
+          "signal": "repeat_request",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Keyword and length requirements are dropped",
+          "signal": "correction",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.41
+      }
+    },
+    {
+      "id": "cl_9faf5c",
+      "level": 2,
+      "parent_id": "cat_2ff4c1",
+      "title": "Business plans and startup ideas",
+      "short_title": "Business plans",
+      "description": "People brainstorm business ideas and draft plans, pitches and financial outlines.",
+      "conversations": 97,
+      "users": 88,
+      "share": 0.0192,
+      "friction": {
+        "conversations": 6,
+        "share": 0.0619,
+        "unclear": 3,
+        "signals": {
+          "correction": 2,
+          "repeat_request": 2,
+          "assistant_limit": 2,
+          "complaint": 1
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 69
+        },
+        {
+          "name": "Chinese",
+          "conversations": 8
+        },
+        {
+          "name": "Russian",
+          "conversations": 7
+        },
+        {
+          "name": "Other languages",
+          "conversations": 13
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Test whether an idea has an obvious market"
+        },
+        {
+          "id": "n2",
+          "text": "Draft a one-page plan with rough numbers"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Market figures cannot be sourced or checked",
+          "signal": "assistant_limit",
+          "support": "observed"
+        },
+        {
+          "id": "p2",
+          "text": "Plans stay generic across very different ideas",
+          "signal": "complaint",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.31
+      }
+    },
+    {
+      "id": "cl_797758",
+      "level": 2,
+      "parent_id": "cat_994e8b",
+      "title": "Getting real-time info the model can't access",
+      "short_title": "Real-time info",
+      "description": "People ask for today's news, prices, weather or links, which the assistant cannot retrieve.",
+      "conversations": 104,
+      "users": 95,
+      "share": 0.0206,
+      "friction": {
+        "conversations": 31,
+        "share": 0.2981,
+        "unclear": 8,
+        "signals": {
+          "correction": 5,
+          "repeat_request": 8,
+          "assistant_limit": 20,
+          "complaint": 5
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 57
+        },
+        {
+          "name": "Russian",
+          "conversations": 14
+        },
+        {
+          "name": "Chinese",
+          "conversations": 13
+        },
+        {
+          "name": "Spanish",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 15
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Get current prices, scores or news"
+        },
+        {
+          "id": "n2",
+          "text": "Open and read a link the person shares"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "The assistant explains it has no internet access or recent data",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "People rephrase the same request hoping for live data",
+          "signal": "repeat_request",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.25
+      }
+    },
+    {
+      "id": "cl_8c742c",
+      "level": 2,
+      "parent_id": "cat_994e8b",
+      "title": "Asking which model the assistant is",
+      "short_title": "Model identity",
+      "description": "People ask whether they are talking to GPT-4, what its knowledge cutoff is, and who runs the service.",
+      "conversations": 71,
+      "users": 68,
+      "share": 0.0141,
+      "friction": {
+        "conversations": 18,
+        "share": 0.2535,
+        "unclear": 5,
+        "signals": {
+          "correction": 3,
+          "repeat_request": 6,
+          "assistant_limit": 7,
+          "complaint": 6
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 39
+        },
+        {
+          "name": "Chinese",
+          "conversations": 9
+        },
+        {
+          "name": "Russian",
+          "conversations": 9
+        },
+        {
+          "name": "Other languages",
+          "conversations": 14
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Confirm which model version is answering"
+        },
+        {
+          "id": "n2",
+          "text": "Understand the service's limits before relying on it"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Answers about the model's identity are inconsistent",
+          "signal": "complaint",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "The assistant cannot state its own version reliably",
+          "signal": "assistant_limit",
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": true,
+        "score": 0.72
+      }
+    },
+    {
+      "id": "cl_ee21ee",
+      "level": 2,
+      "parent_id": "cat_994e8b",
+      "title": "Health, fitness and relationship advice",
+      "short_title": "Personal advice",
+      "description": "People describe a personal situation and ask what to do next.",
+      "conversations": 88,
+      "users": 81,
+      "share": 0.0174,
+      "friction": {
+        "conversations": 9,
+        "share": 0.1023,
+        "unclear": 4,
+        "signals": {
+          "correction": 2,
+          "repeat_request": 4,
+          "assistant_limit": 3,
+          "complaint": 2
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 48
+        },
+        {
+          "name": "Chinese",
+          "conversations": 11
+        },
+        {
+          "name": "Russian",
+          "conversations": 11
+        },
+        {
+          "name": "Other languages",
+          "conversations": 18
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Get practical next steps for a personal situation"
+        },
+        {
+          "id": "n2",
+          "text": "Build a simple workout or meal plan"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Advice defers to professionals without a concrete next step",
+          "signal": "assistant_limit",
+          "support": "common"
+        },
+        {
+          "id": "p2",
+          "text": "Follow-up questions ignore details already given",
+          "signal": "correction",
+          "support": "observed"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.22
+      }
+    },
+    {
+      "id": "cl_other",
+      "level": 2,
+      "parent_id": "cat_92a262",
+      "title": "Other or unclear",
+      "short_title": "Other",
+      "description": "Greetings, single-word messages, tests and conversations with no clear goal.",
+      "conversations": 150,
+      "users": 139,
+      "share": 0.0297,
+      "friction": {
+        "conversations": 20,
+        "share": 0.1333,
+        "unclear": 14,
+        "signals": {
+          "correction": 7,
+          "repeat_request": 7,
+          "assistant_limit": 6,
+          "complaint": 5
+        }
+      },
+      "languages": [
+        {
+          "name": "English",
+          "conversations": 96
+        },
+        {
+          "name": "Chinese",
+          "conversations": 17
+        },
+        {
+          "name": "Russian",
+          "conversations": 15
+        },
+        {
+          "name": "French",
+          "conversations": 5
+        },
+        {
+          "name": "Other languages",
+          "conversations": 17
+        }
+      ],
+      "needs": [
+        {
+          "id": "n1",
+          "text": "Test whether the assistant is working"
+        }
+      ],
+      "problems": [
+        {
+          "id": "p1",
+          "text": "Very short openings get generic replies",
+          "signal": null,
+          "support": "common"
+        }
+      ],
+      "surprising": {
+        "flag": false,
+        "score": 0.17
+      },
+      "is_other": true
+    }
+  ],
+  "intended_uses": [
+    "Answering general-knowledge questions",
+    "Writing and editing help",
+    "Programming help and code explanation",
+    "Tutoring and study help",
+    "Brainstorming and planning",
+    "Translation"
+  ],
+  "provenance": {
+    "pipeline_version": "0.4.0",
+    "dataset_hash": "sha256:3b1f0c9e5a7d",
+    "models": {
+      "facets": "glm-5.3",
+      "discovery": "glm-5.3",
+      "summaries": "glm-5.3",
+      "stories": "glm-5.3",
+      "analysis_code": "glm-5.3",
+      "classification": "jev-latest",
+      "friction": "jev-latest",
+      "relevance": "jev-latest",
+      "embeddings": "fireworks/qwen3-embedding-8b"
+    },
+    "prompt_versions": {
+      "facets": "fv3",
+      "discovery": "dv2",
+      "summaries": "sv2",
+      "friction": "FRICTION_QV4",
+      "stories": "st1"
+    },
+    "discovery_rounds": 3,
+    "build_seconds": 1486,
+    "stages": [
+      {
+        "stage": "sample",
+        "started_at": "2026-09-27T02:49:26Z",
+        "finished_at": "2026-09-27T02:49:51Z",
+        "counts": {
+          "conversations": 5000,
+          "canaries": 40,
+          "injection_bait": 10
+        },
+        "models": []
+      },
+      {
+        "stage": "facets",
+        "started_at": "2026-09-27T02:49:51Z",
+        "finished_at": "2026-09-27T02:58:04Z",
+        "counts": {
+          "conversations": 5050
+        },
+        "models": [
+          "glm-5.3"
+        ]
+      },
+      {
+        "stage": "embed",
+        "started_at": "2026-09-27T02:58:04Z",
+        "finished_at": "2026-09-27T02:59:12Z",
+        "counts": {
+          "vectors": 5050
+        },
+        "models": [
+          "fireworks/qwen3-embedding-8b"
+        ]
+      },
+      {
+        "stage": "discover",
+        "started_at": "2026-09-27T02:59:12Z",
+        "finished_at": "2026-09-27T03:02:40Z",
+        "counts": {
+          "rounds": 3,
+          "leaves": 26,
+          "categories": 8
+        },
+        "models": [
+          "glm-5.3"
+        ]
+      },
+      {
+        "stage": "classify",
+        "started_at": "2026-09-27T03:02:40Z",
+        "finished_at": "2026-09-27T03:06:58Z",
+        "counts": {
+          "conversations": 5050,
+          "other": 150
+        },
+        "models": [
+          "jev-latest"
+        ]
+      },
+      {
+        "stage": "friction",
+        "started_at": "2026-09-27T03:06:58Z",
+        "finished_at": "2026-09-27T03:11:03Z",
+        "counts": {
+          "decisions": 20200
+        },
+        "models": [
+          "jev-latest"
+        ]
+      },
+      {
+        "stage": "aggregate",
+        "started_at": "2026-09-27T03:11:03Z",
+        "finished_at": "2026-09-27T03:11:05Z",
+        "counts": {
+          "sandbox_jobs": 1
+        },
+        "models": []
+      },
+      {
+        "stage": "summarize",
+        "started_at": "2026-09-27T03:11:05Z",
+        "finished_at": "2026-09-27T03:14:08Z",
+        "counts": {
+          "clusters": 26
+        },
+        "models": [
+          "glm-5.3"
+        ]
+      },
+      {
+        "stage": "publish",
+        "started_at": "2026-09-27T03:14:08Z",
+        "finished_at": "2026-09-27T03:14:12Z",
+        "counts": {
+          "nodes": 34
+        },
+        "models": []
+      }
+    ]
+  }
+}
