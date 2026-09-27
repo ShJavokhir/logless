@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
-  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronRight,
@@ -11,6 +10,7 @@ import {
   CircleDot,
   Layers2,
   Loader2,
+  List,
   Menu,
   RefreshCw,
   Search,
@@ -44,8 +44,8 @@ function devOptions(): DemoAdapterOptions {
 
 const stageLabels = {
   planning: "Preparing analysis",
-  executing: "Running simulated analysis",
-  validating: "Checking mock results",
+  executing: "Analyzing workflows",
+  validating: "Checking results",
   explaining: "Preparing finding",
   completed: "Analysis complete",
   failed: "Analysis interrupted",
@@ -59,6 +59,12 @@ export function Explorer() {
   >("loading");
   const [loadKey, setLoadKey] = useState(0);
   const [mode, setMode] = useState<AnalysisIntent>("usage");
+  const [view, setView] = useState<"list" | "map">("list");
+  const [motionInput, setMotionInput] = useState<"keyboard" | "pointer">(
+    "keyboard",
+  );
+  // Keep async result motion tied to its trigger, including assistive clicks (detail = 0).
+  const [animateAnalysis, setAnimateAnalysis] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -177,12 +183,13 @@ export function Explorer() {
     setMobileNav(false);
   }
 
-  async function analyze(intent: AnalysisIntent) {
+  async function analyze(intent: AnalysisIntent, animate: boolean) {
     if (!snapshot || pendingIntent.current === intent) return;
     analysisController.current?.abort();
     const controller = new AbortController();
     analysisController.current = controller;
     pendingIntent.current = intent;
+    setAnimateAnalysis(animate);
     setMode(intent);
     setRun(null);
     setRunError(false);
@@ -240,9 +247,25 @@ export function Explorer() {
   const busy = starting || run?.state === "running";
   const failed = run?.state === "failed" || runError;
   const result = results[mode];
+  const analysisStatus = busy
+    ? run
+      ? stageLabels[run.stage]
+      : "Preparing analysis"
+    : failed
+      ? "Analysis interrupted"
+      : result
+        ? "Analysis complete · Simulated"
+        : "Example finding";
 
   return (
-    <div className={`workspace ${selected ? "has-detail" : ""}`}>
+    <div
+      className={`workspace ${selected ? "has-detail" : ""}`}
+      data-motion-input={motionInput}
+      onPointerDownCapture={(event) => {
+        if (event.isPrimary && event.button === 0) setMotionInput("pointer");
+      }}
+      onKeyDownCapture={() => setMotionInput("keyboard")}
+    >
       <a className="skip-link" href="#explorer">
         Skip to explorer
       </a>
@@ -266,10 +289,8 @@ export function Explorer() {
           </button>
         </div>
         <div className="workspace-name">
-          <span className="workspace-symbol">M</span>
           <div>
             <strong>Muse</strong>
-            <span>Synthetic demo</span>
           </div>
         </div>
         <nav className="nav-content">
@@ -338,39 +359,19 @@ export function Explorer() {
               </div>
             );
           })}
-          {hero && (
-            <div className="sidebar-finding">
-              <div className="nav-section-label">WORTH A CLOSER LOOK</div>
-              <button onClick={() => select(hero.id)}>
-                <span className="finding-glyph">
-                  <CircleDot size={17} />
-                </span>
-                <span>
-                  {hero.title}
-                  <small>
-                    {percent(hero.metrics.observedFrictionShare)} observed
-                    friction
-                  </small>
-                </span>
-                <ArrowUpRight size={14} />
-              </button>
-            </div>
-          )}
         </nav>
         <div className="sidebar-bottom">
           <details>
             <summary>
               <ShieldCheck size={16} />
-              Aggregate insights only
+              Privacy
               <ChevronDown size={13} />
             </summary>
             <p>
-              This demo contains authored aggregate fixtures. No transcripts or
-              individual records are available. Synthetic data is not a privacy
-              guarantee.
+              Authored aggregate fixtures only. No transcripts or individual
+              records. Synthetic data is not a privacy guarantee.
             </p>
           </details>
-          <span className="snapshot-note">One snapshot. A wider view.</span>
         </div>
       </aside>
 
@@ -378,7 +379,7 @@ export function Explorer() {
         <header className="topbar">
           <div>
             <Layers2 size={16} />
-            <span>Explorer</span>
+            <span>Customer insights</span>
             <ChevronRight size={13} />
             <span className="muted">
               {category
@@ -396,9 +397,7 @@ export function Explorer() {
             <div className="page-heading">
               <div>
                 <h1>
-                  {mode === "usage"
-                    ? "What are people doing?"
-                    : "What’s not working?"}
+                  {mode === "usage" ? "Customer usage" : "Customer friction"}
                 </h1>
                 <div className="period">
                   {snapshot?.period.label ?? "Published snapshot"}
@@ -409,57 +408,51 @@ export function Explorer() {
                 </div>
               </div>
             </div>
-            <div className="explorer-toolbar">
-              <div className="mode-control" aria-label="Analysis question">
-                <button
-                  aria-label="Usage: What are people doing?"
-                  aria-pressed={mode === "usage"}
-                  onClick={() => analyze("usage")}
-                  disabled={
-                    !snapshot ||
-                    snapshot.clusters.length === 0 ||
-                    (busy && mode === "usage")
-                  }
-                >
-                  <Layers2 size={15} />
-                  Usage
-                </button>
-                <button
-                  aria-label="Friction: What’s not working?"
-                  aria-pressed={mode === "friction"}
-                  onClick={() => analyze("friction")}
-                  disabled={
-                    !snapshot ||
-                    snapshot.clusters.length === 0 ||
-                    (busy && mode === "friction")
-                  }
-                >
-                  <CircleAlert size={15} />
-                  Friction
-                </button>
-              </div>
+            <div
+              className="task-switcher"
+              aria-label="What do you want to learn?"
+            >
               <button
-                aria-label="Run analysis"
-                className="text-button run-again"
-                onClick={() => analyze(mode)}
-                disabled={busy || !snapshot || snapshot.clusters.length === 0}
+                aria-pressed={mode === "usage"}
+                onClick={(event) => analyze("usage", event.detail > 0)}
+                disabled={
+                  !snapshot ||
+                  !snapshot.clusters.length ||
+                  (busy && mode === "usage")
+                }
               >
-                <RefreshCw size={14} className={busy ? "spin" : ""} />
-                <span>Run analysis</span>
+                <Layers2 size={19} />
+                <span>
+                  <strong>Understand usage</strong>
+                </span>
+                {mode === "usage" && <Check size={16} />}
+              </button>
+              <button
+                aria-pressed={mode === "friction"}
+                onClick={(event) => analyze("friction", event.detail > 0)}
+                disabled={
+                  !snapshot ||
+                  !snapshot.clusters.length ||
+                  (busy && mode === "friction")
+                }
+              >
+                <CircleAlert size={19} />
+                <span>
+                  <strong>Find problems</strong>
+                </span>
+                {mode === "friction" && <Check size={16} />}
               </button>
             </div>
 
             {snapshotState === "loading" ? (
               <div className="main-state" role="status">
                 <Loader2 className="spin" size={24} />
-                <h2>Opening your snapshot</h2>
-                <p>Loading local mock insights…</p>
+                <h2>Loading insights…</h2>
               </div>
             ) : snapshotState === "error" ? (
               <div className="main-state" role="alert">
                 <CircleAlert size={25} />
                 <h2>The snapshot couldn’t load</h2>
-                <p>The demo is still available. Try loading it again.</p>
                 <button
                   className="primary-button"
                   onClick={() => setLoadKey((n) => n + 1)}
@@ -471,7 +464,6 @@ export function Explorer() {
               <div className="main-state">
                 <Layers2 size={26} />
                 <h2>No published insights yet</h2>
-                <p>A complete snapshot will bring workflows into view.</p>
                 <button
                   className="primary-button"
                   onClick={() => {
@@ -490,29 +482,20 @@ export function Explorer() {
                     aria-label="Snapshot finding"
                   >
                     <div className="finding-state" aria-live="polite">
-                      {busy ? (
-                        <Loader2 className="spin" size={14} />
-                      ) : failed ? (
-                        <CircleAlert size={14} />
-                      ) : (
-                        <Check size={14} />
-                      )}
-                      <span>
-                        {busy
-                          ? run
-                            ? stageLabels[run.stage]
-                            : "Preparing analysis"
-                          : failed
-                            ? "Simulated analysis interrupted"
-                            : result
-                              ? "Analysis complete · Simulated"
-                              : "Ready from this snapshot"}
+                      <span
+                        key={analysisStatus}
+                        className="analysis-stage"
+                        data-animate={animateAnalysis}
+                      >
+                        {busy ? (
+                          <Loader2 className="spin" size={14} />
+                        ) : failed ? (
+                          <CircleAlert size={14} />
+                        ) : (
+                          <Check size={14} />
+                        )}
+                        {analysisStatus}
                       </span>
-                      {!busy && !failed && !result && (
-                        <span className="precomputed-label">
-                          Precomputed mock
-                        </span>
-                      )}
                     </div>
                     <p>
                       {result?.summary ??
@@ -523,19 +506,28 @@ export function Explorer() {
                     <div className="finding-actions">
                       {hero && (
                         <button
-                          className="text-link"
+                          className="primary-button"
                           onClick={() => select(hero.id)}
                         >
                           {mode === "usage"
-                            ? "Explore the finding"
-                            : "Explore observed friction"}
+                            ? "Inspect this workflow"
+                            : "See what goes wrong"}
                           <ArrowRight size={14} />
                         </button>
                       )}
+                      <button
+                        className="text-button"
+                        onClick={(event) => analyze(mode, event.detail > 0)}
+                        disabled={busy}
+                        title="Re-run the simulated analysis"
+                      >
+                        <RefreshCw size={14} className={busy ? "spin" : ""} />
+                        Refresh finding
+                      </button>
                       {failed && (
                         <button
                           className="text-link retry"
-                          onClick={() => analyze(mode)}
+                          onClick={(event) => analyze(mode, event.detail > 0)}
                         >
                           Retry analysis
                           <RefreshCw size={13} />
@@ -548,10 +540,10 @@ export function Explorer() {
                             <ChevronDown size={12} />
                           </summary>
                           <div>
-                            <b>Simulated local run</b>
+                            <b>Simulated run</b>
                             <p>
                               {run?.executionReceipt?.label ??
-                                "No model or sandbox is running."}
+                                "Waiting for an execution receipt."}
                             </p>
                             <dl>
                               <dt>State</dt>
@@ -582,14 +574,39 @@ export function Explorer() {
                       )}
                     </div>
                   </section>
+                  <div className="browse-heading">
+                    <div>
+                      <h2>Workflows</h2>
+                    </div>
+                    <div className="view-control" aria-label="Workflow view">
+                      <button
+                        aria-pressed={view === "list"}
+                        onClick={() => setView("list")}
+                      >
+                        <List size={16} /> List
+                      </button>
+                      <button
+                        aria-pressed={view === "map"}
+                        onClick={() => setView("map")}
+                      >
+                        <CircleDot size={16} /> Map
+                      </button>
+                    </div>
+                  </div>
+                  <label className="sr-only" htmlFor="workflow-search">
+                    Search workflows
+                  </label>
                   <div className="search-wrap">
                     <Search size={18} />
                     <input
                       ref={searchRef}
-                      aria-label="Find a workflow"
-                      placeholder="Find a workflow…"
+                      id="workflow-search"
+                      placeholder="Search workflows…"
                       value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                      onChange={(e) => {
+                        setCategory(null);
+                        setQuery(e.target.value);
+                      }}
                       maxLength={240}
                       autoComplete="off"
                     />
@@ -612,12 +629,12 @@ export function Explorer() {
                     {searchState === "loading" ? (
                       <span>
                         <Loader2 className="spin" size={13} />
-                        Finding matching workflows…
+                        Searching…
                       </span>
                     ) : searchState === "error" ? (
                       <span>
                         <CircleAlert size={13} />
-                        Search couldn’t finish. Browsing is available.
+                        Search failed.
                         <button onClick={() => setSearchKey((n) => n + 1)}>
                           Retry search
                         </button>
@@ -625,7 +642,7 @@ export function Explorer() {
                     ) : query.trim() && matches !== null ? (
                       <span>
                         {matches.length
-                          ? `${matches.length} matching workflows · Original counts unchanged`
+                          ? `${matches.length} matching workflows`
                           : "No matching published insights"}
                         {!matches.length && (
                           <button
@@ -649,21 +666,24 @@ export function Explorer() {
                             ?.title
                         }
                       </span>
-                    ) : (
-                      <span>
-                        Explore a circle to see the workflow behind it.
-                      </span>
-                    )}
+                    ) : null}
                   </div>
-                  <UsageMap
-                    snapshot={snapshot}
-                    mode={mode}
-                    selected={selectedId}
-                    category={category}
-                    matches={matches}
-                    onSelect={select}
-                    onCategory={focusCategory}
-                  />
+                  {view === "map" && (
+                    <p className="browse-instruction">
+                      Select a workflow to inspect, or a group to filter.
+                    </p>
+                  )}
+                  {view === "map" && (
+                    <UsageMap
+                      snapshot={snapshot}
+                      mode={mode}
+                      selected={selectedId}
+                      category={category}
+                      matches={matches}
+                      onSelect={select}
+                      onCategory={focusCategory}
+                    />
+                  )}
                   <section
                     className="ranked-section"
                     aria-label={
@@ -674,45 +694,111 @@ export function Explorer() {
                   >
                     <div className="ranking-heading">
                       <h2>
-                        {mode === "usage"
-                          ? "Leading workflows"
-                          : "Where friction adds up"}
+                        {mode === "usage" ? "Most used" : "Most friction"}
                       </h2>
-                      <span>
-                        {mode === "usage"
-                          ? "Conversations · share of all"
-                          : "With friction / conversations · share"}
-                      </span>
+                      <span>{visibleRanked.length} workflows</span>
+                      <details className="metric-help">
+                        <summary>
+                          About these metrics <ChevronDown size={12} />
+                        </summary>
+                        <div>
+                          <p>
+                            Workflows are customer tasks. Counts measure
+                            conversations, not people. Search keeps the original
+                            counts.
+                          </p>
+                          <p>
+                            Friction means corrections, task complaints, or
+                            unresolved action errors. No observed friction does
+                            not mean success.
+                          </p>
+                          {mode === "friction" && (
+                            <p>
+                              Ranked by conversations with friction, not
+                              friction rate.
+                            </p>
+                          )}
+                          {view === "map" && (
+                            <p>
+                              Circle area shows conversation volume. Outer
+                              circles group workflows. Their size and position
+                              carry no metric.
+                            </p>
+                          )}
+                        </div>
+                      </details>
                     </div>
                     {visibleRanked.length ? (
-                      visibleRanked.slice(0, 3).map((c, index) => (
-                        <button
-                          className={`ranking-row ${selectedId === c.id ? "selected" : ""}`}
-                          key={c.id}
-                          onClick={() => select(c.id)}
-                        >
-                          <span className="ranking-position">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <span className="ranking-title">{c.title}</span>
-                          <span className="ranking-value">
-                            {mode === "usage"
-                              ? c.metrics.conversationCount
-                              : `${c.metrics.observedFrictionCount} / ${c.metrics.conversationCount}`}
-                          </span>
-                          <span className="ranking-share">
-                            {percent(
-                              mode === "usage"
-                                ? c.metrics.conversationShare
-                                : c.metrics.observedFrictionShare,
-                            )}
-                          </span>
-                          <ArrowUpRight size={14} />
-                        </button>
-                      ))
+                      <div className="workflow-rows">
+                        <div className="workflow-columns" aria-hidden="true">
+                          <span>Customer task</span>
+                          <span>Conversations</span>
+                          <span>With friction</span>
+                          <span />
+                        </div>
+                        {(view === "map"
+                          ? visibleRanked.slice(0, 3)
+                          : visibleRanked
+                        ).map((c) => (
+                          <button
+                            className={`workflow-row ${selectedId === c.id ? "selected" : ""}`}
+                            key={c.id}
+                            aria-pressed={selectedId === c.id}
+                            aria-label={`Inspect ${c.title}. ${c.metrics.conversationCount} conversations. ${c.metrics.observedFrictionCount} with observed friction.`}
+                            onClick={() => select(c.id)}
+                          >
+                            <span className="workflow-name">
+                              <strong>{c.title}</strong>
+                              <small>
+                                {
+                                  snapshot.categories.find(
+                                    (group) => group.id === c.parentId,
+                                  )?.title
+                                }
+                              </small>
+                            </span>
+                            <span className="workflow-metric">
+                              <b>
+                                {number(c.metrics.conversationCount)}
+                                <span className="metric-unit">
+                                  {" "}
+                                  conversations
+                                </span>
+                              </b>
+                              <small>
+                                {percent(c.metrics.conversationShare)} of all
+                              </small>
+                            </span>
+                            <span className="workflow-metric">
+                              <b>
+                                {c.metrics.observedFrictionCount}
+                                <span className="metric-unit">
+                                  {" "}
+                                  with friction
+                                </span>
+                              </b>
+                              <small>
+                                {percent(c.metrics.observedFrictionShare)}
+                              </small>
+                            </span>
+                            <span className="row-action">
+                              Inspect <ArrowRight size={16} />
+                            </span>
+                          </button>
+                        ))}
+                        {view === "map" && visibleRanked.length > 3 && (
+                          <button
+                            className="text-link browse-all"
+                            onClick={() => setView("list")}
+                          >
+                            View all {visibleRanked.length} workflows{" "}
+                            <ArrowRight size={15} />
+                          </button>
+                        )}
+                      </div>
                     ) : (
-                      <p className="ranking-empty">
-                        No workflows match this view.{" "}
+                      <div className="ranking-empty">
+                        <p>No workflows match. Try a broader search.</p>
                         <button
                           className="text-link"
                           onClick={() => {
@@ -720,30 +806,11 @@ export function Explorer() {
                             setQuery("");
                           }}
                         >
-                          Show all workflows
+                          Show all workflows <ArrowRight size={15} />
                         </button>
-                      </p>
+                      </div>
                     )}
                   </section>
-                  <footer className="explorer-footer">
-                    <span>
-                      <ShieldCheck size={13} />
-                      Synthetic aggregates · No individual records
-                    </span>
-                    <details>
-                      <summary>
-                        How to read this
-                        <ChevronDown size={12} />
-                      </summary>
-                      <p>
-                        Circle area shows conversation volume. Outer circles
-                        group related workflows; their area is not a metric.
-                        Position has no semantic meaning. Friction is observed
-                        corrections, complaints, or unresolved action errors.
-                        Missing negative feedback does not establish success.
-                      </p>
-                    </details>
-                  </footer>
                 </>
               )
             )}

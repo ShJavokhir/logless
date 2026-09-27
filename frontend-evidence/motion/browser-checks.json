@@ -1,0 +1,519 @@
+{
+  "method": "Actual frontend components bundled with existing local adapter fixtures. Reduced-motion media query bodies forced active in test-served CSS; OS preference was not changed.",
+  "normalMotionTrace": [
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "transform",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "transform",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 4)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "transform",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0.033179097228896844,
+      "input": "pointer",
+      "opacity": "0.728993",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "background-color",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "0.55",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "0.55",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "story-reveal",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 10)",
+      "transition": "opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "story-reveal",
+      "property": "transform",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0",
+      "transform": "matrix(1, 0, 0, 1, 0, 10)",
+      "transition": "opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.55",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.15,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "transform 0.15s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.15s cubic-bezier(0.23, 1, 0.32, 1), background 0.15s"
+    },
+    {
+      "phase": "transitionend",
+      "target": "story-reveal",
+      "property": "opacity",
+      "elapsed": 0.2,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "story-reveal",
+      "property": "transform",
+      "elapsed": 0.2,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "matrix(1, 0, 0, 1, 0, 0)",
+      "transition": "opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), transform 0.2s cubic-bezier(0.23, 1, 0.32, 1)"
+    }
+  ],
+  "keyboardMotionProof": {
+    "animate": "false",
+    "input": "keyboard",
+    "transform": "none",
+    "transition": "none"
+  },
+  "reducedMotionTrace": [
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.85",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "0.55",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "0.55",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.900525",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.90016",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "analysis-stage",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.694997",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionrun",
+      "target": "story-reveal",
+      "property": "opacity",
+      "elapsed": 0,
+      "input": "pointer",
+      "opacity": "0.898332",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "primary-button",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    },
+    {
+      "phase": "transitionend",
+      "target": "story-reveal",
+      "property": "opacity",
+      "elapsed": 0.1,
+      "input": "pointer",
+      "opacity": "1",
+      "transform": "none",
+      "transition": "opacity 0.1s cubic-bezier(0.23, 1, 0.32, 1)"
+    }
+  ],
+  "reducedKeyboardProof": [
+    {
+      "input": "keyboard",
+      "target": "analysis-stage",
+      "transform": "none",
+      "transition": "none"
+    },
+    {
+      "input": "keyboard",
+      "target": "primary-button",
+      "transform": "none",
+      "transition": "none"
+    },
+    {
+      "input": "keyboard",
+      "target": "primary-button",
+      "transform": "none",
+      "transition": "none"
+    },
+    {
+      "input": "keyboard",
+      "target": "story-reveal",
+      "transform": "none",
+      "transition": "none"
+    }
+  ]
+}

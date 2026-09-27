@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowUpRight,
+  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
   CircleAlert,
   Loader2,
-  X,
 } from "lucide-react";
 import type { Cluster, DemoAdapter, FictionalStory, Snapshot } from "./data";
 import { number, percent } from "./format";
@@ -17,7 +16,11 @@ type StoryState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; story: FictionalStory; cached: boolean };
+  | {
+      status: "ready";
+      story: FictionalStory;
+      animate: boolean;
+    };
 
 export function DetailPanel({
   cluster,
@@ -35,7 +38,7 @@ export function DetailPanel({
   const title = useRef<HTMLHeadingElement>(null);
   const storySection = useRef<HTMLElement>(null);
   const storyTitle = useRef<HTMLHeadingElement>(null);
-  const requestedFromStory = useRef(false);
+  const storyAction = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
     if (window.matchMedia("(max-width: 1100px)").matches)
@@ -43,11 +46,8 @@ export function DetailPanel({
     return () => controller.current?.abort();
   }, []);
 
-  async function generateStory() {
+  async function generateStory(animate: boolean) {
     if (story.status === "loading") return;
-    requestedFromStory.current = Boolean(
-      storySection.current?.contains(document.activeElement),
-    );
     controller.current?.abort();
     const current = new AbortController();
     controller.current = current;
@@ -59,7 +59,11 @@ export function DetailPanel({
       });
       if (current.signal.aborted) return;
       if (response.status === "cached")
-        setStory({ status: "ready", story: response.story, cached: true });
+        setStory({
+          status: "ready",
+          story: response.story,
+          animate,
+        });
       else {
         while (!current.signal.aborted) {
           const run = await adapter.getRun(response.runId, {
@@ -75,7 +79,7 @@ export function DetailPanel({
               setStory({
                 status: "ready",
                 story: run.result.story,
-                cached: false,
+                animate,
               });
             break;
           }
@@ -91,9 +95,8 @@ export function DetailPanel({
     if (story.status !== "ready" || !storySection.current) return;
     // Do not steal focus if the user moved elsewhere while the request ran.
     if (
-      requestedFromStory.current &&
-      (document.activeElement === document.body ||
-        storySection.current.contains(document.activeElement))
+      document.activeElement === storyAction.current ||
+      document.activeElement === document.body
     )
       storyTitle.current?.focus({ preventScroll: true });
     const panel = storySection.current.closest<HTMLElement>(".detail-panel");
@@ -119,13 +122,8 @@ export function DetailPanel({
       }}
     >
       <div className="detail-topline">
-        <span>Workflow insight</span>
-        <button
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Close details"
-        >
-          <X size={18} />
+        <button className="text-link" onClick={onClose}>
+          <ArrowLeft size={16} /> Back to workflows
         </button>
       </div>
       <div className="detail-body">
@@ -145,25 +143,51 @@ export function DetailPanel({
           {cluster.title}
         </h2>
         <p className="summary">{cluster.summary}</p>
+        <div className="detail-next-action">
+          <button
+            ref={storyAction}
+            className="primary-button"
+            disabled={story.status === "loading"}
+            onClick={(event) => {
+              if (story.status === "ready") {
+                storyTitle.current?.focus({ preventScroll: true });
+                storySection.current?.scrollIntoView({
+                  block: "nearest",
+                  behavior: "instant",
+                });
+              } else void generateStory(event.detail > 0);
+            }}
+          >
+            {story.status === "loading" ? (
+              <Loader2 size={16} className="spin" />
+            ) : (
+              <BookOpen size={16} />
+            )}
+            {story.status === "ready"
+              ? "Read story"
+              : story.status === "loading"
+                ? "Preparing story…"
+                : story.status === "error"
+                  ? "Retry story"
+                  : "Create fictional story"}
+          </button>
+        </div>
         <div className="metrics-pair">
           <div>
             <strong>{number(m.conversationCount)}</strong>
             <span>conversations</span>
-            <small>
-              {percent(m.conversationShare)} of all{" "}
-              {number(snapshot.totals.conversationCount)}
-            </small>
+            <small>{percent(m.conversationShare)} of all conversations</small>
           </div>
           <div>
             <strong>{percent(m.observedFrictionShare)}</strong>
-            <span>observed friction</span>
+            <span>with friction</span>
             <small>
               {m.observedFrictionCount} of {m.conversationCount} conversations
             </small>
           </div>
         </div>
         <section className="detail-section">
-          <h3>What people need</h3>
+          <h3>Customer needs</h3>
           <ul className="prose-list">
             {cluster.needs.map((need) => (
               <li key={need}>{need}</li>
@@ -171,7 +195,7 @@ export function DetailPanel({
           </ul>
         </section>
         <section className="detail-section">
-          <h3>Where it gets difficult</h3>
+          <h3>Problems</h3>
           {cluster.gripes.length ? (
             <ul className="prose-list">
               {cluster.gripes.map((gripe) => (
@@ -179,16 +203,20 @@ export function DetailPanel({
               ))}
             </ul>
           ) : (
-            <p>No specific frustration is established in this finding.</p>
+            <p>No specific problem established.</p>
           )}
         </section>
         <details className="signal-details">
           <summary>
             Supporting signals{" "}
             <span>
-              3 signals <ChevronDown size={14} />
+              <ChevronDown size={14} />
             </span>
           </summary>
+          <p className="fine-print">
+            Friction means a correction, task complaint, or unresolved action
+            error.
+          </p>
           <div className="signals">
             {(
               [
@@ -207,12 +235,11 @@ export function DetailPanel({
             ))}
           </div>
           <p className="fine-print">
-            Conversations can contain several signals. Counts overlap and do not
-            add up to overall friction.
+            Signals overlap; do not add these counts.
           </p>
           <p className="fine-print">
-            {m.unclearCount} conversations have an unclear assessment and no
-            observed signal. No observed friction does not mean success.
+            {m.unclearCount} unclear assessments. No observed friction does not
+            mean success.
           </p>
           <div className="evidence-list">
             {cluster.evidence.map((evidence) => (
@@ -226,73 +253,36 @@ export function DetailPanel({
         <section
           className="story-section"
           ref={storySection}
-          aria-label="User story"
+          aria-label="Example user story"
+          tabIndex={-1}
         >
-          {story.status !== "ready" ? (
-            <>
-              <div className="story-heading">
-                <BookOpen size={18} />
-                <h3>Make the finding tangible</h3>
-              </div>
-              <p>An illustrative story, grounded in this aggregate finding.</p>
-              <button
-                className="primary-button"
-                onClick={generateStory}
-                disabled={story.status === "loading"}
-              >
-                {story.status === "loading" ? (
-                  <>
-                    <Loader2 size={16} className="spin" /> Preparing story…
-                  </>
-                ) : (
-                  <>
-                    <BookOpen size={16} />{" "}
-                    {story.status === "error"
-                      ? "Retry user story"
-                      : "Generate user story"}
-                    <ArrowUpRight size={15} />
-                  </>
-                )}
-              </button>
-              <div aria-live="polite">
-                {story.status === "loading" && (
-                  <p className="fine-print">
-                    Simulated generation · using approved mock evidence
-                  </p>
-                )}
-                {story.status === "error" && (
-                  <p className="inline-error">
-                    <CircleAlert size={15} /> The simulated story failed. Your
-                    insight is still here.
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
+          {story.status === "error" ? (
+            <p className="inline-error" role="alert">
+              <CircleAlert size={15} /> Couldn’t generate the story. Try again.
+            </p>
+          ) : story.status === "ready" ? (
             <div className="story-result">
               <div className="story-label">
                 <BookOpen size={16} />
                 {story.story.label}
               </div>
-              <p className="story-disclosure">{story.story.disclosure}</p>
-              <h3 ref={storyTitle} tabIndex={-1}>
-                {story.story.name}’s story
-              </h3>
-              <p className="story-copy">{story.story.body}</p>
+              <p className="story-disclosure">
+                Based on aggregate patterns. Not a real customer or additional
+                evidence.
+              </p>
+              <div className="story-reveal" data-animate={story.animate}>
+                <h3 ref={storyTitle} tabIndex={-1}>
+                  {story.story.name}’s story
+                </h3>
+                <p className="story-copy">{story.story.body}</p>
+              </div>
               <div className="story-foot">
                 <Check size={14} />
-                {story.cached ? "Previously generated" : "Authored mock story"}
-                <span>
-                  · {story.story.evidenceIds.length} evidence references
-                </span>
+                {story.story.evidenceIds.length} evidence references
               </div>
             </div>
-          )}
+          ) : null}
         </section>
-        <p className="detail-footnote">
-          Aggregate evidence only. No customer conversations are available in
-          this workspace.
-        </p>
       </div>
     </aside>
   );
