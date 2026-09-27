@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Bar, Dot, EvidenceTag, Hint, SectionLabel, SignalIcon, Stat } from "./common"
 import { StoryPanel } from "./StoryPanel"
+import { KeyFinding } from "./KeyFinding"
 
 import { PEOPLE_HINT, fixturesShort } from "@/lib/copy"
 const FRICTION_HINT = "Conversations where at least one friction signal was observed, out of all conversations in this cluster."
@@ -23,15 +24,25 @@ type Props = {
   focusId: string | null
   onSelectLeaf: (id: string | null) => void
   onFocusCategory: (id: string | null) => void
+  /** zoom into a category and open its workflow where friction concentrates */
+  onShowFinding?: (categoryId: string, leafId: string | null) => void
 }
 
-export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusCategory }: Props) {
+export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusCategory, onShowFinding }: Props) {
   const leaf = selectedId ? index.byId.get(selectedId) : undefined
   if (leaf && leaf.level === 2) {
     return <LeafDetail key={leaf.id} index={index} leaf={leaf} onClose={() => onSelectLeaf(null)} onFocusCategory={onFocusCategory} />
   }
   const cat = focusId ? index.byId.get(focusId) : undefined
-  return <Overview index={index} category={cat && cat.level === 1 ? cat : undefined} onSelectLeaf={onSelectLeaf} onFocusCategory={onFocusCategory} />
+  return (
+    <Overview
+      index={index}
+      category={cat && cat.level === 1 ? cat : undefined}
+      onSelectLeaf={onSelectLeaf}
+      onFocusCategory={onFocusCategory}
+      onShowFinding={onShowFinding}
+    />
+  )
 }
 
 // ---------------------------------------------------------------- leaf
@@ -243,11 +254,13 @@ function Overview({
   category,
   onSelectLeaf,
   onFocusCategory,
+  onShowFinding,
 }: {
   index: SnapshotIndex
   category?: SnapshotNode
   onSelectLeaf: (id: string | null) => void
   onFocusCategory: (id: string | null) => void
+  onShowFinding?: (categoryId: string, leafId: string | null) => void
 }) {
   const s = index.snapshot
   const node = category ?? { ...s.totals, title: "All conversations", description: s.workspace.description }
@@ -258,6 +271,7 @@ function Overview({
 
   return (
     <article aria-labelledby="overview-title" className="flex flex-col gap-5">
+      {!category && onShowFinding ? <KeyFinding index={index} onShow={onShowFinding} onSelectLeaf={(id) => onSelectLeaf(id)} /> : null}
       <header className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           {category ? (

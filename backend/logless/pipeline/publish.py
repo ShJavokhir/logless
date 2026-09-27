@@ -285,6 +285,12 @@ def scan(snap: dict, scanner: TokenScanner) -> dict[str, int]:
 
 # ---------------------------------------------------------------- stage
 
+def production() -> bool:
+    """`LOGLESS_ENV=production` (app VM): stats must come from the sandbox; locally they may fall back."""
+    import os
+    return os.environ.get("LOGLESS_ENV", "").strip().lower() == "production"
+
+
 def api_self_check(snap: dict) -> list[str]:
     """Run the API's own allowlist serializer on the snapshot before it goes live, so a snapshot the API
     would refuse to serve (`Blocked`) is never published."""
@@ -315,6 +321,9 @@ def run(build: util.Build) -> dict:
     stats = build.load("stats")
     if stats["snapshot_id"] != build.info.get("snapshot_id"):
         raise PublishError("stats were computed for a different snapshot id; re-run the stats stage")
+    if production() and stats.get("source") != "sandbox":
+        raise PublishError("production publish refused: counts, people and friction metrics were not computed in the "
+                           "sandbox; previous snapshot stays live (re-run --from-stage stats once the runner answers)")
     started = utcnow()
     stages = list(build.stages) + [{"stage": "publish", "started_at": started, "finished_at": started,
                                     "counts": {}, "models": []}]

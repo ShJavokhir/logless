@@ -151,3 +151,81 @@ rows = [{"cluster_id": r.leaf_id, "user": int(r.user), "conversations": 1}
         for r in df.itertuples()]
 json.dump({"intent": "usage", "rows": rows}, open("/out/result.json", "w"))
 `
+
+/**
+ * The program the mock "GLM" writes for a validated question plan (§8b). It
+ * sees only the plan and file schemas. `buggy` reproduces a classic first
+ * attempt: shares over the whole scope instead of each group's own base.
+ */
+export function questionProgram(plan: import("@/lib/types").Plan, buggy = false): string {
+  const groupCol = plan.group_by === "leaf" ? "leaf_id" : "category_id"
+  const signalFilter =
+    plan.signal === null
+      ? "hit = df.assign(hit=True)"
+      : plan.signal === "any_friction"
+        ? 'hit = df.assign(hit=df[SIGNALS].eq("observed").any(axis=1))'
+        : `hit = df.assign(hit=df["${plan.signal}"].eq("observed"))`
+  const measureAgg =
+    plan.measure === "people"
+      ? `base = scope.groupby(GROUP)["user"].nunique()
+count = hit[hit["hit"]].groupby(GROUP)["user"].nunique()`
+      : `base = scope.groupby(GROUP).size()
+count = hit[hit["hit"]].groupby(GROUP).size()`
+  const totals =
+    plan.measure === "people"
+      ? `total_base = int(scope["user"].nunique())
+total_count = int(hit.loc[hit["hit"], "user"].nunique())`
+      : `total_base = int(len(scope))
+total_count = int(hit["hit"].sum())`
+  const shareLine = buggy ? "share = c / total_base if total_base else 0.0" : "share = c / b if b else 0.0"
+  const sortKey = plan.rank_by === "share" ? '-r["share"]' : '-r["count"]'
+  return `"""Answer a validated question plan (the plan contains no data).
+
+${JSON.stringify(plan)}
+"""
+import json
+
+import pandas as pd
+
+SIGNALS = ["correction", "repeat_request", "assistant_limit", "complaint"]
+GROUP = "${groupCol}"
+
+with open("/in/contract.json") as f:
+    contract = json.load(f)
+with open("/in/clusters.json") as f:
+    clusters = json.load(f)
+plan = contract["plan"]
+
+other = {c["id"] for c in clusters if c.get("is_other")}
+df = pd.read_csv("/in/assignments.csv")
+df = df[~df["leaf_id"].isin(other) & ~df["category_id"].isin(other)]
+${plan.scope_category_id ? 'scope = df[df["category_id"] == plan["scope_category_id"]]' : "scope = df"}
+df = scope
+${signalFilter}
+
+${measureAgg}
+${totals}
+
+rows = []
+for gid, b in base.items():
+    b = int(b)
+    c = int(count.get(gid, 0))
+    ${shareLine}
+    rows.append({"id": gid, "count": c, "base": b, "share": round(share, 4)})
+
+rows.sort(key=lambda r: (${sortKey}, r["id"]))
+rows = rows[: plan["limit"]]
+
+result = {
+    "intent": "question",
+    "snapshot_id": contract["snapshot_id"],
+    "plan": plan,
+    "rows": rows,
+    "total_count": total_count,
+    "total_base": total_base,
+}
+
+with open("/out/result.json", "w") as f:
+    json.dump(result, f, separators=(",", ":"))
+`
+}

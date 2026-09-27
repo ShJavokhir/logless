@@ -85,7 +85,7 @@ type Snapshot = {
     models: Record<string, string>;         // role -> model id; roles: facets, friction, embeddings, naming, consolidation, classification, hierarchy, descriptions, privacy_audit, identifiability, surprising (pipeline) + analysis_code, explanation, story, relevance (API live features)
     prompt_versions: Record<string, string>;
     discovery_rounds: number; build_seconds: number;
-    stats_source: "sandbox" | "local-reference";   // where the published metrics were computed (final builds: "sandbox")
+    stats_source: "sandbox" | "local-reference";   // where counts, people and friction metrics were computed (final builds: "sandbox"; with LOGLESS_ENV=production publish refuses anything else). Languages per node are always computed by the backend.
     stages: { stage: string; started_at: string; finished_at: string; counts: Record<string, number>; models: string[] }[];
   };
 };
@@ -193,6 +193,55 @@ Gate check names (fixed vocabulary, in evaluation order; checks after a parse/sc
 
 Repair prompts never contain sandbox-authored text: only the failed gate check names and a trusted error category derived from the exception type (e.g. `KeyError: missing column`, `result schema: missing field`), because the repaired program is public (`Run.code`).
 
+## 8b. Open questions: the `question` intent (bounded plan, verified execution)
+
+Why it exists: the `usage` and `friction` intents regenerate reports that already exist, so they prove *execution*. The `question` intent proves *usefulness*. A PM asks something the snapshot doesn't already answer, and the agent interprets it, writes code for it, runs it in the sandbox, and the gate verifies the answer.
+
+**Request.** `POST /api/analyses {intent: "question", question: string (1–200 chars), snapshot_id}` → `{run_id}`. Budget and in-flight rules are the same as for other analyses. In-flight de-duplication is keyed on the normalized question.
+
+**Stages.** `interpreting` → `planning` → `executing` → `validating` → (`repairing` → `executing` → `validating`) → `explaining` → completed | failed.
+- **interpreting:** GLM 5.3 maps the question to a Plan or to `{"unsupported": "<short reason>"}`. It sees only the question, the published category and leaf ids with their titles, and this schema. Unsupported questions end the run as `failed` with error `unsupported_question` and the model's short reason (≤ 160 chars, validated: no digits beyond ids, no URLs).
+- **planning:** GLM writes the program for the validated plan, exactly as for other intents.
+
+**Plan** (closed vocabulary, validated with pydantic, extra fields forbidden):
+```jsonc
+{
+  "group_by": "leaf" | "category",
+  "scope_category_id": "cat_…" | null,     // restrict to one category (group_by must be "leaf" when set)
+  "measure": "conversations" | "people",    // count conversations, or distinct people
+  "signal": "any_friction" | "correction" | "repeat_request" | "assistant_limit" | "complaint" | null,
+                                            // null = no filter; else count only rows where that signal is observed
+  "rank_by": "count" | "share",             // share = count ÷ base, where base = same measure with no signal filter, per group
+  "limit": 1..10
+}
+```
+Other or unclear (`cl_other`, and the `is_other` category) never appears in question results.
+
+**Result** (gate-validated, re-serialized canonically from the reference):
+```jsonc
+{"intent": "question", "snapshot_id": "snap_…", "plan": { …the validated plan, echoed exactly… },
+ "rows": [{"id": "cl_…|cat_…", "count": 41, "base": 97, "share": 0.4227}],   // ordered by rank_by desc, then id asc; at most `limit` rows
+ "total_count": 312, "total_base": 1051}    // over the whole scope, excluding Other
+```
+The gate checks exact schema, that `plan` equals the validated plan, allowlisted ids within scope, exact integers equal to the reference computed for this plan, shares within 1e-4, ordering, and length = min(limit, groups in scope).
+
+**Run additions.** `Run.question: string | null` (sanitized echo) and `Run.plan: Plan | null`. Explanation placeholders are `{{rows.N.id}}` (rendered as the node's title), `{{rows.N.count}}`, `{{rows.N.base}}`, `{{rows.N.share}}`, `{{total_count}}` and `{{total_base}}`. The UI shows the interpreted plan in words before the result, e.g. "Distinct people · with repeated requests · within Build software · by workflow · top 5 by count".
+
+**Attempt history (all analysis intents).** `Run.attempts_log: [{attempt: 1|2, code: string, code_sha256, receipt: Receipt | null, verdict: {passed, checks}, repair_reason: string | null}]` keeps every attempt. Code and receipts are never overwritten, so a repair stays visible. `repair_reason` comes from the fixed vocabulary only.
+
+As implemented (backend): an entry is appended for every program version, including one the static pre-check rejected — that entry has `receipt: null` (it was never executed) and `verdict: {passed: false, checks: [{name: "Static pre-check", …}]}`. An execution that failed before the gate (non-zero exit, timeout, OOM…) has its receipt and the gate's fixed `{"Result file received": failed}` verdict. `repair_reason` is why that attempt did not pass — the same fixed-vocabulary lines the repair prompt gets (`"Static check: …"`, a trusted error category such as `"KeyError: the program used a column or key that does not exist"`, or `"Gate check failed: <check name>"`, joined with "; ") — and `null` when it passed. `attempt` numbers program versions while `Run.attempts` counts sandbox executions, so they differ when a version was rejected before execution. Top-level `code`/`receipt`/`verdict` always equal the latest attempt. Story and containment runs have `attempts_log: []`.
+
+Open-question details (backend):
+- During `interpreting`, `Run.state` is `"planning"` (RunState is unchanged; the stage name carries it). The raw question reaches only the interpreting prompt; planning gets the validated plan, and the explanation gets the plan in words. `Run.question` is the sanitized echo (control characters removed, whitespace collapsed, ≤ 200 chars, emails/URLs/phone numbers/private ids/canary tokens replaced with `[removed]`).
+- Errors: `unsupported_question` (message = the model's reason if it passes validation, else "This question can't be answered from the published aggregate counts."), `interpretation_failed` (two invalid plans, e.g. an unknown or Other scope). Semantics beyond the schema: `scope_category_id` must be a published, non-Other category; a scope with no groups is invalid.
+- The echoed `plan` must contain all six keys (null stays null). Groups in scope include groups with zero rows. `count`/`base`/`total_*` for `people` are distinct pseudonyms (never summed). Ranking by `share` compares exact fractions, so rounding can't reorder near-ties; the gate requires the program's row ids to equal the reference's top rows in order.
+- Gate check names added: "Plan echoed exactly", "Ids are within the question's scope (no Other)", "Row count is min(limit, groups in scope)", "Top rows ranked as the plan says (rank desc, then id)"; the shared checks (parse, structural limits, field/string allowlists, schema, intent, snapshot, non-negative, totals, counts, shares) also apply.
+- `POST /api/analyses` with `intent: "question"` requires `question`; runs are de-duplicated on (snapshot, lower-cased whitespace-collapsed question) while in flight.
+
+Presenter details (backend): the feature is off unless `PRESENTER_KEY` is set; the header is compared in constant time. Presenter requests skip the per-IP token buckets (they still have their own hourly budget: `PRESENTER_BUDGET_ANALYSES` 60, `PRESENTER_BUDGET_STORIES` 30, `PRESENTER_BUDGET_SEARCH` 300, `PRESENTER_BUDGET_CONTAINMENT` 30) and may use 2 run slots above the public in-flight cap.
+
+**Presenter capacity.** Requests carrying header `X-Logless-Presenter: <PRESENTER_KEY>` draw from a separate budget (env `PRESENTER_BUDGET_*`), so anonymous traffic can't exhaust the stage demo. A wrong key is ignored silently and draws from the public budget. The web app reads `?presenter=<key>` once, keeps it in localStorage, and sends the header.
+
 ## 9. Runner API (sandbox VM, private VPC address only, port 8787)
 
 Auth: `Authorization: Bearer $RUNNER_TOKEN` (token lives on the app VM and in the runner's systemd env; it is not a cloud credential).
@@ -207,6 +256,6 @@ As implemented (`runner/`): `/out` is `--tmpfs /out:size=2m,nr_inodes=16,mode=07
 
 ## 10. Environment variables (see `.env.example`)
 
-App VM / local backend: `VULTR_INFERENCE_API_KEY`, `TYPESAFE_API_KEY`, `FIREWORKS_API_KEY`, `PSEUDONYM_SALT`, `RUNNER_URL`, `RUNNER_TOKEN`, `LOGLESS_DATA_DIR`, `SAMPLE_SIZE`, `SAMPLE_SEED`, `LOGLESS_ENV` (`production` on the app VM: disables the dev CORS origin `http://localhost:5173` and makes `backend/scripts/dev_snapshot.py` refuse to run). Optional: `LOGLESS_BUDGET_SEARCH_PER_HOUR` (600), `LOGLESS_BUDGET_ANALYSES_PER_HOUR` (120), `LOGLESS_BUDGET_STORIES_PER_HOUR` (60), `LOGLESS_BUDGET_CONTAINMENT_PER_HOUR` (60), `LOGLESS_SEARCH_CONCURRENCY` (4), `SANDBOX_IMAGE` (`logless-analysis:1`), `SANDBOX_IMAGE_DIGEST` (the sandbox image id, shown in receipts when the runner reports exactly it), `SANDBOX_HOST_LABEL` (`logless-sandbox`).
+App VM / local backend: `VULTR_INFERENCE_API_KEY`, `TYPESAFE_API_KEY`, `FIREWORKS_API_KEY`, `PSEUDONYM_SALT`, `RUNNER_URL`, `RUNNER_TOKEN`, `LOGLESS_DATA_DIR`, `SAMPLE_SIZE`, `SAMPLE_SEED`, `LOGLESS_ENV` (`production` on the app VM: disables the dev CORS origin `http://localhost:5173` and makes `backend/scripts/dev_snapshot.py` refuse to run). Optional: `LOGLESS_BUDGET_SEARCH_PER_HOUR` (600), `LOGLESS_BUDGET_ANALYSES_PER_HOUR` (120), `LOGLESS_BUDGET_STORIES_PER_HOUR` (60), `LOGLESS_BUDGET_CONTAINMENT_PER_HOUR` (60), `LOGLESS_SEARCH_CONCURRENCY` (4), `SANDBOX_IMAGE` (`logless-analysis:1`), `SANDBOX_IMAGE_DIGEST` (the sandbox image id, shown in receipts when the runner reports exactly it), `SANDBOX_HOST_LABEL` (`logless-sandbox`), `PRESENTER_KEY` (random; unset = presenter capacity off), `PRESENTER_BUDGET_ANALYSES` (60), `PRESENTER_BUDGET_STORIES` (30), `PRESENTER_BUDGET_SEARCH` (300), `PRESENTER_BUDGET_CONTAINMENT` (30).
 Sandbox VM: `RUNNER_TOKEN`, `RUNNER_BIND` (private IP:8787), `RUNNER_RUNTIME` (`runsc`); optional `RUNNER_IMAGE` (default `logless-analysis:1`), `RUNNER_IMAGE_DIGEST` (expected image id; set on the VM — update or remove it after rebuilding the image, or the runner refuses jobs), `RUNNER_WORK_DIR`, `RUNNER_CONCURRENCY` (2), `RUNNER_RESULT_TTL_S` (900).
 Operator machine only: `VULTR_API_KEY` (in `.env.ops`, never on a VM).

@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -33,7 +34,8 @@ from ..sandbox.analysis import run_analysis
 from ..sandbox.client import RunnerClient
 from ..sandbox.containment import run_containment
 from . import models, search, serializers, stories
-from .ratelimit import HourlyBudget, RateLimiter
+from ..sandbox.plan import normalize_question, sanitize_question
+from .ratelimit import HourlyBudget, RateLimiter, presenter_limits
 
 log = logging.getLogger("logless.api")
 MAX_BODY = 8 * 1024
@@ -93,6 +95,9 @@ class SnapshotStore:
 store = SnapshotStore()
 limiter = RateLimiter()
 budget = HourlyBudget()
+presenter_budget = HourlyBudget(presenter_limits())
+PRESENTER_HEADER = "x-logless-presenter"
+PRESENTER_RESERVED_RUNS = 2   # run slots above MAX_ACTIVE_RUNS that only the presenter can use
 executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="logless-run")
 # Search runs on its own small pool, so slow Jev calls can never occupy the request threadpool
 # that serves health checks and run polling.
@@ -102,6 +107,7 @@ _active = 0
 _active_lock = threading.Lock()
 _start_lock = threading.Lock()
 _story_inflight: dict[tuple[str, str], str] = {}
+_question_inflight: dict[tuple[str, str], str] = {}
 _runner: RunnerClient | None = None
 _health_cache: tuple[float, str] = (0.0, "unreachable")
 
@@ -161,21 +167,40 @@ def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None) -
     executor.submit(wrapper)
 
 
-def _capacity() -> None:
+def is_presenter(request: Request) -> bool:
+    """True only if PRESENTER_KEY is set and the header matches it (constant-time). A wrong or
+    missing key is silently treated as a public request."""
+    key = os.environ.get("PRESENTER_KEY", "")
+    got = request.headers.get(PRESENTER_HEADER, "")
+    if not key or not got:
+        return False
+    return hmac.compare_digest(got.encode(), key.encode())
+
+
+def _capacity(presenter: bool = False) -> None:
+    limit = MAX_ACTIVE_RUNS + (PRESENTER_RESERVED_RUNS if presenter else 0)
     with _active_lock:
-        if _active >= MAX_ACTIVE_RUNS:
+        if _active >= limit:
             raise ApiError(429, "busy", "Too many runs in progress; try again in a moment.")
 
 
-def _spend(kind: str) -> None:
-    """Consume one unit of the global hourly budget, or refuse honestly."""
-    retry = budget.take(kind)
+def _spend(kind: str, presenter: bool = False) -> None:
+    """Consume one unit of the global hourly budget (or the presenter's), or refuse honestly."""
+    retry = (presenter_budget if presenter else budget).take(kind)
     if retry is not None:
         mins = max(1, round(retry / 60))
         raise ApiError(429, "budget_exhausted",
                        f"The live demo has used its hourly budget for {HourlyBudget.label(kind)}. Saved results still "
                        f"work; new ones are available again in about {mins} minute{'s' if mins != 1 else ''}.",
                        headers={"Retry-After": str(retry)})
+
+
+def _release_later(table: dict, key, rid: str) -> Callable[[], None]:
+    def release() -> None:
+        with _start_lock:  # only drop the entry if it still belongs to this run
+            if table.get(key) == rid:
+                del table[key]
+    return release
 
 
 # ---------------------------------------------------------------- middleware
@@ -273,11 +298,14 @@ def create_app() -> FastAPI:
 
     if os.environ.get("LOGLESS_ENV", "development") != "production":
         app.add_middleware(CORSMiddleware, allow_origins=DEV_ORIGINS, allow_methods=["GET", "POST"],
-                           allow_headers=["Content-Type"], allow_credentials=False, max_age=600)
+                           allow_headers=["Content-Type", "X-Logless-Presenter"], allow_credentials=False, max_age=600)
 
     @app.middleware("http")
     async def rate_limit(request: Request, call_next):
-        if request.url.path.startswith("/api/") and request.method != "OPTIONS":
+        # The presenter (valid X-Logless-Presenter) skips the per-IP buckets but still has its own
+        # hourly budget; everyone else is rate-limited per IP.
+        request.state.presenter = is_presenter(request)
+        if request.url.path.startswith("/api/") and request.method != "OPTIONS" and not request.state.presenter:
             if not limiter.allow(client_ip(request), bucket_for(request.method, request.url.path)):
                 return err(429, "rate_limited", "Too many requests; slow down.")
         resp = await call_next(request)
@@ -327,7 +355,7 @@ def create_app() -> FastAPI:
         return Response(cur[1], media_type="application/json")  # type: ignore[index]
 
     @app.post("/api/search")
-    async def api_search(body: models.SearchIn):
+    async def api_search(body: models.SearchIn, request: Request):
         snap = await run_in_threadpool(_require_snapshot, body.snapshot_id)
         q = body.query.strip()
         if not q:
@@ -341,7 +369,7 @@ def create_app() -> FastAPI:
         if fut is None:
             if len(_search_flights) >= SEARCH_MAX_PENDING:
                 raise ApiError(429, "busy", "Search is busy; try again in a moment.")
-            _spend("search")
+            _spend("search", request.state.presenter)
             fut = search_executor.submit(search.run, snap, q)
             _search_flights[key] = fut
             loop = asyncio.get_running_loop()
@@ -356,17 +384,38 @@ def create_app() -> FastAPI:
         return serializers.serialize_search(snap["snapshot_id"], q, results, elapsed)
 
     @app.post("/api/analyses")
-    def api_analyses(body: models.AnalysisIn):
+    def api_analyses(body: models.AnalysisIn, request: Request):
         snap = _require_snapshot(body.snapshot_id)
-        titles = {n["id"]: n["title"] for n in snap["clusters"]}
+        presenter = request.state.presenter
+        titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
+        sid = snap["snapshot_id"]
+        if body.intent == "question":
+            if not body.question or not body.question.strip():
+                raise ApiError(422, "invalid_request", "Invalid field: question")
+            raw_q = body.question.strip()
+            key = (sid, normalize_question(raw_q))
+            with _start_lock:
+                rid = _question_inflight.get(key)
+                if rid:
+                    existing = runstore.load(rid)
+                    if existing and existing["state"] not in runstore.TERMINAL:
+                        return {"run_id": rid}
+                _capacity(presenter)
+                _spend("analysis", presenter)
+                run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
+                _question_inflight[key] = run.id
+                _submit(lambda: run_analysis(run, intent="question", snapshot_id=sid, titles=titles, runner=runner(),
+                                             question=raw_q),
+                        on_done=_release_later(_question_inflight, key, run.id))
+            return {"run_id": run.id}
         with _start_lock:
-            existing = runstore.find_inflight("analysis", body.intent, snap["snapshot_id"])
+            existing = runstore.find_inflight("analysis", body.intent, sid)
             if existing:
                 return {"run_id": existing}
-            _capacity()
-            _spend("analysis")
-            run = runstore.Run.create("analysis", body.intent, snap["snapshot_id"])
-            _submit(lambda: run_analysis(run, intent=body.intent, snapshot_id=snap["snapshot_id"], titles=titles, runner=runner()))
+            _capacity(presenter)
+            _spend("analysis", presenter)
+            run = runstore.Run.create("analysis", body.intent, sid)
+            _submit(lambda: run_analysis(run, intent=body.intent, snapshot_id=sid, titles=titles, runner=runner()))
         return {"run_id": run.id}
 
     @app.get("/api/runs/{run_id}")
@@ -379,7 +428,7 @@ def create_app() -> FastAPI:
         return serializers.serialize_run(raw)
 
     @app.post("/api/clusters/{cluster_id}/story")
-    def api_story(cluster_id: str, body: models.StoryIn):
+    def api_story(cluster_id: str, body: models.StoryIn, request: Request):
         snap = _require_snapshot(body.snapshot_id)
         node = next((n for n in snap["clusters"] if n["id"] == cluster_id), None)
         if node is None:
@@ -398,27 +447,23 @@ def create_app() -> FastAPI:
                 raw = runstore.load(rid)
                 if raw and raw["state"] not in runstore.TERMINAL:
                     return {"status": "pending", "run_id": rid}
-            _capacity()
-            _spend("story")
+            _capacity(request.state.presenter)
+            _spend("story", request.state.presenter)
             run = runstore.Run.create("story", None, snap["snapshot_id"])
             _story_inflight[key] = run.id
-
-            def _release(key=key, rid=run.id) -> None:
-                with _start_lock:  # only drop the entry if it still belongs to this run
-                    if _story_inflight.get(key) == rid:
-                        del _story_inflight[key]
-            _submit(lambda: stories.run_story(run, snapshot_id=snap["snapshot_id"], node=node), on_done=_release)
+            _submit(lambda: stories.run_story(run, snapshot_id=snap["snapshot_id"], node=node),
+                    on_done=_release_later(_story_inflight, key, run.id))
         return {"status": "pending", "run_id": run.id}
 
     @app.post("/api/demo/containment")
-    def api_containment(body: models.ContainmentIn):
+    def api_containment(body: models.ContainmentIn, request: Request):
         snap = _require_snapshot()
         with _start_lock:
             existing = runstore.find_inflight("containment", None, snap["snapshot_id"])
             if existing:
                 return {"run_id": existing}
-            _capacity()
-            _spend("containment")
+            _capacity(request.state.presenter)
+            _spend("containment", request.state.presenter)
             run = runstore.Run.create("containment", None, snap["snapshot_id"])
             _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"],
                                             health=lambda: health_status(fresh=True)["status"], runner=runner()))

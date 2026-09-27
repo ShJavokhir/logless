@@ -50,6 +50,22 @@ describe("deriveSteps", () => {
   })
 })
 
+describe("deriveSteps for questions", () => {
+  it("adds Interpreting first for question runs", () => {
+    const steps = deriveSteps({ state: "interpreting", attempts: 0, intent: "question", stages: [st("interpreting", "running", "t")] })
+    expect(steps[0]).toMatchObject({ key: "interpreting", status: "running" })
+    expect(deriveSteps(null, true)[0].key).toBe("interpreting")
+    expect(deriveSteps(null)[0].key).toBe("planning")
+  })
+})
+
+describe("deriveSteps with a pre-check repair", () => {
+  it("shows Repairing when two program versions exist even with one execution", () => {
+    const steps = deriveSteps({ state: "completed", attempts: 1, stages: [st("planning", "done", "t")], attempts_log: [{}, {}] as never })
+    expect(steps.some((s) => s.key === "repairing")).toBe(true)
+  })
+})
+
 describe("runDurationMs / stageLabel", () => {
   it("measures from the first start to the last finish", () => {
     const run = {

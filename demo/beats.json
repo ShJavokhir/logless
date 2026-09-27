@@ -1,0 +1,108 @@
+{
+  "voice": "Samantha",
+  "rate": 175,
+  "gap": 0.14,
+  "beats": [
+    {
+      "id": "title",
+      "chunks": [
+        {
+          "caption": null,
+          "spoken": "Users tell you what's broken every day, but you can't read their conversations.",
+          "at": "title+0.35"
+        },
+        {
+          "caption": null,
+          "spoken": "Logless reads them, so nobody has to.",
+          "at": "title_reveal"
+        }
+      ],
+      "rate": 190
+    },
+    {
+      "id": "map",
+      "chunks": [
+        {
+          "caption": "5,000 real WildChat conversations, grouped by agents into 34 workflows.",
+          "spoken": "Five thousand real WildChat conversations, grouped by agents into thirty-four workflows.",
+          "at": "map_start+0.2"
+        },
+        {
+          "caption": "One of them is people testing the AI itself.",
+          "spoken": "One of them is people testing the A.I. itself.",
+          "at": "map_probe"
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "chunks": [
+        {
+          "caption": "GLM on Vultr writes a program without seeing any data.",
+          "spoken": "G.L.M. on Vulture writes a program without seeing any data.",
+          "at": "run_click-0.2"
+        },
+        {
+          "caption": "It runs in a gVisor sandbox with no network, and a gate checks every number.",
+          "spoken": "It runs in a gee-visor sandbox with no network, and a gate checks every number.",
+          "at": "run_click+2.5"
+        },
+        {
+          "caption": "Software work has the highest friction rate.",
+          "spoken": "Software work has the highest friction rate.",
+          "at": "run_lens"
+        }
+      ]
+    },
+    {
+      "id": "story",
+      "chunks": [
+        {
+          "caption": "In “Fixing errors”, 39.5% of conversations show friction.",
+          "spoken": "In Fixing errors, thirty-nine point five percent of conversations show friction.",
+          "at": "story_start+0.2"
+        },
+        {
+          "caption": "A clearly labelled fictional story makes the pattern concrete.",
+          "spoken": "A clearly labelled fictional story makes the pattern concrete.",
+          "at": "story_click"
+        }
+      ]
+    },
+    {
+      "id": "contain",
+      "chunks": [
+        {
+          "caption": "Every run leaves a receipt.",
+          "spoken": "Every run leaves a receipt.",
+          "at": "sheet_receipt-0.2"
+        },
+        {
+          "caption": "Now the containment check.",
+          "spoken": "Now, the containment check.",
+          "at": "contain_scroll-0.2"
+        },
+        {
+          "caption": "A runaway program is killed at its 2-second deadline.",
+          "spoken": "A runaway program is killed at its two-second deadline.",
+          "at": "contain_click"
+        },
+        {
+          "caption": "A program that tries to export per-person rows is rejected by the gate.",
+          "spoken": "A program that tries to export per-person rows is rejected by the gate.",
+          "at": "kill_seen+1.0"
+        }
+      ]
+    },
+    {
+      "id": "eval",
+      "chunks": [
+        {
+          "caption": "13 of 14 evaluation targets met, with 0 detected canary leaks.",
+          "spoken": "Thirteen of fourteen evaluation targets met, with zero detected canary leaks.",
+          "at": "eval_start+0.25"
+        }
+      ]
+    }
+  ]
+}

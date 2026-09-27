@@ -73,3 +73,27 @@ export function createLatestGuard() {
     isCurrent: (token: number) => token === seq,
   }
 }
+
+/**
+ * Highlight for a verified question result: leaf rows are matches (their
+ * category lights up); category rows light the category and all its leaves.
+ */
+export function highlightFromRows(
+  rowIds: string[],
+  clusters: Pick<SnapshotNode, "id" | "parent_id">[],
+): HighlightState {
+  const parentOf = new Map(clusters.map((c) => [c.id, c.parent_id]))
+  const marks = new Map<string, "match" | "partial">()
+  const cats = new Set<string>()
+  for (const id of rowIds) {
+    if (parentOf.has(id)) {
+      marks.set(id, "match")
+      const p = parentOf.get(id)
+      if (p) cats.add(p)
+    } else {
+      cats.add(id)
+      for (const c of clusters) if (c.parent_id === id) marks.set(c.id, "match")
+    }
+  }
+  return { active: rowIds.length > 0, empty: marks.size === 0 && cats.size === 0, clusters: marks, categories: cats, matchCount: marks.size }
+}

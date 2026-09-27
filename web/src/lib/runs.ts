@@ -1,11 +1,12 @@
 import type { Run, RunStage, StageStatus } from "./types"
 import { durationMs } from "./format"
 
-export type StepKey = "planning" | "executing" | "validating" | "repairing" | "explaining"
+export type StepKey = "interpreting" | "planning" | "executing" | "validating" | "repairing" | "explaining"
 export type StepStatus = "pending" | "running" | "done" | "failed" | "skipped"
 export type Step = { key: StepKey; label: string; status: StepStatus; detail: string | null; count: number }
 
 const STEP_LABEL: Record<StepKey, string> = {
+  interpreting: "Interpreting",
   planning: "Planning",
   executing: "Executing in sandbox",
   validating: "Validating",
@@ -18,12 +19,22 @@ const STEP_LABEL: Record<StepKey, string> = {
  * status of the latest stage of that name that has started; "Repairing" only
  * appears when the run actually repaired (a repairing stage or attempts ≥ 2).
  */
-export function deriveSteps(run: Pick<Run, "stages" | "attempts" | "state"> | null): Step[] {
+export function deriveSteps(
+  run: (Pick<Run, "stages" | "attempts" | "state"> & { intent?: Run["intent"]; attempts_log?: Run["attempts_log"] }) | null,
+  forQuestion = false,
+): Step[] {
   const stages = run?.stages ?? []
-  const repaired = stages.some((s) => s.name === "repairing") || (run?.attempts ?? 0) >= 2
-  const keys: StepKey[] = repaired
-    ? ["planning", "executing", "validating", "repairing", "explaining"]
-    : ["planning", "executing", "validating", "explaining"]
+  // A static pre-check rejection can yield two program versions with one execution.
+  const repaired = stages.some((s) => s.name === "repairing") || (run?.attempts ?? 0) >= 2 || (run?.attempts_log?.length ?? 0) >= 2
+  const interprets = forQuestion || run?.intent === "question" || stages.some((s) => s.name === "interpreting")
+  const keys: StepKey[] = [
+    ...(interprets ? (["interpreting"] as const) : []),
+    "planning",
+    "executing",
+    "validating",
+    ...(repaired ? (["repairing"] as const) : []),
+    "explaining",
+  ]
   return keys.map((key) => {
     const same = stages.filter((s) => s.name === key)
     const started = same.filter((s) => s.status !== "pending")
@@ -54,6 +65,7 @@ export function runDurationMs(run: Run | null): number | null {
 
 const STAGE_NAMES: Record<string, string> = {
   queued: "Queued",
+  interpreting: "Interpreting",
   planning: "Planning",
   executing: "Executing in sandbox",
   validating: "Egress gate",

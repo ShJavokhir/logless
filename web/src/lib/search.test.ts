@@ -55,3 +55,17 @@ describe("createLatestGuard", () => {
     expect(g.isCurrent(second)).toBe(false)
   })
 })
+
+describe("highlightFromRows", () => {
+  it("lights leaf rows and their categories; category rows light all their leaves", async () => {
+    const { highlightFromRows } = await import("./search")
+    const leafRows = highlightFromRows(["cl_a"], clusters)
+    expect(leafEmphasis(leafRows, "cl_a")).toBe("match")
+    expect(leafEmphasis(leafRows, "cl_b")).toBe("dim")
+    expect(categoryEmphasis(leafRows, "cat_1")).toBe("match")
+    const catRows = highlightFromRows(["cat_1"], clusters)
+    expect(leafEmphasis(catRows, "cl_a")).toBe("match")
+    expect(leafEmphasis(catRows, "cl_b")).toBe("match")
+    expect(leafEmphasis(catRows, "cl_c")).toBe("dim")
+  })
+})

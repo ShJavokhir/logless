@@ -7,6 +7,7 @@
 //   {{rows.0.conversations}}            dotted path, numeric array index
 //   {{rows[0].friction_share}}          bracket index is accepted too
 //   {{rows.0.cluster_id}}               cluster ids render as the cluster title
+//   {{rows.0.id}}                       question results (§8b): node id → title
 // Fields named `share` or ending in `_share` render as percentages; other
 // numbers render as integers with separators. Unresolvable placeholders stay
 // visible (kind "missing") instead of silently disappearing.
@@ -54,7 +55,7 @@ export function formatValue(key: string, value: unknown, titleOf?: (clusterId: s
     return fmtInt(value)
   }
   if (typeof value === "string") {
-    if (key === "cluster_id" || key === "category_id") return titleOf?.(value) ?? value
+    if (key === "cluster_id" || key === "category_id" || key === "id") return titleOf?.(value) ?? value
     return value
   }
   return null

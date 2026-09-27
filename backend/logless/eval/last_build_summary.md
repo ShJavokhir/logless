@@ -3,7 +3,7 @@
 - Workspace: WildChat · public research sample
 - Dataset: WildChat-1M @ 7d6490e4, 2023-04-09 → 2023-05-04; 5,050 conversations, 2,840 people, 55 languages; fixtures {'canary_conversations': 40, 'injection_conversations': 10}
 - Totals: friction 20.0% (1009), unclear 309; signals {'correction': 321, 'repeat_request': 598, 'assistant_limit': 422, 'complaint': 122}
-- Stats source: local-reference; discovery rounds 3; build 389 s; dataset hash fadfd7c3737e8084
+- Counts, people and friction metrics computed in: local-reference (languages per node: backend); discovery rounds 3; build 389 s; dataset hash fadfd7c3737e8084
 
 ## Taxonomy
 
@@ -400,6 +400,47 @@ _Requests that did not clearly fit any theme, were unintelligible, or spanned se
 - need n2: Get factual information about a topic along with supporting scientific citations
 - need n3: Reorganize lecture slides for readability while preserving the original phrasing
 - problem p1 [correction, observed]: Provided reference citations pointed to web pages that did not exist, and replacements were also unverifiable
+
+## Known limitations
+
+- Facet embeddings form a continuum rather than separated clusters: k-means at k=40 has a two-seed adjusted Rand index of 0.33 and a silhouette of -0.030 on the capped subset; the silhouette of the published leaf assignment is -0.057. Leaves are therefore defined by their names and includes/excludes notes, and membership relies on Jev classifying the full conversation text, not on embedding distance.
+- "Get answers to questions about China" is topic-named and behaves partly like a Chinese-language bucket (34 of its 38 conversations are in Chinese); both Opus labelling batches noted ties between it and goal-named leaves.
+- Tiny leaves are published without a size threshold (by design; wording is generalized instead): Write fictional medical case reports and timelines (5 conversations, 3 people); Prepare cited academic teaching materials (3 conversations, 3 people).
+- `assistant_limit` mixes capability limits (no browsing, no images, no memory, output length) with policy refusals; the published problems say which, but the count does not separate them.
+- "People" are distinct hashed IP addresses: shared or changing addresses (proxies, campuses) merge or split real people, so people counts are approximate.
+- Friction decisions below 0.65 top probability are stored as unclear, trading recall for precision (correction: precision 1.00 / recall 0.59 under the 0.65 cutoff; Jev raw-choice F1 0.87 vs GLM-flash 0.84 (one reference labeller is GLM-5.3)).
+- 415 conversations (8.2%) stay in Other or unclear after 3 discovery rounds.
+
+## Evaluation (9 of 14 targets met)
+
+| Check | Value | Target | Result |
+|---|---|---|---|
+| Canary leak scan across every public payload | 0 detected canary leaks | 0 | met |
+| Source-id and contact-pattern scan of public text | 0 matches | 0 | met |
+| Injection bait | 0 effects | 0 effects | met |
+| Metric reconciliation | 0 mismatches | exact (0) | met |
+| Hierarchy invariants | 0 violations | 0 | met |
+| Counts, people and friction metrics computed in the sandbox | local-reference | sandbox | NOT met |
+| Privacy gate on all published text | 337 checked, 1 rewritten, 0 rolled up | every published string passes or is generalized | met |
+| Friction vs reference: correction | F1 0.74 (P 1.00 / R 0.59, support 22) | F1 ≥ 0.8 | NOT met |
+| Friction vs reference: repeat_request | F1 0.85 (P 0.91 / R 0.80, support 25) | F1 ≥ 0.8 | met |
+| Friction vs reference: assistant_limit | F1 0.88 (P 1.00 / R 0.78, support 23) | F1 ≥ 0.8 | met |
+| Friction vs reference: complaint | F1 0.33 (P 0.20 / R 1.00, support 1), insufficient support | F1 ≥ 0.8 | info |
+| Ablation correction: Jev vs GLM-5.3-flash alone | Jev F1 0.74 (raw 0.87) vs GLM-flash 0.84 | reported | info |
+| Ablation repeat_request: Jev vs GLM-5.3-flash alone | Jev F1 0.85 (raw 0.92) vs GLM-flash 0.88 | reported | info |
+| Ablation assistant_limit: Jev vs GLM-5.3-flash alone | Jev F1 0.88 (raw 0.90) vs GLM-flash 0.91 | reported | info |
+| Ablation complaint: Jev vs GLM-5.3-flash alone | Jev F1 0.33 (raw 0.29) vs GLM-flash 0.00 | reported | info |
+| Theme agreement vs reference | macro-F1 0.82; 131 of 161 match | reported | info |
+| Friction vs WildFeedback dissatisfaction (external, GPT-4 labels) | κ 0.38, agreement 74.4% | informational | info |
+| WildFeedback dissatisfaction reasons vs our signals | 5 reasons | informational | info |
+| Leaves vs WildChat-AQA level-1 topics (external, GPT-4o labels) | AMI leaf 0.37, category 0.38; purity 66.2% | informational | info |
+| Leaves vs sh0416 coarse categories (external, Mistral-7B labels) | AMI leaf 0.17, category 0.16 | informational | info |
+| Share in Other or unclear | 8.2% | ≤ 10% | met |
+| Silhouette of leaf assignment on facet embeddings | -0.057 | informational | info |
+| k-means stability across two seeds (capped subset) | ARI 0.33 at k=40 | informational | info |
+| Containment demo | not yet verified | killed at deadline, container removed, app healthy | NOT met |
+| Live analysis: usage | not yet verified | gated result | NOT met |
+| Live analysis: friction | not yet verified | gated result | NOT met |
 
 ## Privacy gate
 

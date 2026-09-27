@@ -23,7 +23,8 @@ rsync -az -e "$RSYNC_SSH" infra/logless-api.service logless-app:/etc/systemd/sys
 echo "==> env file"
 python3 - <<'EOF' | $SSH 'umask 027; cat > /etc/logless/env.new && chown root:logless /etc/logless/env.new && chmod 0640 /etc/logless/env.new && mv /etc/logless/env.new /etc/logless/env'
 env = dict(l.strip().split("=", 1) for l in open(".env") if "=" in l and not l.startswith("#"))
-keep = ["VULTR_INFERENCE_API_KEY", "TYPESAFE_API_KEY", "FIREWORKS_API_KEY", "PSEUDONYM_SALT", "RUNNER_TOKEN", "SAMPLE_SIZE", "SAMPLE_SEED"]
+keep = ["VULTR_INFERENCE_API_KEY", "TYPESAFE_API_KEY", "FIREWORKS_API_KEY", "PSEUDONYM_SALT", "RUNNER_TOKEN", "SAMPLE_SIZE", "SAMPLE_SEED",
+        "PRESENTER_KEY"]
 for k in keep:
     print(f"{k}={env[k]}")
 print("LOGLESS_ENV=production")
@@ -52,5 +53,13 @@ $SSH 'set -e; chown -R logless:logless /opt/logless; cd /opt/logless/backend;
   [ -x .venv/bin/python ] || sudo -u logless uv venv -q -p 3.12 .venv;
   sudo -u logless env UV_CACHE_DIR=/opt/logless/.uv-cache uv pip install -q --python .venv/bin/python -e .;
   systemctl daemon-reload; systemctl enable -q logless-api; systemctl restart logless-api; sleep 2; systemctl is-active logless-api'
+if [[ $WITH_DATA == 1 ]]; then
+  # The copied database may carry a snapshot whose stats came from the local reference.
+  # Re-run aggregation in the gVisor sandbox (over the VPC) so production only serves
+  # sandbox-computed numbers, then refresh the evaluation report.
+  echo "==> re-run stats in the sandbox + eval"
+  $SSH 'cd /opt/logless/backend && sudo -u logless bash -c "set -a; . /etc/logless/env; set +a; .venv/bin/logless rebuild --from-stage stats && .venv/bin/logless eval >/dev/null"'
+fi
+
 echo "==> health"
 curl -s https://144-202-110-2.sslip.io/api/health; echo

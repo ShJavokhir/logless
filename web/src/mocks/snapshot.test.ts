@@ -81,12 +81,15 @@ describe("mock snapshot invariants (CONTRACTS §5)", () => {
   it("mock results follow the ordering rules and reconcile with the snapshot", () => {
     const u = usageResult(s)
     expect(u.rows).toHaveLength(s.clusters.length)
-    for (let i = 1; i < u.rows.length; i++) {
+    // §8: Other is always the last row, the rest follow the ordering rule
+    expect(u.rows.at(-1)?.cluster_id).toBe("cl_other")
+    for (let i = 1; i < u.rows.length - 1; i++) {
       const [a, b] = [u.rows[i - 1], u.rows[i]]
       expect(a.conversations > b.conversations || (a.conversations === b.conversations && a.cluster_id < b.cluster_id)).toBe(true)
     }
     const f = frictionResult(s)
-    for (let i = 1; i < f.rows.length; i++) {
+    expect(f.rows.at(-1)?.cluster_id).toBe("cl_other")
+    for (let i = 1; i < f.rows.length - 1; i++) {
       const [a, b] = [f.rows[i - 1], f.rows[i]]
       expect(a.friction_conversations > b.friction_conversations || (a.friction_conversations === b.friction_conversations && a.cluster_id < b.cluster_id)).toBe(true)
     }

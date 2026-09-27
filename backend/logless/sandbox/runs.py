@@ -28,14 +28,16 @@ class Run:
         self.doc = doc
 
     @classmethod
-    def create(cls, kind: str, intent: str | None, snapshot_id: str) -> "Run":
+    def create(cls, kind: str, intent: str | None, snapshot_id: str, question: str | None = None) -> "Run":
+        """`question` is the already-sanitized echo (question intent only)."""
         now = utcnow()
+        names = (["interpreting"] if intent == "question" else []) + STAGES[kind]
         doc = {
             "run_id": new_run_id(), "kind": kind, "intent": intent, "snapshot_id": snapshot_id, "state": "queued",
             "created_at": now, "updated_at": now,
-            "stages": [{"name": n, "status": "pending", "started_at": None, "finished_at": None, "detail": None} for n in STAGES[kind]],
+            "stages": [{"name": n, "status": "pending", "started_at": None, "finished_at": None, "detail": None} for n in names],
             "attempts": 0, "code": None, "receipt": None, "verdict": None, "result": None, "explanation": None,
-            "containment": None, "error": None,
+            "containment": None, "error": None, "question": question, "plan": None, "attempts_log": [],
         }
         run = cls(doc)
         run.save(insert=True)

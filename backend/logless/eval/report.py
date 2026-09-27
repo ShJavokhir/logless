@@ -25,6 +25,7 @@ GOLD_DIR, EXT_DIR = HERE / "gold", HERE / "external"
 FRICTION_F1_TARGET = 0.80
 MIN_SUPPORT = 10
 OTHER_TARGET = 0.10
+NOT_VERIFIED = "not yet verified"
 
 
 LIMITS = {"id": 60, "name": 160, "value": 200, "target": 200, "detail": 600}  # the API serializer truncates beyond these
@@ -138,7 +139,7 @@ def reconciliation(snap: dict, build: util.Build | None) -> list[dict]:
     from ..pipeline.publish import validate
     from ..pipeline.stats import assignment_rows, clusters_for
     if build is None:
-        return [check("metric_reconciliation", "Metric reconciliation", "no build record", "exact", None,
+        return [check("metric_reconciliation", "Metric reconciliation", NOT_VERIFIED, "exact", False,
                       "the snapshot's build record is missing")]
     st = build.load("structure_final")
     clusters = clusters_for(st)
@@ -182,7 +183,7 @@ def injection_check(i_hits: int, build: util.Build | None) -> dict:
 def gate_check(build: util.Build | None) -> list[dict]:
     g = (build.info.get("gate") if build else None) or {}
     if not g:
-        return [check("privacy_gate", "Privacy gate", "no gate record", "all published text gated", None, "")]
+        return [check("privacy_gate", "Privacy gate", NOT_VERIFIED, "all published text gated", False, "no gate record for this build")]
     detail = (f"{g.get('texts_checked', 0)} texts checked; {g.get('passed_first', 0)} passed first time; "
               f"{g.get('rewritten', 0)} rewritten then passed; {g.get('replaced_general', 0)} replaced with a more general "
               f"wording; {g.get('dropped', 0)} dropped; {g.get('rolled_up', 0)} leaves rolled up; initial flags: "
@@ -197,8 +198,8 @@ def gate_check(build: util.Build | None) -> list[dict]:
 def friction_reference(scope_ids: set[str]) -> list[dict]:
     files = sorted(GOLD_DIR.glob("friction_*.jsonl"))
     if not files:
-        return [check(f"friction_{s}", f"Friction vs reference: {s}", "reference set pending", f"F1 ≥ {FRICTION_F1_TARGET}",
-                      None, "reference set pending") for s in SIGNALS]
+        return [check(f"friction_{s}", f"Friction vs reference: {s}", NOT_VERIFIED, f"F1 ≥ {FRICTION_F1_TARGET}",
+                      False, "reference set pending") for s in SIGNALS]
     labels: dict[str, dict[str, dict]] = defaultdict(dict)  # conv -> labeller -> friction
     for p in files:
         for r in read_jsonl(p):
@@ -243,15 +244,21 @@ def friction_reference(scope_ids: set[str]) -> list[dict]:
                 f"R {fmt(rm['recall'])}; GLM-5.3-flash: P {fmt(am['precision'])}, R {fmt(am['recall'])}. Caveat: one of the "
                 "two reference labellers is GLM-5.3 (same family as the ablation model), the set is small and "
                 "disagreements await human adjudication." + (" Insufficient support: not scored." if insufficient else "")))
-        detail = (f"Jev vs consensus of {', '.join(labellers)} on {len(ids)} conversations: precision {fmt(m['precision'])}, "
-                  f"recall {fmt(m['recall'])}, support {m['support']} positives of {m['n']} consensus labels "
-                  f"(tp {m['tp']}, fp {m['fp']}, fn {m['fn']}); {disagree} labeller disagreements go to human adjudication; "
-                  f"{unclear_cons} consensus 'unclear' excluded; Jev 'unclear' ({jev_unclear}) counted as not observed.")
+        n_ref = len(ids)
+        raw_part = f"; Jev raw-choice F1 {fmt(rm['f1'])}"
+        if am:
+            raw_part += f" vs GLM-flash {fmt(am['f1'])} (one reference labeller is GLM-5.3)"
+        detail = (f"precision {fmt(m['precision'])} / recall {fmt(m['recall'])} under the 0.65 cutoff{raw_part}. "
+                  f"Support: {m['support']} consensus positives among {m['n']} consensus labels (tp {m['tp']}, fp {m['fp']}, "
+                  f"fn {m['fn']}). Of {n_ref} reference conversations labelled by {' and '.join(labellers)}, {disagree} were "
+                  f"excluded for labeller disagreement (pending human adjudication) and {unclear_cons} for a shared "
+                  f"'unclear'. Jev 'unclear' ({jev_unclear}) counts as not observed.")
+        value = f"F1 {fmt(m['f1'])} (P {fmt(m['precision'])} / R {fmt(m['recall'])}, support {m['support']})"
         if insufficient:
-            out.append(check(f"friction_{s}", f"Friction vs reference: {s}", f"F1 {fmt(m['f1'])} (insufficient support)",
-                             f"F1 ≥ {FRICTION_F1_TARGET}", None, detail + f" Fewer than {MIN_SUPPORT} consensus positives: not scored."))
+            out.append(check(f"friction_{s}", f"Friction vs reference: {s}", value + ", insufficient support",
+                             f"F1 ≥ {FRICTION_F1_TARGET}", None, f"Fewer than {MIN_SUPPORT} consensus positives: not scored. " + detail))
         else:
-            out.append(check(f"friction_{s}", f"Friction vs reference: {s}", f"F1 {fmt(m['f1'])}", f"F1 ≥ {FRICTION_F1_TARGET}",
+            out.append(check(f"friction_{s}", f"Friction vs reference: {s}", value, f"F1 ≥ {FRICTION_F1_TARGET}",
                              m["f1"] is not None and m["f1"] >= FRICTION_F1_TARGET, detail))
     if abl_summary:
         out += abl_summary
@@ -262,31 +269,35 @@ def friction_reference(scope_ids: set[str]) -> list[dict]:
 
 
 def theme_reference(snap: dict) -> dict:
-    rows = [r for p in sorted(GOLD_DIR.glob("*.jsonl")) for r in read_jsonl(p) if "theme" in r]
+    rows = [r for p in sorted(GOLD_DIR.glob("theme_*.jsonl")) for r in read_jsonl(p) if "theme" in r]
     if not rows:
-        return check("theme_agreement", "Theme agreement vs reference", "reference set pending", "macro-F1 reported", None,
+        return check("theme_agreement", "Theme agreement vs reference", NOT_VERIFIED, "macro-F1 reported", None,
                      "reference set pending (theme labels follow the frozen taxonomy)")
     build = build_for(snap["snapshot_id"])
-    st = build.load("structure_final")
     from ..pipeline.stats import assignment_rows, clusters_for
-    ours = {r["conv_id"]: r["leaf_id"] for r in assignment_rows(build.build_id, clusters_for(st))}
-    by_conv: dict[str, list[str | None]] = defaultdict(list)
+    ours = {r["conv_id"]: r["leaf_id"] for r in assignment_rows(build.build_id, clusters_for(build.load("structure_final")))}
+    valid = {l["id"] for l in snap["clusters"]}
+    by_conv: dict[str, dict[str, str]] = defaultdict(dict)
     for r in rows:
-        by_conv[r["conv_id"]].append(r["theme"] or "cl_other")
-    truth, pred = [], []
-    for c, ts in by_conv.items():
-        if len(set(ts)) == 1 and c in ours:
-            truth.append(ts[0])
-            pred.append(ours[c])
-    labels = sorted(set(truth))
-    f1s = []
-    for l in labels:
-        m = prf([t == l for t in truth], [p == l for p in pred])
-        f1s.append(m["f1"] or 0.0)
+        by_conv[r["conv_id"]][r["labeller"]] = r["theme"] if r["theme"] in valid else "cl_other"
+    labellers = sorted({l for v in by_conv.values() for l in v})
+    both = [c for c, v in by_conv.items() if len(v) >= 2 and c in ours]
+    agree = [c for c in both if len(set(by_conv[c].values())) == 1]
+    truth = [next(iter(by_conv[c].values())) for c in agree]
+    pred = [ours[c] for c in agree]
+    classes = sorted(set(truth))
+    f1s = [prf([t == l for t in truth], [p == l for p in pred])["f1"] or 0.0 for l in classes]
     macro = sum(f1s) / len(f1s) if f1s else None
-    other_cov = sum(1 for p in pred if p == "cl_other") / max(1, len(pred))
-    return check("theme_agreement", "Theme agreement vs reference", f"macro-F1 {fmt(macro)}", "reported", None,
-                 f"{len(truth)} consensus-labelled conversations over {len(labels)} themes; our Other share among them {other_cov:.1%}.")
+    match = sum(t == p for t, p in zip(truth, pred))
+    lab_agree = len(agree) / max(1, len(both))
+    other_truth = sum(t == "cl_other" for t in truth)
+    other_pred = sum(p == "cl_other" for p in pred)
+    return check("theme_agreement", "Theme agreement vs reference", f"macro-F1 {fmt(macro)}; {match} of {len(agree)} match",
+                 "reported", None,
+                 f"Jev matches the two labellers' consensus on {match} of {len(agree)} conversations ({match / max(1, len(agree)):.0%}); "
+                 f"the labellers ({' and '.join(labellers)}) agree with each other on {lab_agree:.0%} of {len(both)}. "
+                 f"Macro-F1 {fmt(macro)} over the {len(classes)} leaves present in the consensus. Among the {len(agree)}, the "
+                 f"consensus puts {other_truth} in Other or unclear and we put {other_pred} there. Leaf ids are those of the frozen build.")
 
 
 def external_checks(snap: dict, build: util.Build | None) -> list[dict]:
@@ -311,8 +322,9 @@ def external_checks(snap: dict, build: util.Build | None) -> list[dict]:
                          f"κ {kappa:.2f}, agreement {agree:.1%}", "informational", None,
                          f"{len(wf)} overlapping conversations (English, ≥ 3 user turns only). Ours = correction ∪ "
                          f"repeat_request ∪ complaint observed; theirs = any dissatisfied turn. Precision {fmt(m['precision'])}, "
-                         f"recall {fmt(m['recall'])} against their flag ({m['support']} dissatisfied). WildFeedback's own "
-                         "recall vs humans is 48% (precision 83%), which caps agreement."))
+                         f"recall {fmt(m['recall'])} against their flag ({m['support']} dissatisfied). Their labels are GPT-4 "
+                         "judgments; in the authors' check against humans they had 48% recall and 83% precision, so they "
+                         "are a noisy reference, not ground truth."))
         reasons = {"factual_error": "correction", "revision": "correction", "insufficient_detail": "repeat_request",
                    "ignored": "repeat_request", "negative_feedback": "complaint"}
         parts = []
@@ -359,10 +371,12 @@ def external_checks(snap: dict, build: util.Build | None) -> list[dict]:
 
 def stats_source_check(snap: dict) -> dict:
     src = snap["provenance"].get("stats_source", "unknown")
-    return check("stats_source", "Published metrics computed in the sandbox", src, "sandbox", src == "sandbox",
-                 "The final build must compute its published metrics in the sandbox VM (gated against the backend "
-                 "reference). 'local-reference' means the runner was unreachable at build time: re-run "
-                 "`logless rebuild --from-stage stats` once it answers (leaf ids stay the same).")
+    return check("stats_source", "Counts, people and friction metrics computed in the sandbox", src, "sandbox",
+                 src == "sandbox",
+                 "Counts, people and friction metrics must be computed by the version-controlled task in the sandbox VM "
+                 "and match the backend reference exactly. Languages per node are always computed by the backend from "
+                 "private data (the sandbox never sees language). 'local-reference' means the runner was unreachable at "
+                 "build time: re-run `logless rebuild --from-stage stats` (leaf ids stay the same).")
 
 
 def cluster_quality(snap: dict, build: util.Build | None) -> list[dict]:
@@ -403,27 +417,37 @@ def cluster_quality(snap: dict, build: util.Build | None) -> list[dict]:
     return out
 
 
-def sandbox_checks() -> list[dict]:
+def sandbox_checks(snapshot_id: str) -> list[dict]:
+    """Containment and live analyses recorded for THIS snapshot only. Missing runs are mandatory checks
+    that count as not verified (passed False), not informational."""
     con = db.public()
     out = []
-    row = con.execute("SELECT json FROM runs WHERE kind = 'containment' ORDER BY updated_at DESC LIMIT 1").fetchone()
+    row = con.execute("SELECT json FROM runs WHERE kind = 'containment' AND snapshot_id = ? ORDER BY updated_at DESC LIMIT 1",
+                      (snapshot_id,)).fetchone()
+    target = "killed at deadline, container removed, app healthy"
     if row is None:
-        out.append(check("containment", "Containment demo", "pending", "killed at deadline, container removed, app healthy",
-                         None, "no containment run recorded yet"))
+        out.append(check("containment", "Containment demo", NOT_VERIFIED, target, False,
+                         "no containment run recorded for this snapshot yet"))
     else:
         r = json.loads(row["json"])
         c = r.get("containment") or {}
         ok = r.get("state") == "completed" and c.get("killed") and c.get("container_removed") and c.get("app_health") == "ok"
-        out.append(check("containment", "Containment demo", r.get("state", "?"),
-                         "killed at deadline, container removed, app healthy", bool(ok),
+        out.append(check("containment", "Containment demo", r.get("state", "?"), target, bool(ok),
                          f"killed {c.get('killed')}, container removed {c.get('container_removed')}, app health "
                          f"{c.get('app_health')}, follow-up passed {c.get('followup_passed')}, leak attempt rejected "
                          f"{c.get('leak_attempt_rejected')}."))
-    for intent in ("usage", "friction"):
-        row = con.execute("SELECT json FROM runs WHERE kind = 'analysis' AND intent = ? ORDER BY updated_at DESC LIMIT 1",
-                          (intent,)).fetchone()
+    intents = ["usage", "friction"] + [r["intent"] for r in con.execute(
+        "SELECT DISTINCT intent FROM runs WHERE kind = 'analysis' AND snapshot_id = ? AND intent NOT IN ('usage', 'friction')",
+        (snapshot_id,)) if r["intent"]]
+    for intent in intents:
+        if intent == "question":
+            out.append(_question_check(con, snapshot_id))
+            continue
+        row = con.execute("SELECT json FROM runs WHERE kind = 'analysis' AND intent = ? AND snapshot_id = ? "
+                          "ORDER BY updated_at DESC LIMIT 1", (intent, snapshot_id)).fetchone()
         if row is None:
-            out.append(check(f"live_{intent}", f"Live analysis: {intent}", "pending", "gated result", None, "no run recorded yet"))
+            out.append(check(f"live_{intent}", f"Live analysis: {intent}", NOT_VERIFIED, "gated result", False,
+                             "no run recorded for this snapshot yet"))
         else:
             r = json.loads(row["json"])
             v = r.get("verdict") or {}
@@ -432,6 +456,23 @@ def sandbox_checks() -> list[dict]:
                              f"attempts {r.get('attempts')}, runtime {(r.get('receipt') or {}).get('runtime')}, "
                              f"{sum(1 for c in v.get('checks', []) if c.get('passed'))}/{len(v.get('checks', []))} gate checks passed."))
     return out
+
+
+def _question_check(con, snapshot_id: str) -> dict:
+    """Open questions: a refusal of an unsupported question is correct behaviour, not a failure.
+    Passes when the latest answerable question completed with a passed gate verdict."""
+    runs = [json.loads(r["json"]) for r in con.execute(
+        "SELECT json FROM runs WHERE kind = 'analysis' AND intent = 'question' AND snapshot_id = ? ORDER BY updated_at DESC",
+        (snapshot_id,))]
+    refused = [r for r in runs if (r.get("error") or {}).get("code") == "unsupported_question"]
+    answerable = [r for r in runs if r not in refused and r.get("state") in ("completed", "failed")]
+    completed = [r for r in answerable if r.get("state") == "completed" and bool((r.get("verdict") or {}).get("passed"))]
+    latest = answerable[0] if answerable else None
+    ok = bool(latest) and latest in completed
+    detail = (f"{len(completed)} of {len(answerable)} answerable questions completed with a passed gate; "
+              f"{len(refused)} unsupported questions refused before any code ran.")
+    return check("live_question", "Live analysis: open question", latest.get("state", "?") if latest else NOT_VERIFIED,
+                 "gated result", ok, detail)
 
 
 def build_report() -> dict:
@@ -447,7 +488,7 @@ def build_report() -> dict:
     checks.append(theme_reference(snap))
     checks += external_checks(snap, build)
     checks += cluster_quality(snap, build)
-    checks += sandbox_checks()
+    checks += sandbox_checks(snap["snapshot_id"])
     report = {"snapshot_id": snap["snapshot_id"], "generated_at": utcnow(), "checks": checks}
     # leak scans run last and include this report itself
     leak, i_hits = leak_checks([("eval_report_new", json.dumps(report, ensure_ascii=False))])
@@ -466,4 +507,9 @@ def main() -> int:
     for c in report["checks"]:
         mark = {True: "PASS", False: "FAIL", None: "info"}[c["passed"]]
         print(f"[{mark}] {c['name']}: {c['value']} (target {c['target']})")
+    scored = [c for c in report["checks"] if c["passed"] is not None]
+    print(f"{sum(1 for c in scored if c['passed'])} of {len(scored)} targets met")
+    snap = current_snapshot()
+    from .summary import write_summary
+    write_summary(snap, build_for(snap["snapshot_id"]), report)
     return 0

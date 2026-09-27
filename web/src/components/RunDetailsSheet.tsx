@@ -11,7 +11,10 @@ import { modelLabel } from "@/lib/snapshot"
 import { useRun } from "@/hooks/useRun"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { QUESTION, RUN_SUBTITLE } from "@/lib/copy"
+import { ASK_LABEL, QUESTION, RUN_SUBTITLE } from "@/lib/copy"
+import type { Attempt } from "@/lib/types"
+import { planShareNote, planToWords } from "@/lib/plan"
+import { proseName } from "@/lib/labels"
 
 export function RunDetailsSheet({
   open,
@@ -30,7 +33,7 @@ export function RunDetailsSheet({
         <SheetHeader className="border-b px-5 pt-4 pb-3.5">
           <div className="flex items-center gap-2 pr-8 text-[12px] text-muted-foreground">
             <span className="font-mono">{run?.run_id ?? "no run"}</span>
-            {run?.intent ? <span>· {QUESTION[run.intent]}</span> : null}
+            {run?.intent ? <span className="truncate">· {run.intent === "question" ? ASK_LABEL : QUESTION[run.intent]}</span> : null}
           </div>
           <SheetTitle className="text-[17px] font-semibold">Run details</SheetTitle>
           <SheetDescription className="text-[13px] leading-snug text-pretty">{RUN_SUBTITLE}</SheetDescription>
@@ -51,20 +54,100 @@ export function RunDetailsSheet({
           <div className="flex flex-col gap-6 px-5 py-5">
             {run ? (
               <>
+                {run.intent === "question" ? <QuestionSummary run={run} snapshot={snapshot} /> : null}
                 <Timeline stages={run.stages} />
-                {run.code ? <CodeBlock code={run.code} sha={run.receipt?.code_sha256 ?? null} /> : null}
-                {run.receipt ? <ReceiptGrid receipt={run.receipt} /> : null}
-                {run.verdict ? <GateVerdict verdict={run.verdict} attempts={run.attempts} /> : null}
+                {run.attempts_log && run.attempts_log.length ? (
+                  <AttemptHistory key={run.attempts_log.length} attempts={run.attempts_log} />
+                ) : (
+                  <>
+                    {run.code ? <CodeBlock code={run.code} sha={run.receipt?.code_sha256 ?? null} /> : null}
+                    {run.receipt ? <ReceiptGrid receipt={run.receipt} /> : null}
+                    {run.verdict ? <GateVerdict verdict={run.verdict} attempts={run.attempts} /> : null}
+                  </>
+                )}
                 <Models snapshot={snapshot} />
               </>
             ) : (
-              <p className="text-[13px] text-muted-foreground">Ask one of the two questions to see a run here.</p>
+              <p className="text-[13px] text-muted-foreground">Ask a question to see a run here.</p>
             )}
             <Containment />
           </div>
         </div>
       </SheetContent>
     </Sheet>
+  )
+}
+
+function QuestionSummary({ run, snapshot }: { run: Run; snapshot: Snapshot }) {
+  const titleOf = (id: string) => {
+    const n = snapshot.categories.find((c) => c.id === id) ?? snapshot.clusters.find((c) => c.id === id)
+    return n ? proseName(n) : undefined
+  }
+  return (
+    <Section title="Question" id="rd-question">
+      <p className="text-[14px] leading-snug font-medium">“{run.question ?? "—"}”</p>
+      {run.plan ? (
+        <div className="mt-2 rounded-lg bg-muted/60 px-3 py-2 text-[12.5px]">
+          <div className="text-[10.5px] font-medium tracking-[0.06em] text-muted-foreground uppercase">Validated plan</div>
+          <p className="mt-0.5 font-medium">{planToWords(run.plan, titleOf)}</p>
+          <p className="mt-1 text-[11.5px] text-muted-foreground">{planShareNote(run.plan)}</p>
+          <pre className="mt-1.5 overflow-x-auto font-mono text-[11px] text-muted-foreground">{JSON.stringify(run.plan)}</pre>
+        </div>
+      ) : run.error?.code === "unsupported_question" ? (
+        <p className="mt-1 text-[12.5px] text-muted-foreground">Not answerable: {run.error.message}</p>
+      ) : null}
+    </Section>
+  )
+}
+
+/** Every sandbox attempt, never overwritten: code, receipt and gate verdict. */
+function AttemptHistory({ attempts }: { attempts: Attempt[] }) {
+  const [sel, setSel] = useState(attempts.length - 1)
+  const idx = Math.min(sel, attempts.length - 1)
+  const a = attempts[idx]
+  return (
+    <Section
+      title="Attempts"
+      id="rd-attempts"
+      aside={attempts.length > 1 ? "repaired after a gate rejection" : "first attempt passed"}
+    >
+      {attempts.length > 1 ? (
+        <div role="tablist" aria-label="Attempts" className="mb-3 inline-flex rounded-lg border p-0.5">
+          {attempts.map((att, i) => (
+            <button
+              key={att.attempt}
+              type="button"
+              role="tab"
+              aria-selected={i === idx}
+              onClick={() => setSel(i)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12.5px] transition-colors",
+                i === idx ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {att.verdict.passed ? <CircleCheck aria-hidden className="size-3.5 text-ok" /> : <CircleX aria-hidden className="size-3.5 text-destructive" />}
+              Attempt {att.attempt} · {att.verdict.passed ? "passed" : att.receipt ? "rejected" : "pre-check"}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {a.repair_reason ? (
+        <p className="mb-3 rounded-lg border border-dashed px-3 py-2 text-[12.5px]">
+          Repaired for <span className="font-medium">“{a.repair_reason}”</span>. The repair prompt contained only failed check names, never sandbox output.
+        </p>
+      ) : null}
+      <div role="tabpanel" className="flex flex-col gap-5">
+        <CodeBlock code={a.code} sha={a.code_sha256} />
+        {a.receipt ? (
+          <ReceiptGrid receipt={a.receipt} />
+        ) : (
+          <p className="rounded-lg border border-dashed px-3 py-2 text-[12.5px] text-muted-foreground">
+            Not executed: the static pre-check rejected this program before it reached the sandbox.
+          </p>
+        )}
+        <GateVerdict verdict={a.verdict} attempts={a.attempt} />
+      </div>
+    </Section>
   )
 }
 

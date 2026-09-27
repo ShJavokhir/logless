@@ -1,5 +1,5 @@
-"""Client for the sandbox runner (docs/CONTRACTS.md §9). The runner lives on a separate,
-credential-free VM; only the bearer token (not a cloud credential) is shared with it.
+"""Client for the sandbox runner (docs/CONTRACTS.md §9). The runner lives on a separate VM that
+holds no API keys or cloud credentials (only the runner's own auth token, shared with the app VM).
 
 The sandbox VM is the less trusted side, so every runner response is validated against a strict,
 bounded schema before anything reads it: enumerated states, error codes and runtimes; bounded

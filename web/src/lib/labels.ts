@@ -123,3 +123,9 @@ export function arcLabelFits(text: string, labelRadius: number, fontSize: number
   const arc = (Math.PI * labelRadius * spanDeg) / 180
   return measure(text.toUpperCase(), fontSize, 560, letterSpacing) + 12 <= arc
 }
+
+/** Name for running prose: the short title unless it was machine-shortened ("…"). */
+export function proseName(node: { title: string; short_title?: string }): string {
+  const s = node.short_title?.trim()
+  return s && !s.endsWith("…") ? s : node.title
+}

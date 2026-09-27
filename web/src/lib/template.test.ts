@@ -40,3 +40,11 @@ describe("fillTemplate", () => {
     expect(resolvePath(result, "__proto__")).toBeUndefined()
   })
 })
+
+describe("fillTemplate for question results (§8b)", () => {
+  it("renders rows.N.id as titles and count/base/share/totals as numbers", () => {
+    const q = { rows: [{ id: "cl_aaaaaa", count: 41, base: 97, share: 0.4227 }], total_count: 312, total_base: 1051 }
+    const segs = fillTemplate("{{rows.0.id}}: {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}}); overall {{total_count}} of {{total_base}}.", q, titleOf)
+    expect(segmentsToString(segs)).toBe("Debugging errors: 41 of 97 (42.3%); overall 312 of 1,051.")
+  })
+})

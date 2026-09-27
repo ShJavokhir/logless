@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react"
-import { CircleAlert, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, Rows3, Search, ShieldCheck, Users, X } from "lucide-react"
+import { CircleAlert, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, MessageSquareText, Rows3, Search, ShieldCheck, Users, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Health, Intent, Snapshot } from "@/lib/types"
+import type { AnalysisIntent, Health, Intent, Snapshot } from "@/lib/types"
 import { fmtDate, fmtDateRange, fmtInt } from "@/lib/format"
 import { uniqueModelLabels } from "@/lib/snapshot"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Hint } from "./common"
-import { AGGREGATE_ONLY_HINT, QUESTION, SANDBOX_UNAVAILABLE, fixturesPhrase, statsSourcePhrase } from "@/lib/copy"
+import { AGGREGATE_ONLY_HINT, ASK_LABEL, QUESTION, SANDBOX_UNAVAILABLE, fixturesPhrase, statsSourcePhrase } from "@/lib/copy"
 
 export function Wordmark() {
   return (
@@ -87,6 +87,7 @@ export function Toolbar({
   activeIntent,
   running,
   onAsk,
+  onOpenAsk,
   view,
   onView,
   disabled,
@@ -98,9 +99,11 @@ export function Toolbar({
   searching: boolean
   searchError: string | null
   matchInfo: { active: boolean; empty: boolean; count: number; partial: number }
-  activeIntent: Intent | null
-  running: Record<Intent, boolean>
+  activeIntent: AnalysisIntent | null
+  running: Record<AnalysisIntent, boolean>
   onAsk: (intent: Intent) => void
+  /** open the answer card in "ask a question" mode */
+  onOpenAsk: () => void
   view: View
   onView: (v: View) => void
   disabled: boolean
@@ -198,6 +201,16 @@ export function Toolbar({
             </Button>
           )
         })}
+        <Button
+          variant={activeIntent === "question" ? "default" : "outline"}
+          onClick={onOpenAsk}
+          aria-pressed={activeIntent === "question"}
+          disabled={disabled}
+          className="h-8 px-3"
+        >
+          {running.question ? <LoaderCircle className="animate-spin" /> : <MessageSquareText />}
+          {ASK_LABEL}
+        </Button>
         <Separator orientation="vertical" className="mx-1 hidden h-5! sm:block" />
         <ToggleGroup
           type="single"

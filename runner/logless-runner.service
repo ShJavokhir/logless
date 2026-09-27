@@ -1,8 +1,9 @@
 # logless sandbox runner — install on the sandbox VM as /etc/systemd/system/logless-runner.service
 # Needs /etc/logless-runner/env (root:runner 0640) with RUNNER_TOKEN, RUNNER_BIND=<private-ip>:8787,
-# RUNNER_RUNTIME=runsc (optionally RUNNER_IMAGE_DIGEST=sha256:…). The VM holds no API keys.
+# RUNNER_RUNTIME=runsc (optionally RUNNER_IMAGE_DIGEST=sha256:…). The VM holds no API keys or cloud
+# credentials; RUNNER_TOKEN is only the runner's own auth token.
 [Unit]
-Description=logless sandbox runner (disposable gVisor containers, no credentials)
+Description=logless sandbox runner (disposable gVisor containers; no API keys or cloud credentials on this VM)
 Documentation=file:///opt/logless-runner/README.md
 Requires=docker.service
 After=network-online.target docker.service logless-lockdown.service

@@ -127,3 +127,15 @@ def test_scan_counts_tokens_in_payload():
     snap = {"clusters": [{"id": "cl_1", "title": "Write letters", "description": "Contact quillan.marrowby@fenwarp.net"}]}
     sc = publish.scan(snap, TokenScanner(["quillan.marrowby@fenwarp.net"]))
     assert sc["fixture_tokens"] == 1 and sc["contact"] >= 1
+
+
+def test_production_refuses_local_reference_stats(tmp_data, monkeypatch):
+    b = _fake_build(tmp_data, monkeypatch)
+    stats.run(b)
+    publish.run(b)  # local development: the fallback may publish
+    first = db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current = 1").fetchone()[0]
+    monkeypatch.setenv("LOGLESS_ENV", "production")
+    stats.run(b)
+    with pytest.raises(publish.PublishError):
+        publish.run(b)
+    assert [r[0] for r in db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current = 1")] == [first]

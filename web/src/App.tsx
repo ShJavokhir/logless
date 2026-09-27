@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { RotateCcw } from "lucide-react"
 import { api, describeError, isPause } from "@/lib/api"
-import type { Health, Intent, Snapshot } from "@/lib/types"
+import type { AnalysisIntent, Health, Intent, Snapshot } from "@/lib/types"
+import { highlightFromRows, NO_HIGHLIGHT } from "@/lib/search"
 import { indexSnapshot } from "@/lib/snapshot"
 import { isRunActive } from "@/lib/runs"
 import { useRun } from "@/hooks/useRun"
@@ -82,13 +83,19 @@ export default function App() {
     partial: search.highlight.clusters.size - search.highlight.matchCount,
   }
 
-  // question runs
-  const [runIds, setRunIds] = useState<Record<Intent, string | null>>({ usage: null, friction: null })
-  const [startError, setStartError] = useState<Record<Intent, { message: string; paused: boolean } | null>>({ usage: null, friction: null })
-  const [activeIntent, setActiveIntent] = useState<Intent | null>(null)
+  // analysis runs: the two fixed questions + open questions (§8b)
+  const [runIds, setRunIds] = useState<Record<AnalysisIntent, string | null>>({ usage: null, friction: null, question: null })
+  const [startError, setStartError] = useState<Record<AnalysisIntent, { message: string; paused: boolean } | null>>({
+    usage: null,
+    friction: null,
+    question: null,
+  })
+  const [activeIntent, setActiveIntent] = useState<AnalysisIntent | null>(null)
+  const [asking, setAsking] = useState(false)
   const usage = useRun(runIds.usage)
   const friction = useRun(runIds.friction)
-  const runs = { usage, friction }
+  const question = useRun(runIds.question)
+  const runs = { usage, friction, question }
   const [sheetOpen, setSheetOpen] = useState(false)
   const [evalOpen, setEvalOpen] = useState(false)
 
@@ -118,8 +125,41 @@ export default function App() {
     void start(intent)
   }
 
+  const askQuestion = useCallback(
+    async (text: string) => {
+      if (!snapshot) return
+      setActiveIntent("question")
+      setAsking(true)
+      setStartError((e) => ({ ...e, question: null }))
+      setRunIds((r) => ({ ...r, question: null }))
+      try {
+        const { run_id } = await api.startAnalysis({ intent: "question", question: text.slice(0, 200), snapshot_id: snapshot.snapshot_id })
+        setRunIds((r) => ({ ...r, question: run_id }))
+      } catch (err) {
+        setStartError((e) => ({ ...e, question: { message: describeError(err, "The question could not be sent."), paused: isPause(err) } }))
+      } finally {
+        setAsking(false)
+      }
+    },
+    [snapshot],
+  )
+
+  const askAnother = () => {
+    setRunIds((r) => ({ ...r, question: null }))
+    setStartError((e) => ({ ...e, question: null }))
+  }
+
   const activeRun = activeIntent ? runs[activeIntent].run : null
   const lens: Lens = activeIntent === "friction" && friction.run?.state === "completed" ? "friction" : "usage"
+
+  // A verified question result lights up its rows' nodes (search wins while active).
+  const questionRows =
+    activeIntent === "question" && question.run?.state === "completed" && question.run.result?.intent === "question" ? question.run.result.rows : null
+  const questionHighlight = useMemo(
+    () => (questionRows && snapshot ? highlightFromRows(questionRows.map((r) => r.id), snapshot.clusters) : NO_HIGHLIGHT),
+    [questionRows, snapshot],
+  )
+  const highlight = search.highlight.active ? search.highlight : questionHighlight
 
   if (load.status === "error") {
     return (
@@ -148,8 +188,9 @@ export default function App() {
         searchError={search.error}
         matchInfo={matchInfo}
         activeIntent={activeIntent}
-        running={{ usage: isRunActive(usage.run), friction: isRunActive(friction.run) }}
+        running={{ usage: isRunActive(usage.run), friction: isRunActive(friction.run), question: asking || isRunActive(question.run) }}
         onAsk={ask}
+        onOpenAsk={() => setActiveIntent("question")}
         view={view}
         onView={setView}
         disabled={!index}
@@ -167,7 +208,7 @@ export default function App() {
             <UsageMap
               index={index}
               lens={lens}
-              highlight={search.highlight}
+              highlight={highlight}
               selectedId={selectedId}
               focusId={focusId}
               peekId={peekId}
@@ -178,7 +219,7 @@ export default function App() {
             <div className="flex h-full min-h-[440px] flex-col">
               <MapBar index={index} focusNode={focusId ? (index.byId.get(focusId) ?? null) : null} onFocusCategory={focusCategory} lens={lens} />
               <div className="min-h-0 flex-1">
-                <ClusterList index={index} lens={lens} highlight={search.highlight} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} />
+                <ClusterList index={index} lens={lens} highlight={highlight} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} />
               </div>
             </div>
           )}
@@ -205,9 +246,16 @@ export default function App() {
                 if (focusId && index.byId.get(id)?.parent_id !== focusId) setFocusId(null)
                 selectLeaf(id)
               }}
+              onFocusCategory={(id) => {
+                setSelectedId(null)
+                focusCategory(id)
+              }}
               onPeek={setPeekId}
               onOpenDetails={() => setSheetOpen(true)}
-              onRunAgain={() => void start(activeIntent)}
+              onRunAgain={() => (activeIntent === "question" ? askAnother() : void start(activeIntent))}
+              onAsk={(q) => void askQuestion(q)}
+              onAskAnother={askAnother}
+              asking={activeIntent === "question" && asking}
               onClose={() => {
                 setActiveIntent(null)
                 setPeekId(null)
@@ -219,7 +267,17 @@ export default function App() {
             className="min-h-[240px] flex-1 scroll-mt-3 rounded-xl border bg-card px-5 py-4 lg:overflow-y-auto"
           >
             {index ? (
-              <DetailPanel index={index} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} onFocusCategory={focusCategory} />
+              <DetailPanel
+                index={index}
+                selectedId={selectedId}
+                focusId={focusId}
+                onSelectLeaf={selectLeaf}
+                onFocusCategory={focusCategory}
+                onShowFinding={(catId, leafId) => {
+                  setFocusId(catId)
+                  if (leafId) selectLeaf(leafId)
+                }}
+              />
             ) : (
               <DetailSkeleton />
             )}

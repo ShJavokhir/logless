@@ -2,7 +2,7 @@
 
 **What are people doing with our assistant, and what isn't working for them? logless answers both without anyone reading a conversation.**
 
-logless is an open, Clio-style usage-insights tool for teams that build chat assistants. An agent pipeline turns private conversations into a published map of workflows. Each workflow shows its size, how many distinct people it covers, friction signals, and generalized needs and problems. Every number is computed by code that runs in an isolated gVisor sandbox on a separate machine with no credentials, and an egress gate checks each number against a trusted reference.
+logless is an open, Clio-style usage-insights tool for teams that build chat assistants. An agent pipeline turns private conversations into a published map of workflows. Each workflow shows its size, how many distinct people it covers, friction signals, and generalized needs and problems. Every workflow count, people count and friction number is computed by code that runs in an isolated gVisor sandbox. The sandbox is on a separate machine that holds no API keys or cloud credentials; its only secret is the runner's own auth token. An egress gate checks each number against a trusted reference. Language breakdowns are computed by the backend.
 
 - **Live demo:** https://144-202-110-2.sslip.io
 - **Data:** a fixed sample of 5,000 real conversations from [WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M) (Zhao et al., ICLR 2024, ODC-BY). That is April–May 2023, 2,790 people (hashed IPs) and 55 languages, plus 50 planted evaluation fixtures.
@@ -28,7 +28,7 @@ logless is an open, Clio-style usage-insights tool for teams that build chat ass
 Browser ──HTTPS──▶ Caddy ─▶ FastAPI (app VM: keys, SQLite, pipeline, egress gate)
                                    │  Vultr VPC only (10.20.0.0/24), bearer token
                                    ▼
-                     Runner (sandbox VM: no keys, egress locked to the VPC)
+                     Runner (sandbox VM: no API keys, egress locked to the VPC)
                                    │
                                    ▼
                      docker --runtime=runsc (gVisor), --network=none, read-only,
@@ -40,7 +40,7 @@ Browser ──HTTPS──▶ Caddy ─▶ FastAPI (app VM: keys, SQLite, pipelin
 | Facets, naming, hierarchy, descriptions, privacy audit, analysis code, explanations, stories | GLM 5.3 / GLM 5.3 Flash on **Vultr Serverless Inference** |
 | Friction decisions, theme classification, identifiability, "surprising" scoring, search relevance | **TypeSafe Jev** (calibrated, typed decisions) |
 | Facet embeddings, used only to propose clusters | Fireworks `qwen3-embedding-8b` (only generalized facet sentences are embedded) |
-| Every count, share and ordering | Python code in the sandbox, checked against a reference |
+| Every workflow count, people count, friction count, share and ordering | Python code in the sandbox, checked against a reference |
 
 ### Pipeline (`logless rebuild`)
 

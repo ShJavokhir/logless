@@ -50,6 +50,10 @@ class FakeRunner:
         if "per_user" in code:
             out = {"intent": "friction", "snapshot_id": contract["snapshot_id"], "total_conversations": len(df),
                    "rows": [{"user": 1, "friction_conversations": 3}]}
+        elif contract["intent"] == "question":
+            clusters = json.loads(files["clusters.json"])
+            ref = reference.question(df, clusters, contract["plan"], contract["snapshot_id"])
+            out = reference.rounded({k: v for k, v in ref.items() if k != "_all"})
         elif contract["intent"] == "usage":
             out = reference.rounded(reference.usage(df, leaves, contract["snapshot_id"]))
         else:
@@ -84,7 +88,15 @@ STORY = ("Maya is organising a weekend away with friends and wants the assistant
          "it for outlines and comparisons, but treats every detail about cost as a guess until she has confirmed it herself.")
 
 
+Q_PLAN = {"group_by": "category", "scope_category_id": None, "measure": "people", "signal": "complaint",
+          "rank_by": "count", "limit": 3}
+
+
 def fake_chat_json(system, user, schema, **kw):
+    if schema.__name__ == "Interpretation":
+        if "divorce" in user:
+            return schema(unsupported="Only aggregate counts are published, not conversations."), {"model": "glm-5.3"}
+        return schema.model_validate({"plan": Q_PLAN}), {"model": "glm-5.3"}
     if schema.__name__ == "_StoryOut":
         return schema(first_name="Maya", text=STORY, citations=["n1", "n2", "p1", "p2"]), {"model": "glm-5.3"}
     return schema(text="{{rows.0.cluster_id}} leads with {{rows.0.conversations}} conversations."), {"model": "glm-5.3"}
@@ -294,3 +306,56 @@ def test_snapshot_serves_short_title(client):
     snap = _snap(client)
     for n in snap["categories"] + snap["clusters"]:
         assert 0 < len(n["short_title"]) <= 24
+
+
+
+# ---------------------------------------------------------------- open questions + presenter
+
+def test_question_via_api(client, monkeypatch):
+    from logless.api.ratelimit import LIMITS, RateLimiter
+    monkeypatch.setattr(appmod, "limiter", RateLimiter({**LIMITS, "analysis": (50, 10.0)}))  # one test IP
+    sid = _snap(client)["snapshot_id"]
+    body = {"intent": "question", "question": "Which categories have the most complaints?", "snapshot_id": sid}
+    r1 = client.post("/api/analyses", json=body).json()
+    r2 = client.post("/api/analyses", json={**body, "question": "  which CATEGORIES have the most complaints? "}).json()
+    d = wait(client, r1["run_id"])
+    assert r2["run_id"] == r1["run_id"] or d["state"] in ("completed", "failed")
+    assert d["state"] == "completed", d["error"]
+    assert d["intent"] == "question" and d["plan"] == Q_PLAN and d["question"] == body["question"]
+    assert d["result"]["plan"] == Q_PLAN and len(d["result"]["rows"]) == 3
+    assert all(r["id"].startswith("cat_") for r in d["result"]["rows"])
+    assert d["attempts_log"][0]["attempt"] == 1 and d["attempts_log"][0]["receipt"]["runtime"] == "runsc"
+    assert d["stages"][0]["name"] == "interpreting"
+    other = client.post("/api/analyses", json={**body, "question": "Show me the conversations about divorce"}).json()
+    assert other["run_id"] != r1["run_id"]
+    d2 = wait(client, other["run_id"])
+    assert d2["state"] == "failed" and d2["error"]["code"] == "unsupported_question" and d2["attempts_log"] == []
+    assert client.post("/api/analyses", json={"intent": "question", "snapshot_id": sid}).status_code == 422
+    assert client.post("/api/analyses", json={**body, "question": "x" * 201}).status_code == 422
+    # usage/friction runs carry the new fields too
+    u = wait(client, client.post("/api/analyses", json={"intent": "usage", "snapshot_id": sid}).json()["run_id"])
+    assert u["question"] is None and u["plan"] is None and len(u["attempts_log"]) == 1
+
+
+def test_presenter_capacity(client, monkeypatch):
+    import threading
+    from logless.api.ratelimit import HourlyBudget
+    monkeypatch.setenv("PRESENTER_KEY", "stage-key-123")
+    monkeypatch.setattr(appmod, "budget", HourlyBudget({"search": 0, "analysis": 0, "story": 0, "containment": 0}))
+    monkeypatch.setattr(appmod, "presenter_budget", HourlyBudget({"search": 50, "analysis": 50, "story": 50, "containment": 1}))
+    counter = {"n": 0, "lock": threading.Lock()}
+    monkeypatch.setattr(jev, "ask", _slow_ask(counter, 0))
+    sid = _snap(client)["snapshot_id"]
+    good, wrong = {"X-Logless-Presenter": "stage-key-123"}, {"X-Logless-Presenter": "guess"}
+    q = {"query": "email", "snapshot_id": sid}
+    assert client.post("/api/search", json=q).status_code == 429                      # public budget empty
+    assert client.post("/api/search", json=q, headers=wrong).status_code == 429       # wrong key = public
+    assert client.post("/api/search", json=q, headers=good).status_code == 200       # presenter budget
+    # the presenter skips per-IP buckets: many searches in a row still pass
+    for i in range(12):
+        assert client.post("/api/search", json={**q, "query": f"q{i}"}, headers=good).status_code == 200
+    assert client.post("/api/demo/containment", json={}, headers=good).status_code == 200
+    r = client.post("/api/demo/containment", json={}, headers=good)
+    assert r.status_code == 200   # in flight: same run, no new budget
+    monkeypatch.delenv("PRESENTER_KEY")
+    assert client.post("/api/search", json={**q, "query": "new"}, headers=good).status_code == 429   # feature off

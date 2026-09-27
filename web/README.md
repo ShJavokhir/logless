@@ -30,6 +30,13 @@ Mock-only URL switches: `?sandbox=down` (health degraded, questions return
 (serve `src/mocks/real-snapshot.json`, a saved copy of the live snapshot:
 `curl -s https://…/api/snapshot > src/mocks/real-snapshot.json`).
 
+## Live features
+
+- **Ask a question** (CONTRACTS §8b): the answer card shows the interpreted plan in words, the
+  agent loop (program sha, gVisor time, gate n/n, repairs) and the verified rows.
+- **Presenter capacity**: open the app once with `?presenter=<key>`; the key is moved to
+  localStorage, stripped from the URL, and sent as `X-Logless-Presenter` on every API call.
+
 ## Layout
 
 - `src/lib/` — `types.ts` (contract), `api.ts` (client + mock switch), `hierarchy.ts` (two-level

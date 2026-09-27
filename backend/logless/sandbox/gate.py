@@ -51,6 +51,10 @@ C_COVERAGE_AGG = "Every category and leaf exactly once"
 C_TOTAL = "Total matches the trusted reference"
 C_COUNTS = "Counts match the trusted reference"
 C_SHARES = "Shares within 1e-4 of the reference"
+C_PLAN = "Plan echoed exactly"
+C_SCOPE = "Ids are within the question's scope (no Other)"
+C_LENGTH = "Row count is min(limit, groups in scope)"
+C_QORDER = "Top rows ranked as the plan says (rank desc, then id)"
 C_ORDER = {
     "usage": "Ordered by conversations, then cluster id (Other last)",
     "friction": "Ordered by friction conversations, then cluster id (Other last)",
@@ -63,7 +67,9 @@ SCHEMA_FIELDS = {
 }
 # Names we may quote in a detail even though they are not allowed: our own input columns and the
 # obvious per-record identifiers. Anything else is reported as "an unknown field".
-QUOTABLE = SCHEMA_FIELDS | {"row", "user", "leaf_id", "category_id", "user_id", "conv_id", "conversation_id",
+QUESTION_FIELDS = frozenset({"intent", "snapshot_id", "plan", "rows", "id", "count", "base", "share", "total_count",
+                             "total_base", "group_by", "scope_category_id", "measure", "signal", "rank_by", "limit"})
+QUOTABLE = SCHEMA_FIELDS | QUESTION_FIELDS | {"row", "user", "leaf_id", "category_id", "user_id", "conv_id", "conversation_id",
                             "text", "name", "email", "content", "message", "level", "parent_id", "is_other"}
 
 
@@ -249,16 +255,18 @@ def shape_problem(doc: Any) -> str | None:
     return None
 
 
-def _walk(doc: Any, allowed_strings: set[str], bad_fields: _Diag, bad_strings: _Diag, parent: str = "") -> None:
+def _walk(doc: Any, allowed_strings: set[str], bad_fields: _Diag, bad_strings: _Diag, parent: str = "",
+          fields: set[str] | frozenset[str] = frozenset()) -> None:
     # Only called after shape_problem() passed: depth <= MAX_DEPTH, so paths stay short.
+    fields = fields or SCHEMA_FIELDS
     if isinstance(doc, dict):
         for k, v in doc.items():
-            if k not in SCHEMA_FIELDS:
+            if k not in fields:
                 bad_fields.add(f"unknown field '{k}' in {_where(parent)}" if k in QUOTABLE else f"unknown field in {_where(parent)}")
-            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, k))
+            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, k), fields)
     elif isinstance(doc, list):
         for i, v in enumerate(doc):
-            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, i))
+            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, i), fields)
     elif isinstance(doc, str):
         if doc not in allowed_strings:
             bad_strings.add(f"string value at {_where(parent)} is not allowlisted")
@@ -433,4 +441,107 @@ def check(output: str | None, *, intent: str, snapshot_id: str, leaf_ids: list[s
     v.passed = all(c.passed for c in v.checks)
     if v.passed:
         v.canonical = rounded(reference)
+    return v
+
+
+# ---------------------------------------------------------------- open questions (§8b)
+
+class QuestionRow(_Strict):
+    id: str
+    count: int
+    base: int
+    share: float
+
+
+class QuestionResult(_Strict):
+    intent: str
+    snapshot_id: str
+    plan: dict
+    rows: list[QuestionRow]
+    total_count: int
+    total_base: int
+
+
+def check_question(output: str | None, *, snapshot_id: str, plan: dict, leaf_ids: list[str], category_ids: list[str],
+                   reference: dict) -> Verdict:
+    """Validate a `question` result against the validated plan and the trusted reference for it.
+    `reference` is reference.question(...) (its `_all` holds every in-scope group)."""
+    from .plan import PLAN_KEYS, PLAN_STRINGS, Plan
+    v = Verdict(passed=False)
+
+    def add(name: str, ok: bool, detail: str) -> bool:
+        v.checks.append(Check(name, ok, detail))
+        return ok
+
+    if not add(C_OUTPUT, output is not None, "a result file was produced" if output is not None else "the job produced no result file"):
+        return v
+    size = len(output.encode("utf-8"))
+    if not add(C_SIZE, size <= MAX_BYTES, f"{size:,} bytes" if size <= MAX_BYTES else "result exceeds 1 MiB"):
+        return v
+    try:
+        doc = strict_loads(output)
+        ok = isinstance(doc, dict)
+        add(C_PARSE, ok, "one JSON object" if ok else "the document is not a JSON object")
+        if not ok:
+            return v
+    except _Reject as e:
+        add(C_PARSE, False, e.detail)
+        return v
+    problem = shape_problem(doc)
+    if not add(C_SHAPE, problem is None, problem or f"depth <= {MAX_DEPTH}, strings <= {MAX_STR} chars"):
+        return v
+
+    allowed = {"question", snapshot_id, *leaf_ids, *category_ids, *PLAN_STRINGS}
+    bad_fields, bad_strings = _Diag(), _Diag()
+    _walk(doc, allowed, bad_fields, bad_strings, fields=QUESTION_FIELDS)
+    add(C_FIELDS, not bad_fields, _summarize(bad_fields) if bad_fields else "all field names are in the schema")
+    add(C_STRINGS, not bad_strings, _summarize(bad_strings) if bad_strings else "only plan words, snapshot and node ids")
+
+    try:
+        parsed = QuestionResult.model_validate(doc)
+        echoed = Plan.model_validate(parsed.plan)
+        add(C_SCHEMA, True, "question result schema, no extra fields")
+    except ValidationError as e:
+        add(C_SCHEMA, False, _summarize(_schema_errors(e)))
+        return v
+
+    prog = parsed.model_dump()
+    add(C_INTENT, prog["intent"] == "question", "matches" if prog["intent"] == "question" else "the result names a different intent")
+    add(C_SNAPSHOT, prog["snapshot_id"] == snapshot_id,
+        "matches" if prog["snapshot_id"] == snapshot_id else "the result names a different snapshot")
+    same_plan = set(parsed.plan) == set(PLAN_KEYS) and echoed.model_dump() == Plan.model_validate(plan).model_dump()
+    add(C_PLAN, same_plan, "identical to the validated plan" if same_plan else "the echoed plan differs from the validated plan")
+
+    all_rows = {r["id"]: r for r in reference["_all"]}
+    ids = [r["id"] for r in prog["rows"]]
+    outside = [f"rows[{i}] is not a group in the question's scope" for i, x in enumerate(ids) if x not in all_rows]
+    add(C_SCOPE, not outside, _summarize(outside) if outside else f"{len(ids)} ids, all in scope")
+    negative = [f"{p} is negative" for p, n in _ints(prog) if n < 0]
+    add(C_NONNEG, not negative, _summarize(negative) if negative else "ok")
+    want = min(plan["limit"], len(all_rows))
+    add(C_LENGTH, len(ids) == want and len(set(ids)) == len(ids),
+        f"{want} rows" if len(ids) == want and len(set(ids)) == len(ids)
+        else ("duplicate ids" if len(set(ids)) != len(ids) else f"expected {want} rows"))
+    tot_ok = prog["total_count"] == reference["total_count"] and prog["total_base"] == reference["total_base"]
+    add(C_TOTAL, tot_ok, "matches" if tot_ok else "total_count or total_base differs from the reference")
+    if not outside:
+        count_bad, share_bad = _Diag(), _Diag()
+        for i, r in enumerate(prog["rows"]):
+            ref = all_rows[r["id"]]
+            for f in ("count", "base"):
+                if r[f] != ref[f]:
+                    count_bad.add(f"rows[{i}].{f} differs from the reference")
+            if abs(r["share"] - ref["share"]) > SHARE_TOL:
+                share_bad.add(f"rows[{i}].share is off by more than 1e-4")
+        add(C_COUNTS, not count_bad, _summarize(count_bad) if count_bad else "every integer equals the reference")
+        add(C_SHARES, not share_bad, _summarize(share_bad) if share_bad else "every share within 1e-4")
+    ref_ids = [r["id"] for r in reference["rows"]]
+    first_bad = next((i for i, (a, b) in enumerate(zip(ids, ref_ids)) if a != b), None)
+    top_ok = ids == ref_ids
+    add(C_QORDER, top_ok, "matches the reference top rows" if top_ok else
+        (f"rows[{first_bad}] is not the reference's row at that rank" if first_bad is not None else "different rows than the reference"))
+
+    v.passed = all(c.passed for c in v.checks)
+    if v.passed:
+        v.canonical = rounded({k: val for k, val in reference.items() if k != "_all"})
     return v

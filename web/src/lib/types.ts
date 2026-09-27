@@ -98,13 +98,17 @@ export type SearchResponse = {
   elapsed_ms: number
 }
 
+/** The two fixed questions. */
 export type Intent = "usage" | "friction"
+/** Every analysis intent, including open questions (§8b). */
+export type AnalysisIntent = Intent | "question"
 
-export type AnalysisRequest = { intent: Intent; snapshot_id: string }
+export type AnalysisRequest = { intent: AnalysisIntent; snapshot_id: string; question?: string }
 export type RunIdResponse = { run_id: string }
 
 export type RunState =
   | "queued"
+  | "interpreting"
   | "planning"
   | "executing"
   | "validating"
@@ -161,10 +165,25 @@ export type Containment = {
   leak_rejection_checks: string[]
 }
 
+/**
+ * One program version of an analysis (§8b "Attempt history"). `receipt` is null
+ * when the static pre-check rejected the program before it ran (its verdict is
+ * then a single "Static pre-check" check). `attempt` numbers program versions;
+ * `Run.attempts` counts sandbox executions.
+ */
+export type Attempt = {
+  attempt: 1 | 2
+  code: string
+  code_sha256: string
+  receipt: Receipt | null
+  verdict: Verdict
+  repair_reason: string | null
+}
+
 export type Run = {
   run_id: string
   kind: "analysis" | "story" | "containment"
-  intent: Intent | null
+  intent: AnalysisIntent | null
   snapshot_id: string
   state: RunState
   created_at: string
@@ -174,10 +193,14 @@ export type Run = {
   code: string | null // the GLM-written program (contains no data)
   receipt: Receipt | null // last sandbox execution
   verdict: Verdict | null
-  result: UsageResult | FrictionResult | null // only after the gate passed
+  result: UsageResult | FrictionResult | QuestionResult | null // only after the gate passed
   explanation: { text: string; metric_refs: string[] } | null // {{metric}} placeholders filled from `result`
   containment: Containment | null
   error: { code: string; message: string } | null // never raw stderr
+  // §8b additions (optional until every backend sends them)
+  question?: string | null // sanitized echo of the asked question
+  plan?: Plan | null // the validated plan, once interpreting finishes
+  attempts_log?: Attempt[] // every sandbox attempt, never overwritten
 }
 
 export type Story = {
@@ -239,4 +262,28 @@ export type FrictionResult = {
   snapshot_id: string
   total_conversations: number
   rows: FrictionRow[]
+}
+
+// ---------------------------------------------------------------- §8b questions
+
+export type PlanSignal = "any_friction" | Signal
+
+export type Plan = {
+  group_by: "leaf" | "category"
+  scope_category_id: string | null // restrict to one category (group_by must be "leaf")
+  measure: "conversations" | "people"
+  signal: PlanSignal | null // null = no filter
+  rank_by: "count" | "share" // share = count ÷ base (same measure, no signal filter, per group)
+  limit: number // 1..10
+}
+
+export type QuestionRow = { id: string; count: number; base: number; share: number }
+
+export type QuestionResult = {
+  intent: "question"
+  snapshot_id: string
+  plan: Plan
+  rows: QuestionRow[] // rank_by desc, then id asc; at most `limit`
+  total_count: number // over the whole scope, excluding Other
+  total_base: number
 }

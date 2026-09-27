@@ -16,6 +16,7 @@ import type {
   StoryResponse,
 } from "./types"
 import { SANDBOX_UNAVAILABLE } from "./copy"
+import { presenterHeaders } from "./presenter"
 
 export interface Api {
   readonly mode: "mock" | "live"
@@ -50,7 +51,7 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown, 
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: { ...presenterHeaders(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     })
@@ -124,6 +125,8 @@ const FRIENDLY: Record<string, string> = {
   stale_snapshot: "A newer snapshot has been published. Reload to see it.",
   no_eval_report: "No evaluation report has been published for this snapshot yet.",
   no_inputs: "This snapshot has no sandbox inputs, so live questions can't run on it.",
+  invalid_request: "That request wasn't accepted. Questions need 1–200 characters.",
+  interpretation_failed: "The question couldn't be interpreted this time. Try rephrasing it.",
   story_rejected: "The story didn't pass the privacy check twice, so nothing is shown.",
   payload_too_large: "That request was too large.",
 }

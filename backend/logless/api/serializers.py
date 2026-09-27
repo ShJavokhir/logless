@@ -11,6 +11,7 @@ import logging
 import re
 from typing import Any
 
+from ..sandbox.plan import sanitize_question
 from . import leakcheck, models
 
 log = logging.getLogger("logless.api")
@@ -222,10 +223,46 @@ def _result(res: dict | None) -> dict | None:
         rows = [{"cluster_id": _id(r["cluster_id"], LEAF_ID), "conversations": _int(r["conversations"]),
                  "friction_conversations": _int(r["friction_conversations"]), "friction_share": _share(r["friction_share"]),
                  **{s: _int(r[s]) for s in SIGNALS}, "unclear": _int(r["unclear"])} for r in res["rows"]]
+    elif intent == "question":
+        return {"intent": "question", "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID), "plan": _plan(res["plan"]),
+                "rows": [{"id": _node_id(r["id"]), "count": _int(r["count"]), "base": _int(r["base"]),
+                          "share": _share(r["share"])} for r in res["rows"]][:10],
+                "total_count": _int(res["total_count"]), "total_base": _int(res["total_base"])}
     else:
         raise Blocked("bad result intent")
     return {"intent": intent, "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID),
             "total_conversations": _int(res["total_conversations"]), "rows": rows}
+
+
+PLAN_ENUMS = {"group_by": ("leaf", "category"), "measure": ("conversations", "people"),
+              "signal": (None, "any_friction", "correction", "repeat_request", "assistant_limit", "complaint"),
+              "rank_by": ("count", "share")}
+
+
+def _plan(p: dict | None) -> dict | None:
+    if p is None:
+        return None
+    out = {}
+    for k, allowed in PLAN_ENUMS.items():
+        if p.get(k) not in allowed:
+            raise Blocked("bad plan")
+        out[k] = p.get(k)
+    out["scope_category_id"] = None if p.get("scope_category_id") is None else _id(p["scope_category_id"], CATEGORY_ID)
+    lim = _int(p["limit"])
+    if not 1 <= lim <= 10:
+        raise Blocked("bad plan")
+    out["limit"] = lim
+    return {k: out[k] for k in ("group_by", "scope_category_id", "measure", "signal", "rank_by", "limit")}
+
+
+def _attempts_log(log_: list | None) -> list[dict]:
+    out = []
+    for a in (log_ or [])[:2]:
+        out.append({"attempt": 2 if a.get("attempt") == 2 else 1, "code": _str(a["code"], 64 * 1024),
+                    "code_sha256": _id(a["code_sha256"], SHA256), "receipt": _receipt(a.get("receipt")),
+                    "verdict": _verdict(a.get("verdict")) or {"passed": False, "checks": []},
+                    "repair_reason": _opt_str(a.get("repair_reason"), 600)})
+    return out
 
 
 def _explanation(e: dict | None) -> dict | None:
@@ -262,6 +299,9 @@ def serialize_run(raw: dict) -> dict:
         "explanation": _explanation(raw.get("explanation")),
         "containment": _containment(raw.get("containment")),
         "error": {"code": _str(err["code"], 40), "message": _str(err["message"], 300)} if err else None,
+        "question": None if raw.get("question") is None else sanitize_question(_str(raw["question"], 200)),
+        "plan": _plan(raw.get("plan")),
+        "attempts_log": _attempts_log(raw.get("attempts_log")),
     }
     models.Run.model_validate(out)
     return out

@@ -10,10 +10,13 @@
 
 import { ApiError, type Api } from "@/lib/api"
 import type {
+  AnalysisIntent,
   EvalReport,
+  GateCheck,
+  Plan,
+  QuestionResult,
   FrictionResult,
   Health,
-  Intent,
   Receipt,
   Run,
   RunStage,
@@ -26,8 +29,8 @@ import type {
   Verdict,
 } from "@/lib/types"
 import snapshotJson from "./snapshot.json"
-import { CONTAINMENT_PROGRAM, FRICTION_PROGRAM, FRICTION_PROGRAM_ATTEMPT_1, USAGE_PROGRAM } from "./programs"
-import { frictionExplanation, frictionResult, usageExplanation, usageResult } from "./results"
+import { CONTAINMENT_PROGRAM, FRICTION_PROGRAM, FRICTION_PROGRAM_ATTEMPT_1, USAGE_PROGRAM, questionProgram } from "./programs"
+import { frictionExplanation, frictionResult, interpretQuestion, questionExplanation, questionResult, usageExplanation, usageResult } from "./results"
 import { mockStory } from "./stories"
 
 let SNAPSHOT = snapshotJson as unknown as Snapshot
@@ -69,7 +72,10 @@ type Phase = {
 type MockRun = {
   id: string
   kind: Run["kind"]
-  intent: Intent | null
+  intent: AnalysisIntent | null
+  question?: string
+  plan?: Plan | null
+  repairReason?: string | null
   createdAt: number
   phases: Phase[]
   finalState: "completed" | "failed"
@@ -77,7 +83,7 @@ type MockRun = {
   shas: string[]
   receipts: Receipt[] // per execution
   verdicts: Verdict[] // per validation
-  result: UsageResult | FrictionResult | null
+  result: UsageResult | FrictionResult | QuestionResult | null
   explanation: Run["explanation"]
   containment: Run["containment"]
   error: Run["error"]
@@ -108,20 +114,34 @@ function receiptFor(createdAt: number, phase: Phase, sha: string, outputBytes: n
   }
 }
 
-function passedChecks(intent: Intent, rows: number, ints: number, bytes: number, snapshotId: string): Verdict {
-  const order = intent === "usage" ? "conversations desc, then cluster_id asc" : "friction_conversations desc, then cluster_id asc"
-  return {
-    passed: true,
-    checks: [
-      { name: `Schema matches the ${intent} contract`, passed: true, detail: `intent, snapshot_id, total_conversations and ${rows} rows; no unknown keys` },
-      { name: "Only allow-listed strings", passed: true, detail: `${rows} cluster ids, 1 snapshot id, 1 intent name` },
-      { name: "Counts equal the trusted reference", passed: true, detail: `${ints} integers exact${intent === "usage" ? `; ${rows} shares within 1e-4` : `; ${rows} shares within 1e-4`}` },
-      { name: "Ordering follows the rule", passed: true, detail: order },
-      { name: "Every cluster exactly once", passed: true, detail: `${rows} of ${rows} leaf clusters` },
-      { name: "Snapshot id matches", passed: true, detail: snapshotId },
-      { name: "Size ≤ 1 MiB", passed: true, detail: `${(bytes / 1024).toFixed(1)} KiB` },
-    ],
-  }
+// Fixed gate vocabulary (CONTRACTS §8 / §8b); details never echo output values.
+function passedChecks(intent: AnalysisIntent, rows: number, bytes: number, plan?: Plan | null): Verdict {
+  const q = intent === "question"
+  const order = q
+    ? `Ordered by ${plan?.rank_by === "share" ? "share" : "count"}, then id`
+    : intent === "usage"
+      ? "Ordered by conversations, then cluster id (Other last)"
+      : "Ordered by friction conversations, then cluster id (Other last)"
+  const checks: GateCheck[] = [
+    { name: "Result file received", passed: true, detail: "a result file was produced" },
+    { name: "Size within 1 MiB", passed: true, detail: `${bytes.toLocaleString("en-US")} bytes` },
+    { name: "Strict JSON parse", passed: true, detail: "one JSON object" },
+    { name: "Document within structural limits", passed: true, detail: "depth <= 6, strings <= 64 chars" },
+    { name: "Only allowlisted field names", passed: true, detail: "all field names are in the schema" },
+    { name: "Only allowlisted string values", passed: true, detail: q ? "only intent, snapshot, plan and node ids" : "only intent, snapshot and cluster ids" },
+    { name: "Schema matches exactly", passed: true, detail: `${intent} result schema, no extra fields` },
+    { name: "Intent matches the request", passed: true, detail: "matches" },
+    { name: "Snapshot id is the current snapshot", passed: true, detail: "matches" },
+    ...(q ? [{ name: "Plan matches the validated plan", passed: true, detail: "echoed exactly" }] : []),
+    { name: q ? "Ids are within the plan's scope" : "Cluster ids belong to this snapshot", passed: true, detail: `${rows} ids, all allowed` },
+    { name: "Counts are non-negative integers", passed: true, detail: "ok" },
+    { name: q ? "Row count equals min(limit, groups in scope)" : "Every leaf exactly once", passed: true, detail: q ? `${rows} rows` : `${rows} of ${rows} present once` },
+    { name: "Total matches the trusted reference", passed: true, detail: "matches" },
+    { name: "Counts match the trusted reference", passed: true, detail: "every integer equals the reference" },
+    { name: "Shares within 1e-4 of the reference", passed: true, detail: "every share within 1e-4" },
+    { name: order, passed: true, detail: "ok" },
+  ]
+  return { passed: true, checks }
 }
 
 function withFailed(v: Verdict, failName: string, detail: string): Verdict {
@@ -194,72 +214,129 @@ export async function createMockApi(): Promise<Api> {
       attempts: execs.length,
       code: r.codes.length && codeVisible ? r.codes[Math.min(codeIdx, r.codes.length - 1)] : null,
       receipt: doneExecs.length ? r.receipts[doneExecs.length - 1] ?? null : null,
-      verdict: lastVerdict,
+      verdict: r.kind === "containment" ? (finished ? (r.verdicts[0] ?? null) : null) : lastVerdict,
       result: gatePassed ? r.result : null,
       explanation: explained && t >= explained.end ? r.explanation : null,
       containment: finished ? r.containment : null,
       error: finished ? r.error : null,
+      ...(r.kind === "analysis"
+        ? {
+            question: r.question ?? null,
+            plan: (() => {
+              const interp = r.phases.find((p) => p.name === "interpreting")
+              return r.plan && (!interp || t >= interp.end) ? r.plan : null
+            })(),
+            // an attempt is logged once its gate verdict exists
+            attempts_log: validations.map((_, i) => ({
+              attempt: (i + 1) as 1 | 2,
+              code: r.codes[i],
+              code_sha256: r.shas[i],
+              receipt: r.receipts[i],
+              verdict: r.verdicts[i],
+              repair_reason: i === 1 ? (r.repairReason ?? null) : null,
+            })),
+          }
+        : {}),
     }
   }
 
-  async function newAnalysis(intent: Intent): Promise<MockRun> {
+  // Example question that takes the repair path (attempt 1 rejected on shares).
+  const REPAIR_QUESTION = /assistant limits most often, as a share/i
+
+  async function newAnalysis(intent: AnalysisIntent, question?: string): Promise<MockRun> {
     const createdAt = Date.now()
     const id = `run_${hex(12)}`
-    const result = intent === "usage" ? usageResult(SNAPSHOT) : frictionResult(SNAPSHOT)
-    const bytes = JSON.stringify(result).length
-    const rows = result.rows.length
-    const ints = rows * (intent === "usage" ? 2 : 7) + 1
-    const ok = passedChecks(intent, rows, ints, bytes, SNAPSHOT.snapshot_id)
-    const repair = intent === "friction" || gateFails
+    const q = intent === "question"
+    const interp = q ? interpretQuestion(question ?? "", SNAPSHOT) : null
+    const T0 = q ? 1350 : 150 // interpreting takes the first ~1.2 s of a question run
 
-    if (!repair) {
-      const phases: Phase[] = [
-        { name: "planning", state: "planning", start: 150, end: 1700, detail: "GLM is writing a program from the output contract (it sees no data)", doneDetail: "Program written from the usage contract and file schema" },
-        { name: "executing", state: "executing", start: 1700, end: 2750, detail: "Running in the gVisor sandbox · no network · read-only root", doneDetail: "Exit 0 · result.json written", execution: 1 },
-        { name: "validating", state: "validating", start: 2750, end: 3300, detail: "Egress gate checking every value against the trusted reference", doneDetail: "7 of 7 gate checks passed" },
-        { name: "explaining", state: "explaining", start: 3300, end: 5600, detail: "GLM is describing the validated result with placeholders only", doneDetail: "Explanation written; numbers filled from the validated result" },
-      ]
-      const sha = await sha256(USAGE_PROGRAM)
+    const interpreting: Phase[] = q
+      ? [
+          {
+            name: "interpreting",
+            state: "interpreting",
+            start: 150,
+            end: T0,
+            detail: "GLM is mapping the question to a closed-vocabulary plan (it sees titles, not data)",
+            doneDetail: interp && "plan" in interp ? "Plan validated against the schema" : "Question can't be expressed as a plan",
+            outcome: interp && "plan" in interp ? "done" : "failed",
+          },
+        ]
+      : []
+
+    // Unsupported question: the run ends after interpreting.
+    if (interp && "unsupported" in interp) {
       return {
-        id, kind: "analysis", intent, createdAt, phases, finalState: "completed",
-        codes: [USAGE_PROGRAM], shas: [sha],
-        receipts: [receiptFor(createdAt, phases[1], sha, bytes, { elapsed_ms: Math.round(jitter(860, 960)) })],
-        verdicts: [ok], result, explanation: usageExplanation(result as UsageResult), containment: null, error: null,
+        id, kind: "analysis", intent, question, plan: null, createdAt, phases: interpreting, finalState: "failed",
+        codes: [], shas: [], receipts: [], verdicts: [], result: null, explanation: null, containment: null,
+        error: { code: "unsupported_question", message: interp.unsupported },
       }
     }
 
-    // Repair variant: attempt 1 sorts by share and is rejected by the gate.
-    const program1 = intent === "friction" ? FRICTION_PROGRAM_ATTEMPT_1 : USAGE_PROGRAM
-    const program2 = intent === "friction" ? FRICTION_PROGRAM : USAGE_PROGRAM
-    const [sha1, sha2] = await Promise.all([sha256(program1), sha256(program2)])
-    const orderFail = withFailed(
-      ok,
-      "Ordering follows the rule",
-      intent === "friction"
-        ? "rows sorted by friction_share; the rule is friction_conversations desc, then cluster_id asc"
-        : "rows are not in the required order",
-    )
+    const plan = interp && "plan" in interp ? interp.plan : null
+    const result = q ? questionResult(SNAPSHOT, plan!) : intent === "usage" ? usageResult(SNAPSHOT) : frictionResult(SNAPSHOT)
+    const bytes = JSON.stringify(result).length
+    const ok = passedChecks(intent, result.rows.length, bytes, plan)
+    const explanation =
+      result.intent === "question" ? questionExplanation(result) : result.intent === "usage" ? usageExplanation(result) : frictionExplanation(result)
+    const repair = intent === "friction" || gateFails || (q && REPAIR_QUESTION.test(question ?? ""))
+    const good = q ? questionProgram(plan!) : intent === "usage" ? USAGE_PROGRAM : FRICTION_PROGRAM
+    const planningPhase: Phase = {
+      name: "planning",
+      state: "planning",
+      start: T0,
+      end: T0 + 1450,
+      detail: "GLM is writing a program from the plan and file schema (it sees no data)",
+      doneDetail: q ? "Program written for the validated plan" : `Program written from the ${intent} contract and file schema`,
+    }
+
+    if (!repair) {
+      const phases: Phase[] = [
+        ...interpreting,
+        planningPhase,
+        { name: "executing", state: "executing", start: T0 + 1450, end: T0 + 2500, detail: "Running in the gVisor sandbox · no network · read-only root", doneDetail: "Exit 0 · result.json written", execution: 1 },
+        { name: "validating", state: "validating", start: T0 + 2500, end: T0 + 2950, detail: "Egress gate checking every value against the trusted reference", doneDetail: `passed ${ok.checks.length}/${ok.checks.length} checks` },
+        { name: "explaining", state: "explaining", start: T0 + 2950, end: T0 + 4900, detail: "GLM is describing the validated result with placeholders only", doneDetail: "model text validated (placeholders only, no digits)" },
+      ]
+      const sha = await sha256(good)
+      return {
+        id, kind: "analysis", intent, question, plan, createdAt, phases, finalState: "completed",
+        codes: [good], shas: [sha],
+        receipts: [receiptFor(createdAt, phases[interpreting.length + 1], sha, bytes, { elapsed_ms: Math.round(jitter(2300, 2700)) })],
+        verdicts: [ok], result, explanation, containment: null, error: null,
+      }
+    }
+
+    // Repair variant: attempt 1 is rejected by one gate check, GLM repairs it.
+    const bad = q ? questionProgram(plan!, true) : intent === "friction" ? FRICTION_PROGRAM_ATTEMPT_1 : USAGE_PROGRAM
+    const [sha1, sha2] = await Promise.all([sha256(bad), sha256(good)])
+    const failName = q ? "Shares within 1e-4 of the reference" : ok.checks[ok.checks.length - 1].name
+    const failDetail = q ? "rows[0].share differs from the reference (+4 more)" : "rows[1] is out of order (+12 more)"
+    const rejected = withFailed(ok, failName, failDetail)
     const phases: Phase[] = [
-      { name: "planning", state: "planning", start: 150, end: 1550, detail: "GLM is writing a program from the output contract (it sees no data)", doneDetail: `Program written from the ${intent} contract and file schema` },
-      { name: "executing", state: "executing", start: 1550, end: 2550, detail: "Attempt 1 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 1 · exit 0 · result.json written", execution: 1 },
-      { name: "validating", state: "validating", start: 2550, end: 3050, detail: "Egress gate checking attempt 1", doneDetail: "Rejected: ordering does not follow the rule · nothing released", outcome: "failed" },
-      { name: "repairing", state: "repairing", start: 3050, end: 4450, detail: "GLM is fixing the program using the gate's check names (no data)", doneDetail: "Sort key changed to friction_conversations, then cluster_id" },
-      { name: "executing", state: "executing", start: 4450, end: 5450, detail: "Attempt 2 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 2 · exit 0 · result.json written", execution: 2 },
-      { name: "validating", state: "validating", start: 5450, end: 5950, detail: "Egress gate checking attempt 2", doneDetail: gateFails ? "Rejected again · run stopped after 2 attempts" : "7 of 7 gate checks passed", outcome: gateFails ? "failed" : "done" },
+      ...interpreting,
+      planningPhase,
+      { name: "executing", state: "executing", start: T0 + 1450, end: T0 + 2450, detail: "Attempt 1 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 1 · exit 0 · result.json written", execution: 1 },
+      { name: "validating", state: "validating", start: T0 + 2450, end: T0 + 2900, detail: "Egress gate checking attempt 1", doneDetail: `Rejected: ${failName} · nothing released`, outcome: "failed" },
+      { name: "repairing", state: "repairing", start: T0 + 2900, end: T0 + 4300, detail: "GLM is fixing the program from the failed check names only (no data)", doneDetail: `Repaired for: ${failName}` },
+      { name: "executing", state: "executing", start: T0 + 4300, end: T0 + 5300, detail: "Attempt 2 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 2 · exit 0 · result.json written", execution: 2 },
+      { name: "validating", state: "validating", start: T0 + 5300, end: T0 + 5750, detail: "Egress gate checking attempt 2", doneDetail: gateFails ? "Rejected again · run stopped after 2 attempts" : `passed ${ok.checks.length}/${ok.checks.length} checks`, outcome: gateFails ? "failed" : "done" },
     ]
     if (!gateFails) {
-      phases.push({ name: "explaining", state: "explaining", start: 5950, end: 8100, detail: "GLM is describing the validated result with placeholders only", doneDetail: "Explanation written; numbers filled from the validated result" })
+      phases.push({ name: "explaining", state: "explaining", start: T0 + 5750, end: T0 + 7700, detail: "GLM is describing the validated result with placeholders only", doneDetail: "model text validated (placeholders only, no digits)" })
     }
+    const execIdx = phases.findIndex((p) => p.execution === 1)
+    const execIdx2 = phases.findIndex((p) => p.execution === 2)
     return {
-      id, kind: "analysis", intent, createdAt, phases, finalState: gateFails ? "failed" : "completed",
-      codes: [program1, program2], shas: [sha1, sha2],
+      id, kind: "analysis", intent, question, plan, createdAt, phases, finalState: gateFails ? "failed" : "completed",
+      codes: [bad, good], shas: [sha1, sha2], repairReason: failName,
       receipts: [
-        receiptFor(createdAt, phases[1], sha1, bytes, { elapsed_ms: Math.round(jitter(880, 980)) }),
-        receiptFor(createdAt, phases[4], sha2, bytes, { elapsed_ms: Math.round(jitter(870, 950)) }),
+        receiptFor(createdAt, phases[execIdx], sha1, bytes, { elapsed_ms: Math.round(jitter(2250, 2650)) }),
+        receiptFor(createdAt, phases[execIdx2], sha2, bytes, { elapsed_ms: Math.round(jitter(2250, 2650)) }),
       ],
-      verdicts: [orderFail, gateFails ? orderFail : ok],
+      verdicts: [rejected, gateFails ? rejected : ok],
       result: gateFails ? null : result,
-      explanation: gateFails ? null : intent === "usage" ? usageExplanation(result as UsageResult) : frictionExplanation(result as FrictionResult),
+      explanation: gateFails ? null : explanation,
       containment: null,
       error: gateFails ? { code: "gate_rejected", message: "The program's output failed the egress gate on both attempts, so nothing was released." } : null,
     }
@@ -272,8 +349,8 @@ export async function createMockApi(): Promise<Api> {
       { name: "runaway", state: "executing", start: 150, end: 150 + elapsed + 60, detail: "Busy-loop program running · deadline 2,000 ms", doneDetail: `Deadline reached · killed at ${elapsed.toLocaleString("en-US")} ms`, outcome: "failed", execution: 1 },
       { name: "cleanup", state: "executing", start: 150 + elapsed + 60, end: 150 + elapsed + 420, detail: "Supervisor removing the container", doneDetail: "Container removed · no orphans with the job label" },
       { name: "health", state: "validating", start: 150 + elapsed + 420, end: 150 + elapsed + 700, detail: "Checking app and runner health", doneDetail: "App health ok · runner accepting jobs" },
-      { name: "followup", state: "validating", start: 150 + elapsed + 700, end: 150 + elapsed + 1850, detail: "Running a normal usage analysis in a fresh sandbox", doneDetail: "Follow-up run passed all 7 gate checks" },
-      { name: "leak_attempt", state: "validating", start: 150 + elapsed + 1850, end: 150 + elapsed + 2900, detail: "A program tries to export one row per person", doneDetail: "Rejected by the egress gate · nothing released", outcome: "done" },
+      { name: "followup", state: "validating", start: 150 + elapsed + 700, end: 150 + elapsed + 1850, detail: "Running a normal usage analysis in a fresh sandbox", doneDetail: "exit 0 · gate passed 17/17 checks" },
+      { name: "leak_attempt", state: "validating", start: 150 + elapsed + 1850, end: 150 + elapsed + 2900, detail: "A program tries to export one row per person", doneDetail: "gate rejected the per-user rows: Only allowlisted field names, Schema matches exactly", outcome: "done" },
     ]
     const sha = await sha256(CONTAINMENT_PROGRAM)
     const started = createdAt + phases[0].start
@@ -288,11 +365,18 @@ export async function createMockApi(): Promise<Api> {
           started_at: iso(started), finished_at: iso(started + elapsed), host: HOST,
         },
       ],
-      verdicts: [], result: null, explanation: null,
+      verdicts: [
+        withFailed(
+          withFailed(passedChecks("usage", 5050, 999), "Only allowlisted field names", "unknown field 'user' in rows[0]; unknown field 'user' in rows[1] (+18 more)"),
+          "Schema matches exactly",
+          "missing field at rows[0].share; missing field at rows[0].users (+97 more)",
+        ),
+      ],
+      result: null, explanation: null,
       containment: {
         deadline_ms: 2000, elapsed_ms: elapsed, killed: true, container_removed: true, app_health: "ok",
         followup_passed: true, leak_attempt_rejected: true,
-        leak_rejection_checks: ["Unknown field 'user' in rows", "Per-person rows are not allowed", "Every cluster exactly once"],
+        leak_rejection_checks: ["Only allowlisted field names", "Schema matches exactly"],
       },
       error: null,
     }
@@ -328,18 +412,22 @@ export async function createMockApi(): Promise<Api> {
       return { snapshot_id: req.snapshot_id, query: req.query, results, elapsed_ms: Math.round(performance.now() - t0) }
     },
 
-    async startAnalysis({ intent, snapshot_id }) {
+    async startAnalysis({ intent, snapshot_id, question }) {
       await sleep(jitter(60, 140))
+      if (intent === "question" && (!question || !question.trim() || question.length > 200)) {
+        throw new ApiError(422, "invalid_request", "question must be 1–200 characters")
+      }
       if (budgetOut) throw budget()
       if (sandboxDown) throw unreachable()
       if (snapshot_id !== SNAPSHOT.snapshot_id) throw new ApiError(409, "stale_snapshot", "This snapshot is no longer current. Reload to see the latest one.")
-      const key = `${intent}:${snapshot_id}`
+      const norm = (question ?? "").trim().toLowerCase().replace(/\s+/g, " ")
+      const key = intent === "question" ? `question:${norm}:${snapshot_id}` : `${intent}:${snapshot_id}`
       const existing = inflight.get(key)
       if (existing) {
         const r = runs.get(existing)
         if (r && !isFinished(r)) return { run_id: existing }
       }
-      const run = await newAnalysis(intent)
+      const run = await newAnalysis(intent, question?.trim())
       runs.set(run.id, run)
       inflight.set(key, run.id)
       return { run_id: run.id }

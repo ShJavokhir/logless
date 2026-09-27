@@ -60,6 +60,18 @@ BUDGET_DEFAULTS: dict[str, tuple[str, int, str]] = {
 WINDOW_S = 3600.0
 
 
+PRESENTER_BUDGET_DEFAULTS: dict[str, tuple[str, int]] = {
+    "search": ("PRESENTER_BUDGET_SEARCH", 300),
+    "analysis": ("PRESENTER_BUDGET_ANALYSES", 60),
+    "story": ("PRESENTER_BUDGET_STORIES", 30),
+    "containment": ("PRESENTER_BUDGET_CONTAINMENT", 30),
+}
+
+
+def presenter_limits() -> dict[str, int]:
+    return {k: max(0, int(os.environ.get(env, default))) for k, (env, default) in PRESENTER_BUDGET_DEFAULTS.items()}
+
+
 class HourlyBudget:
     """Global (all visitors) sliding-window caps on calls that cost provider or sandbox time.
     Cached answers and in-flight coalescing never consume budget."""

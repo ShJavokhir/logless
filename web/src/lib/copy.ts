@@ -14,7 +14,19 @@ export const RUN_SUBTITLE =
 
 export const PEOPLE_HINT = "Distinct people, approximated from hashed IP addresses (shared or changing IPs make this approximate)"
 
-export const AGGREGATE_ONLY_HINT = "No one can open a conversation here. Every number comes from code executed in a sandbox."
+export const AGGREGATE_ONLY_HINT =
+  "All workflow counts, people and friction numbers are computed by code in a gVisor sandbox and checked by a gate. No one can open a conversation here."
+
+export const ASK_LABEL = "Ask a question"
+
+export const EXAMPLE_QUESTIONS = [
+  "Which coding workflows have the most distinct people repeating requests?",
+  "Where do people hit assistant limits most often, as a share?",
+  "Which categories have the most complaints?",
+] as const
+
+export const ASK_SCOPE_NOTE =
+  "Answers count conversations or distinct people, by workflow or category, optionally with one friction signal. Other or unclear is left out."
 
 export const SANDBOX_UNAVAILABLE = "Live analysis unavailable; the saved snapshot is still browsable."
 

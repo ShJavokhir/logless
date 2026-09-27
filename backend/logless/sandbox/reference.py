@@ -104,3 +104,66 @@ def rounded(doc):
     if isinstance(doc, float):
         return round(doc, SHARE_DP)
     return doc
+
+
+# ---------------------------------------------------------------- open questions (docs/CONTRACTS.md §8b)
+
+def question_scope(clusters: list[dict], plan: dict) -> tuple[list[str], set[str]]:
+    """(group ids in scope, leaf ids whose rows are in scope). Other or unclear — any is_other
+    leaf and any is_other category, plus cl_other — never counts."""
+    cats = {c["id"]: c for c in clusters if int(c["level"]) == 1}
+    other_cats = {cid for cid, c in cats.items() if c.get("is_other")}
+    leaves = [c for c in clusters if int(c["level"]) == 2 and not c.get("is_other") and c["id"] != "cl_other"
+              and c.get("parent_id") not in other_cats]
+    scope = plan.get("scope_category_id")
+    if scope is not None:
+        leaves = [c for c in leaves if c["parent_id"] == scope]
+    leaf_ids = {c["id"] for c in leaves}
+    if plan["group_by"] == "leaf":
+        groups = sorted(leaf_ids)
+    else:
+        groups = sorted(cid for cid in cats if cid not in other_cats and any(c["parent_id"] == cid for c in leaves))
+    return groups, leaf_ids
+
+
+def _signal_mask(df: pd.DataFrame, signal: str | None) -> pd.Series:
+    if signal is None:
+        return pd.Series(True, index=df.index)
+    if signal == "any_friction":
+        return (df[list(SIGNALS)] == "observed").any(axis=1)
+    return df[signal] == "observed"
+
+
+def _measure(df: pd.DataFrame, mask: pd.Series, measure: str) -> int:
+    return int(mask.sum()) if measure == "conversations" else int(df.loc[mask, "user"].nunique())
+
+
+def question(df: pd.DataFrame, clusters: list[dict], plan: dict, snapshot_id: str) -> dict:
+    """Trusted answer for a validated Plan. Returns the result document (top `limit` rows) plus
+    `_all`: every in-scope group's row, which the gate uses for per-id checks."""
+    groups, leaf_ids = question_scope(clusters, plan)
+    in_scope = df["leaf_id"].isin(leaf_ids)
+    sig = _signal_mask(df, plan["signal"])
+    key_col = "leaf_id" if plan["group_by"] == "leaf" else "category_id"
+    rows = []
+    for gid in groups:
+        g = in_scope & (df[key_col] == gid)
+        count, base = _measure(df, g & sig, plan["measure"]), _measure(df, g, plan["measure"])
+        rows.append({"id": gid, "count": count, "base": base, "share": count / base if base else 0.0})
+    rows.sort(key=question_sort_key(plan["rank_by"]))
+    return {
+        "intent": "question", "snapshot_id": snapshot_id, "plan": dict(plan),
+        "rows": rows[: plan["limit"]],
+        "total_count": _measure(df, in_scope & sig, plan["measure"]),
+        "total_base": _measure(df, in_scope, plan["measure"]),
+        "_all": rows,
+    }
+
+
+def question_sort_key(rank_by: str):
+    """rank_by desc, then id asc. Shares compare as exact fractions, so float rounding can
+    never reorder near-ties."""
+    from fractions import Fraction
+    if rank_by == "count":
+        return lambda r: (-r["count"], r["id"])
+    return lambda r: (-(Fraction(r["count"], r["base"]) if r["base"] else Fraction(0)), r["id"])

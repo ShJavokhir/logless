@@ -208,6 +208,40 @@ class FrictionResult(_Out):
     rows: list[FrictionRow]
 
 
+class Plan(_Out):
+    group_by: Literal["leaf", "category"]
+    scope_category_id: str | None
+    measure: Literal["conversations", "people"]
+    signal: Literal["any_friction", "correction", "repeat_request", "assistant_limit", "complaint"] | None
+    rank_by: Literal["count", "share"]
+    limit: int = Field(ge=1, le=10)
+
+
+class QuestionRow(_Out):
+    id: str
+    count: int
+    base: int
+    share: float
+
+
+class QuestionResult(_Out):
+    intent: Literal["question"]
+    snapshot_id: str
+    plan: Plan
+    rows: list[QuestionRow]
+    total_count: int
+    total_base: int
+
+
+class Attempt(_Out):
+    attempt: Literal[1, 2]
+    code: str
+    code_sha256: str
+    receipt: Receipt | None          # null only when the static pre-check rejected the program (not executed)
+    verdict: Verdict
+    repair_reason: str | None
+
+
 class Explanation(_Out):
     text: str
     metric_refs: list[str]
@@ -232,7 +266,7 @@ class Error(_Out):
 class Run(_Out):
     run_id: str
     kind: Literal["analysis", "story", "containment"]
-    intent: Literal["usage", "friction"] | None
+    intent: Literal["usage", "friction", "question"] | None
     snapshot_id: str
     state: Literal["queued", "planning", "executing", "validating", "repairing", "explaining", "completed", "failed"]
     created_at: str
@@ -242,10 +276,13 @@ class Run(_Out):
     code: str | None
     receipt: Receipt | None
     verdict: Verdict | None
-    result: UsageResult | FrictionResult | None
+    result: UsageResult | FrictionResult | QuestionResult | None
     explanation: Explanation | None
     containment: Containment | None
     error: Error | None
+    question: str | None
+    plan: Plan | None
+    attempts_log: list[Attempt]
 
 
 class Story(_Out):
@@ -286,8 +323,9 @@ class SearchIn(_In):
 
 
 class AnalysisIn(_In):
-    intent: Literal["usage", "friction"]
+    intent: Literal["usage", "friction", "question"]
     snapshot_id: str = Field(max_length=40)
+    question: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class StoryIn(_In):
