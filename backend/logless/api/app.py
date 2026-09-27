@@ -473,7 +473,16 @@ def create_app() -> FastAPI:
         if row is None:
             return err(404, "no_eval_report", "No evaluation report for the current snapshot yet.",
                        snapshot_id=snap_id, generated_at=None, checks=[])
-        return serializers.serialize_eval(json.loads(row["json"]))
+        rep = json.loads(row["json"])
+        # Live-run checks (containment, questions) are cheap DB lookups: refresh them on every read so runs
+        # made after the report was written (e.g. after a live intake republished the map) are reflected.
+        try:
+            from ..eval.report import sandbox_checks
+            fresh = {c["id"]: c for c in sandbox_checks(snap_id)}
+            rep["checks"] = [fresh.pop(c.get("id"), c) for c in rep.get("checks", [])] + list(fresh.values())
+        except Exception:  # noqa: BLE001 — the stored report is still valid on its own
+            log.warning("eval: live-run check refresh failed")
+        return serializers.serialize_eval(rep)
 
     from .intake import router as intake_router; app.include_router(intake_router)  # noqa: E702 — §11 live intake
     return BodyLimit(app)  # type: ignore[return-value]

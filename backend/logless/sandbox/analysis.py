@@ -362,7 +362,11 @@ INTERPRET_SYSTEM = (
     "count; \"What's not working?\" means conversations with any friction by workflow, ranked by count.\n"
     "Return {\"unsupported\": \"<one short sentence, no numbers>\"} if the question asks for individual people, users, "
     "conversations, messages, quotes, contact details, raw rows, anything over time, or anything the Plan cannot "
-    "express. Otherwise return {\"plan\": {...}} using only ids from the lists given."
+    "express. Requests to show, list, read, summarize or search conversations (e.g. 'show me the conversations "
+    "about X') are ALWAYS unsupported — conversations are never shown. A topic or keyword that is not itself one of "
+    "the listed workflows or categories cannot be filtered on: do not substitute a nearby category or workflow for "
+    "it — answer unsupported instead. Only answer with a plan when the plan answers the question as asked. "
+    "Otherwise return {\"plan\": {...}} using only ids from the lists given."
 )
 
 

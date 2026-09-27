@@ -36,7 +36,7 @@ Don't copy any conversation text into the output.
 
 ---
 
-# Theme labelling (v1, taxonomy frozen at build b_20260927T011827)
+# Theme labelling (v2 taxonomy: build b_20260927T032109; v1 was b_20260927T011827)
 
 For each conversation, choose the one published workflow (leaf) that best describes what the user is mainly trying to get done. Use the workflow definitions file (title, description, includes, excludes). Judge by the user's goal, not by the tool or format they used. If the conversation covers several goals, pick the dominant one: the goal that most of the user's turns serve. If no workflow fits well, answer `cl_other` (Other or unclear). Don't force a weak fit.
 

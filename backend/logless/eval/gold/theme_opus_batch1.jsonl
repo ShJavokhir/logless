@@ -1,100 +1,100 @@
-{"conv_id": "c_40400249e166", "labeller": "opus", "theme": "cl_d728fd", "confidence": "medium", "note": "playful mixed probes: food game, riddle, random questions; no single topic"}
-{"conv_id": "c_780406d4075e", "labeller": "opus", "theme": "cl_9482d8", "confidence": "high", "note": "build Stable Diffusion prompts from a template"}
-{"conv_id": "c_ce7e0fde663b", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "C++ array exercise, then simplify"}
-{"conv_id": "c_a50296b9e6ff", "labeller": "opus", "theme": "cl_032f5a", "confidence": "high", "note": "multi-turn Ubuntu server setup: root, Apache, PHP, FTP"}
-{"conv_id": "c_059d6b749b1c", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "high", "note": "comic series facts and character list"}
-{"conv_id": "c_749c0f46bf85", "labeller": "opus", "theme": "cl_other", "confidence": "medium", "note": "context-free one-line pseudocode request; goal unknowable"}
-{"conv_id": "c_cdaad62202c2", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "medium", "note": "semaphore and pointer concepts with C example; rewrite-style tail"}
-{"conv_id": "c_95fc17a76bbc", "labeller": "opus", "theme": "cl_1e22e9", "confidence": "low", "note": "landing page spec document, no code; near-tie with marketing/quick-ideas leaves"}
-{"conv_id": "c_d904724fcbdd", "labeller": "opus", "theme": "cl_16b63f", "confidence": "low", "note": "Chinese medicine acupoints explainer; China-topic vs general explanation tie"}
-{"conv_id": "c_c87b1fffffa6", "labeller": "opus", "theme": "cl_3edd7b", "confidence": "medium", "note": "long company report incl. revenue, promotion, service quality; coursework-style"}
-{"conv_id": "c_43759e27269e", "labeller": "opus", "theme": "cl_23081f", "confidence": "medium", "note": "fan scenario plotting for a TV series dragon battle"}
-{"conv_id": "c_3b02aa911dd4", "labeller": "opus", "theme": "cl_d728fd", "confidence": "high", "note": "test message and presence check"}
-{"conv_id": "c_87241be73eb3", "labeller": "opus", "theme": "cl_032f5a", "confidence": "high", "note": "how to set text columns in presentation software"}
-{"conv_id": "c_22f12f55d635", "labeller": "opus", "theme": "cl_562082", "confidence": "medium", "note": "compress Unity C# match-3 code; game leaf also plausible"}
-{"conv_id": "c_75f9518538f9", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "medium", "note": "summarize short classics scholarship passage"}
-{"conv_id": "c_6e4c54c38b64", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "System V semaphore ops in C IPC program"}
-{"conv_id": "c_7d7b443f869f", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "high", "note": "thesis outline and content on school football teaching"}
-{"conv_id": "c_b21466d0e591", "labeller": "opus", "theme": "cl_7ef005", "confidence": "high", "note": "beat-em-up enemy and boss movesets"}
-{"conv_id": "c_42ee3be872fe", "labeller": "opus", "theme": "cl_d728fd", "confidence": "low", "note": "types anime catchphrases to see if bot knows them; trivia leaf also fits"}
-{"conv_id": "c_ea0ce985d48f", "labeller": "opus", "theme": "cl_218382", "confidence": "high", "note": "sequence of questions on analysis curricula and function spaces"}
-{"conv_id": "c_f7f14abc22ca", "labeller": "opus", "theme": "cl_d728fd", "confidence": "medium", "note": "greeting, trick questions and tongue twister testing the bot"}
-{"conv_id": "c_b8bdb996ec1d", "labeller": "opus", "theme": "cl_9482d8", "confidence": "high", "note": "request for a generated photo"}
-{"conv_id": "c_eecd0d8d3c6a", "labeller": "opus", "theme": "cl_87cd73", "confidence": "high", "note": "reply email to departing colleague about handover"}
-{"conv_id": "c_47a3882ec120", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "medium", "note": "critical appraisal and summary table of research papers"}
-{"conv_id": "c_25f85ff373a7", "labeller": "opus", "theme": "cl_693721", "confidence": "high", "note": "fetish scatological sitcom script"}
-{"conv_id": "c_c03f9b181a68", "labeller": "opus", "theme": "cl_218382", "confidence": "low", "note": "microcontroller fountain design write-up; academic-writing leaf also plausible"}
-{"conv_id": "c_1f9b43ca06f9", "labeller": "opus", "theme": "cl_24c311", "confidence": "medium", "note": "which sentence is grammatical; quick-answers leaf also lists grammar"}
-{"conv_id": "c_8ead7280d4f8", "labeller": "opus", "theme": "cl_218382", "confidence": "low", "note": "engineering concept explanation; second turn empty"}
-{"conv_id": "c_2a906b7b3d9c", "labeller": "opus", "theme": "cl_3edd7b", "confidence": "medium", "note": "intercultural business meeting discussion with APA citations"}
-{"conv_id": "c_a1561eeebd18", "labeller": "opus", "theme": "cl_5cf88b", "confidence": "medium", "note": "Python Instagram API data app with Streamlit; repeated error fixing"}
-{"conv_id": "c_fbdf5970aabb", "labeller": "opus", "theme": "cl_032f5a", "confidence": "high", "note": "Ceph log level config and MP4 to HLS"}
-{"conv_id": "c_54542725cd60", "labeller": "opus", "theme": "cl_87cd73", "confidence": "high", "note": "professional email requesting plan approval"}
-{"conv_id": "c_386ad2e7327f", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "medium", "note": "C++ file metadata store in SQLite with change monitoring"}
-{"conv_id": "c_2e6925442aa5", "labeller": "opus", "theme": "cl_f1c2ff", "confidence": "high", "note": "LU decomposition in MATLAB with write-up"}
-{"conv_id": "c_fc2ae5eeb5bf", "labeller": "opus", "theme": "cl_a6064f", "confidence": "medium", "note": "grid navigation puzzle, answer only; could be a capability test"}
-{"conv_id": "c_7bc83a7e84cc", "labeller": "opus", "theme": "cl_23081f", "confidence": "medium", "note": "restyle novel content into promo blurb; marketing leaf also plausible"}
-{"conv_id": "c_c11416d80805", "labeller": "opus", "theme": "cl_485edb", "confidence": "medium", "note": "fix Java console tic-tac-toe; desktop-app leaf also plausible"}
-{"conv_id": "c_ec7f243518cd", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "low", "note": "mixed: Python logging encoding questions plus social platform facts"}
-{"conv_id": "c_b431b52074b5", "labeller": "opus", "theme": "cl_693721", "confidence": "high", "note": "erotic roleplay request"}
-{"conv_id": "c_e3165e783015", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "medium", "note": "recommend free speech-to-text APIs"}
-{"conv_id": "c_9d14feaf3afa", "labeller": "opus", "theme": "cl_631906", "confidence": "high", "note": "cover letter for diplomatic traineeship"}
-{"conv_id": "c_118aeed87712", "labeller": "opus", "theme": "cl_24c311", "confidence": "high", "note": "translations of poem lines and names across German, Russian, English"}
-{"conv_id": "c_04ad7a57d702", "labeller": "opus", "theme": "cl_1e22e9", "confidence": "high", "note": "Three.js canvas rendering and camera path issues"}
-{"conv_id": "c_53b062e58c7d", "labeller": "opus", "theme": "cl_693721", "confidence": "medium", "note": "macro size-difference creature story"}
-{"conv_id": "c_3c49e3716769", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "while loop in ARM assembly"}
-{"conv_id": "c_4642df5b181b", "labeller": "opus", "theme": "cl_16b63f", "confidence": "medium", "note": "sourcing Chinese suppliers plus China-related comparisons and emails"}
-{"conv_id": "c_b2e25c3b8ccb", "labeller": "opus", "theme": "cl_7ef005", "confidence": "high", "note": "action game enemy movelists"}
-{"conv_id": "c_d120f7cd9d96", "labeller": "opus", "theme": "cl_b8095c", "confidence": "high", "note": "overthinking about asking someone out"}
-{"conv_id": "c_97085f06370b", "labeller": "opus", "theme": "cl_693721", "confidence": "medium", "note": "jailbreak persona used to drive lewd interactive game"}
-{"conv_id": "c_712417434d55", "labeller": "opus", "theme": "cl_d728fd", "confidence": "high", "note": "pure jailbreak persona setup"}
-{"conv_id": "c_1b2671979999", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "medium", "note": "cited academic writing on parenting programs and NGO collaboration"}
-{"conv_id": "c_acb5c8ec0e61", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "explain bug in C++ method for beginner"}
-{"conv_id": "c_c3ded9bd3664", "labeller": "opus", "theme": "cl_660800", "confidence": "high", "note": "health symptom question"}
-{"conv_id": "c_68455db242c6", "labeller": "opus", "theme": "cl_87cd73", "confidence": "low", "note": "witty personal reply to a question; quick-joke leaf also fits"}
-{"conv_id": "c_1c155bf48b0c", "labeller": "opus", "theme": "cl_7ef005", "confidence": "high", "note": "fighting game tag-team movelists"}
-{"conv_id": "c_8a53697d2503", "labeller": "opus", "theme": "cl_06f865", "confidence": "high", "note": "industry-specific service marketing paragraphs"}
-{"conv_id": "c_1ac2bf7e21c3", "labeller": "opus", "theme": "cl_23081f", "confidence": "high", "note": "crossover fan fiction continuation with dialogue"}
-{"conv_id": "c_731b024e9b97", "labeller": "opus", "theme": "cl_a6064f", "confidence": "high", "note": "physics standing wave problem"}
-{"conv_id": "c_d962a0a3aefb", "labeller": "opus", "theme": "cl_032f5a", "confidence": "medium", "note": "how to organize 3D software projects"}
-{"conv_id": "c_0b5ea49808e3", "labeller": "opus", "theme": "cl_ae2197", "confidence": "high", "note": "travel guide prose on local foods"}
-{"conv_id": "c_3714e02d2451", "labeller": "opus", "theme": "cl_24c311", "confidence": "high", "note": "translate song into English"}
-{"conv_id": "c_1ecdf619b5bf", "labeller": "opus", "theme": "cl_06f865", "confidence": "high", "note": "real estate sale listing"}
-{"conv_id": "c_284e8cb73dc1", "labeller": "opus", "theme": "cl_16b63f", "confidence": "high", "note": "Taiwan referendum and China trade compliance"}
-{"conv_id": "c_f2b981ca6e84", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "medium", "note": "biographical facts about a writer's family"}
-{"conv_id": "c_4bf4f004b56d", "labeller": "opus", "theme": "cl_2f444d", "confidence": "low", "note": "how to build a deepfake; refused; image leaf also plausible"}
-{"conv_id": "c_ce83f497080a", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "pointer usage in LLVM IR"}
-{"conv_id": "c_80523f88f509", "labeller": "opus", "theme": "cl_e3e417", "confidence": "high", "note": "repeated funny gamer name suggestions"}
-{"conv_id": "c_50c3d48baf35", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "low", "note": "long document on trading theory; book or explanation leaves also plausible"}
-{"conv_id": "c_75449c81f192", "labeller": "opus", "theme": "cl_1e22e9", "confidence": "medium", "note": "p5.js WebGL 3D shape"}
-{"conv_id": "c_d16c2e9a2cea", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "medium", "note": "column-major matrix output snippet"}
-{"conv_id": "c_1a32ba749894", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "medium", "note": "local bus route lookup"}
-{"conv_id": "c_e5e7f8e9136f", "labeller": "opus", "theme": "cl_06f865", "confidence": "medium", "note": "hotel holiday promo copy and presentation outline"}
-{"conv_id": "c_8816b40cf4a3", "labeller": "opus", "theme": "cl_d728fd", "confidence": "high", "note": "greeting and identity questions, nonsense input"}
-{"conv_id": "c_55a5cb24620a", "labeller": "opus", "theme": "cl_562082", "confidence": "medium", "note": "Unreal Engine shooting action code"}
-{"conv_id": "c_bdfe3e22c816", "labeller": "opus", "theme": "cl_3edd7b", "confidence": "high", "note": "project control method applied to a business case"}
-{"conv_id": "c_67d07abbecf2", "labeller": "opus", "theme": "cl_d059ee", "confidence": "high", "note": "library import error, then translation"}
-{"conv_id": "c_5b61b7d5c9f9", "labeller": "opus", "theme": "cl_d728fd", "confidence": "high", "note": "greeting and model identity question"}
-{"conv_id": "c_0f2a43a32a1d", "labeller": "opus", "theme": "cl_other", "confidence": "low", "note": "patent claims drafting; no title fits, only an includes-tail mention in d059ee"}
-{"conv_id": "c_70e03342471f", "labeller": "opus", "theme": "cl_9482d8", "confidence": "high", "note": "image generation prompt on a theme"}
-{"conv_id": "c_9f8c4180df50", "labeller": "opus", "theme": "cl_562082", "confidence": "medium", "note": "Android PendingIntent runtime exception"}
-{"conv_id": "c_68d2feecd146", "labeller": "opus", "theme": "cl_660800", "confidence": "high", "note": "smoking and exercise health question"}
-{"conv_id": "c_c7400bcfff46", "labeller": "opus", "theme": "cl_d728fd", "confidence": "high", "note": "greeting only"}
-{"conv_id": "c_a1818ecf8d90", "labeller": "opus", "theme": "cl_693721", "confidence": "high", "note": "explicit story request, refused"}
-{"conv_id": "c_79951f82c62d", "labeller": "opus", "theme": "cl_562082", "confidence": "high", "note": "Android audio recorder app features"}
-{"conv_id": "c_b2ea97a69bfa", "labeller": "opus", "theme": "cl_a6064f", "confidence": "high", "note": "Fourier series coefficient problem"}
-{"conv_id": "c_5b0dac315937", "labeller": "opus", "theme": "cl_06f865", "confidence": "high", "note": "social post selling a logistics service"}
-{"conv_id": "c_3c4cbc3b95c2", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "medium", "note": "essay on international vs domestic law, plus off-topic question"}
-{"conv_id": "c_09148435854f", "labeller": "opus", "theme": "cl_a6064f", "confidence": "medium", "note": "fill-in-the-blank reasoning item; could be a capability test"}
-{"conv_id": "c_05726c3ef485", "labeller": "opus", "theme": "cl_0fdeac", "confidence": "high", "note": "recursive function in AArch64 assembly"}
-{"conv_id": "c_65bbf9ab7921", "labeller": "opus", "theme": "cl_7d9e47", "confidence": "high", "note": "school argumentative essay"}
-{"conv_id": "c_df7209d62a1c", "labeller": "opus", "theme": "cl_06f865", "confidence": "high", "note": "short-video niche and audience-building strategy"}
-{"conv_id": "c_452f0554bb00", "labeller": "opus", "theme": "cl_1e22e9", "confidence": "medium", "note": "jQuery, AJAX and CORS errors in web page with backend"}
-{"conv_id": "c_ca7d22891ef8", "labeller": "opus", "theme": "cl_d94a7e", "confidence": "medium", "note": "listing differences between e-commerce platforms"}
-{"conv_id": "c_a851b8181771", "labeller": "opus", "theme": "cl_5cf88b", "confidence": "medium", "note": "Python exchange trading bot feature; trading-code leaf also plausible"}
-{"conv_id": "c_d2b8e5cce899", "labeller": "opus", "theme": "cl_032f5a", "confidence": "high", "note": "deploying Java service on a hosting provider"}
-{"conv_id": "c_a49a6294d336", "labeller": "opus", "theme": "cl_16b63f", "confidence": "high", "note": "human rights in Chinese prisons"}
-{"conv_id": "c_1dfee0aa8f4b", "labeller": "opus", "theme": "cl_1e22e9", "confidence": "high", "note": "Vue component library icon setup and JSX errors"}
-{"conv_id": "c_b85bcfe12e60", "labeller": "opus", "theme": "cl_f1c2ff", "confidence": "high", "note": "deep learning and Q-learning for game prediction"}
-{"conv_id": "c_c8d85e19ac1e", "labeller": "opus", "theme": "cl_660800", "confidence": "medium", "note": "everyday health, beauty and household how-to questions"}
-{"conv_id": "c_92b3b9d7d1a0", "labeller": "opus", "theme": "cl_24c311", "confidence": "medium", "note": "French grammar and spelling correction"}
+{"conv_id": "c_40400249e166", "labeller": "opus", "theme": "cl_c15478", "confidence": "medium", "note": "Forced-choice game, riddle, then odd probing questions testing the bot"}
+{"conv_id": "c_780406d4075e", "labeller": "opus", "theme": "cl_6ae30f", "confidence": "high", "note": "Wants Stable Diffusion prompts in a given style"}
+{"conv_id": "c_ce7e0fde663b", "labeller": "opus", "theme": "cl_9387c0", "confidence": "medium", "note": "C++ exercise removing array elements appearing over twice"}
+{"conv_id": "c_a50296b9e6ff", "labeller": "opus", "theme": "cl_c9b677", "confidence": "medium", "note": "Series of Ubuntu server setup how-tos: root, Apache, PHP, FTP"}
+{"conv_id": "c_059d6b749b1c", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "medium", "note": "Factual questions about Elfquest comic creators and characters"}
+{"conv_id": "c_749c0f46bf85", "labeller": "opus", "theme": "cl_other", "confidence": "medium", "note": "Asks for pseudocode with no context about what"}
+{"conv_id": "c_cdaad62202c2", "labeller": "opus", "theme": "cl_63f1bd", "confidence": "medium", "note": "Explaining semaphores and pointers, with a C example"}
+{"conv_id": "c_95fc17a76bbc", "labeller": "opus", "theme": "cl_ba74da", "confidence": "low", "note": "Spec document outlining a landing page structure and content"}
+{"conv_id": "c_d904724fcbdd", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "medium", "note": "General explanation of TCM acupoints"}
+{"conv_id": "c_c87b1fffffa6", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "medium", "note": "Multi-page assignment-style report on SAP company"}
+{"conv_id": "c_43759e27269e", "labeller": "opus", "theme": "cl_e07768", "confidence": "medium", "note": "Hypothetical Game of Thrones dragon battle scenario"}
+{"conv_id": "c_3b02aa911dd4", "labeller": "opus", "theme": "cl_c15478", "confidence": "high", "note": "Test message and presence check"}
+{"conv_id": "c_87241be73eb3", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "high", "note": "How to split text into columns in PowerPoint"}
+{"conv_id": "c_22f12f55d635", "labeller": "opus", "theme": "cl_c9b677", "confidence": "low", "note": "Compress a Unity C# animation method as much as possible"}
+{"conv_id": "c_75f9518538f9", "labeller": "opus", "theme": "cl_ba74da", "confidence": "high", "note": "Summarize scholarly passage on ancient Egyptian names"}
+{"conv_id": "c_6e4c54c38b64", "labeller": "opus", "theme": "cl_9387c0", "confidence": "low", "note": "Write semaphore ops for shared-memory C lab programs"}
+{"conv_id": "c_7d7b443f869f", "labeller": "opus", "theme": "cl_90977f", "confidence": "high", "note": "Thesis framework and content on middle school football teaching"}
+{"conv_id": "c_b21466d0e591", "labeller": "opus", "theme": "cl_679651", "confidence": "medium", "note": "Design mature beat-em-up levels, enemies and move lists"}
+{"conv_id": "c_42ee3be872fe", "labeller": "opus", "theme": "cl_c15478", "confidence": "low", "note": "Typing anime catchphrases to see how bot reacts"}
+{"conv_id": "c_ea0ce985d48f", "labeller": "opus", "theme": "cl_ba74da", "confidence": "medium", "note": "Learning what math analysis, functional analysis, Hp spaces cover"}
+{"conv_id": "c_f7f14abc22ca", "labeller": "opus", "theme": "cl_c15478", "confidence": "medium", "note": "Trick questions and tongue-twister riddles testing the bot"}
+{"conv_id": "c_b8bdb996ec1d", "labeller": "opus", "theme": "cl_6ae30f", "confidence": "high", "note": "Asks for a prom photo image"}
+{"conv_id": "c_eecd0d8d3c6a", "labeller": "opus", "theme": "cl_e706c9", "confidence": "high", "note": "Reply email to departing colleague about handover"}
+{"conv_id": "c_47a3882ec120", "labeller": "opus", "theme": "cl_90977f", "confidence": "low", "note": "Summarize and critically appraise hypermobility research papers"}
+{"conv_id": "c_25f85ff373a7", "labeller": "opus", "theme": "cl_b4afab", "confidence": "high", "note": "Fetish sitcom script request"}
+{"conv_id": "c_c03f9b181a68", "labeller": "opus", "theme": "cl_90977f", "confidence": "low", "note": "Overall scheme design text for MCU music fountain project"}
+{"conv_id": "c_1f9b43ca06f9", "labeller": "opus", "theme": "cl_cde491", "confidence": "medium", "note": "Which of two sentences is grammatical"}
+{"conv_id": "c_8ead7280d4f8", "labeller": "opus", "theme": "cl_ba74da", "confidence": "low", "note": "Explanation of concrete self-sensing technology"}
+{"conv_id": "c_2a906b7b3d9c", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "medium", "note": "Discussion-style answer on multicultural meeting with APA sources"}
+{"conv_id": "c_a1561eeebd18", "labeller": "opus", "theme": "cl_1c2f50", "confidence": "low", "note": "Streamlit app pulling Instagram Graph API data, fixing errors"}
+{"conv_id": "c_fbdf5970aabb", "labeller": "opus", "theme": "cl_c9b677", "confidence": "medium", "note": "Ceph OSD log level and MP4 to HLS commands"}
+{"conv_id": "c_54542725cd60", "labeller": "opus", "theme": "cl_e706c9", "confidence": "high", "note": "Email to CIO requesting plan review and approval"}
+{"conv_id": "c_386ad2e7327f", "labeller": "opus", "theme": "cl_9387c0", "confidence": "medium", "note": "C++ utility storing file tree metadata in SQLite with monitoring"}
+{"conv_id": "c_2e6925442aa5", "labeller": "opus", "theme": "cl_89ea05", "confidence": "high", "note": "LU decomposition algorithm and MATLAB code with plot"}
+{"conv_id": "c_fc2ae5eeb5bf", "labeller": "opus", "theme": "cl_c15478", "confidence": "low", "note": "Gridworld reasoning probe demanding only the answer"}
+{"conv_id": "c_7bc83a7e84cc", "labeller": "opus", "theme": "cl_679651", "confidence": "medium", "note": "Rewrite novel content as romance promo copy in sample style"}
+{"conv_id": "c_c11416d80805", "labeller": "opus", "theme": "cl_9387c0", "confidence": "medium", "note": "Fix Java console tic-tac-toe game code"}
+{"conv_id": "c_ec7f243518cd", "labeller": "opus", "theme": "cl_c9b677", "confidence": "medium", "note": "Python logging encoding and exit code questions, plus trivia"}
+{"conv_id": "c_b431b52074b5", "labeller": "opus", "theme": "cl_b4afab", "confidence": "high", "note": "Erotic roleplay request"}
+{"conv_id": "c_e3165e783015", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "medium", "note": "Lookup of free speech-to-text APIs"}
+{"conv_id": "c_9d14feaf3afa", "labeller": "opus", "theme": "cl_e706c9", "confidence": "high", "note": "Cover letter for EU delegation traineeship"}
+{"conv_id": "c_118aeed87712", "labeller": "opus", "theme": "cl_02d011", "confidence": "medium", "note": "Translating poem lines and names between German, Russian, English"}
+{"conv_id": "c_04ad7a57d702", "labeller": "opus", "theme": "cl_89ea05", "confidence": "medium", "note": "three.js sphere rendering, curves, camera path from Blender"}
+{"conv_id": "c_53b062e58c7d", "labeller": "opus", "theme": "cl_b4afab", "confidence": "medium", "note": "Giant ram and tiny cheetah size-fetish scene continuation"}
+{"conv_id": "c_3c49e3716769", "labeller": "opus", "theme": "cl_63f1bd", "confidence": "high", "note": "Translate a while loop into ARM assembly"}
+{"conv_id": "c_4642df5b181b", "labeller": "opus", "theme": "cl_472879", "confidence": "medium", "note": "Finding Chinese wheel suppliers and comparing Chinese platforms"}
+{"conv_id": "c_b2e25c3b8ccb", "labeller": "opus", "theme": "cl_679651", "confidence": "medium", "note": "Movelists for suggestive action game enemy characters"}
+{"conv_id": "c_d120f7cd9d96", "labeller": "opus", "theme": "cl_0f0ad2", "confidence": "high", "note": "Overthinking about asking a girl for her number"}
+{"conv_id": "c_97085f06370b", "labeller": "opus", "theme": "cl_b4afab", "confidence": "medium", "note": "Jailbreak persona to run a lewd text adventure"}
+{"conv_id": "c_712417434d55", "labeller": "opus", "theme": "cl_c15478", "confidence": "high", "note": "IDAN jailbreak persona override prompt"}
+{"conv_id": "c_1b2671979999", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "low", "note": "Coursework content on positive parenting in Hong Kong with APA"}
+{"conv_id": "c_acb5c8ec0e61", "labeller": "opus", "theme": "cl_688ed8", "confidence": "medium", "note": "Explain why a C++ remove-document method is buggy"}
+{"conv_id": "c_c3ded9bd3664", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "high", "note": "Why urine has small bubbles"}
+{"conv_id": "c_68455db242c6", "labeller": "opus", "theme": "cl_f5a003", "confidence": "medium", "note": "Wants a funny comeback about having a twin"}
+{"conv_id": "c_1c155bf48b0c", "labeller": "opus", "theme": "cl_679651", "confidence": "medium", "note": "Fighting game character pairs with creative movelists"}
+{"conv_id": "c_8a53697d2503", "labeller": "opus", "theme": "cl_5e5dc0", "confidence": "high", "note": "Industry-specific service paragraphs for website maintenance offering"}
+{"conv_id": "c_1ac2bf7e21c3", "labeller": "opus", "theme": "cl_679651", "confidence": "high", "note": "Minecraft and Monster Hunter crossover fan fiction continuation"}
+{"conv_id": "c_731b024e9b97", "labeller": "opus", "theme": "cl_73d576", "confidence": "high", "note": "Physics standing wave frequency problem on composite wire"}
+{"conv_id": "c_d962a0a3aefb", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "medium", "note": "How to organize Blender models across project files"}
+{"conv_id": "c_0b5ea49808e3", "labeller": "opus", "theme": "cl_3bbc32", "confidence": "high", "note": "Venice travel guide section on foods in prose"}
+{"conv_id": "c_3714e02d2451", "labeller": "opus", "theme": "cl_02d011", "confidence": "high", "note": "Translate a Dan Balan song into English"}
+{"conv_id": "c_1ecdf619b5bf", "labeller": "opus", "theme": "cl_5e5dc0", "confidence": "high", "note": "Real estate sale listing for small apartment"}
+{"conv_id": "c_284e8cb73dc1", "labeller": "opus", "theme": "cl_472879", "confidence": "medium", "note": "Taiwan referendum and China WTO violation facts"}
+{"conv_id": "c_f2b981ca6e84", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "medium", "note": "Biographical facts about writer Marin Preda and relatives"}
+{"conv_id": "c_4bf4f004b56d", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "low", "note": "How to make a full-body deepfake"}
+{"conv_id": "c_ce83f497080a", "labeller": "opus", "theme": "cl_63f1bd", "confidence": "high", "note": "How pointers work in LLVM IR"}
+{"conv_id": "c_80523f88f509", "labeller": "opus", "theme": "cl_f5a003", "confidence": "medium", "note": "Funny nicknames for League of Legends champion mains"}
+{"conv_id": "c_50c3d48baf35", "labeller": "opus", "theme": "cl_100b4d", "confidence": "medium", "note": "Long write-up on Elliott wave trading ratios"}
+{"conv_id": "c_75449c81f192", "labeller": "opus", "theme": "cl_89ea05", "confidence": "medium", "note": "p5.js WebGL 3D bowl-shaped model"}
+{"conv_id": "c_d16c2e9a2cea", "labeller": "opus", "theme": "cl_c9b677", "confidence": "high", "note": "Output a 4x4 matrix in column-major order"}
+{"conv_id": "c_1a32ba749894", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "high", "note": "Bus lines operated by a Rio de Janeiro company"}
+{"conv_id": "c_e5e7f8e9136f", "labeller": "opus", "theme": "cl_5e5dc0", "confidence": "high", "note": "Hotel holiday promotion copy and hotel intro deck ideas"}
+{"conv_id": "c_8816b40cf4a3", "labeller": "opus", "theme": "cl_c15478", "confidence": "high", "note": "Greetings, asks which ChatGPT it is, random input"}
+{"conv_id": "c_55a5cb24620a", "labeller": "opus", "theme": "cl_89ea05", "confidence": "low", "note": "Unreal Engine character shooting action code"}
+{"conv_id": "c_bdfe3e22c816", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "medium", "note": "Coursework answer applying go/no-go controls to pajama business"}
+{"conv_id": "c_67d07abbecf2", "labeller": "opus", "theme": "cl_688ed8", "confidence": "high", "note": "Fix scipy random ImportError"}
+{"conv_id": "c_5b61b7d5c9f9", "labeller": "opus", "theme": "cl_c15478", "confidence": "high", "note": "Greeting and asks if it is GPT-3.5"}
+{"conv_id": "c_0f2a43a32a1d", "labeller": "opus", "theme": "cl_ba74da", "confidence": "medium", "note": "Draft patent claims for PV module fault monitoring"}
+{"conv_id": "c_70e03342471f", "labeller": "opus", "theme": "cl_6ae30f", "confidence": "high", "note": "Image generation prompt featuring mechatronics"}
+{"conv_id": "c_9f8c4180df50", "labeller": "opus", "theme": "cl_688ed8", "confidence": "medium", "note": "Android PendingIntent mutability flag crash"}
+{"conv_id": "c_68d2feecd146", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "high", "note": "How long to avoid smoking before a workout"}
+{"conv_id": "c_c7400bcfff46", "labeller": "opus", "theme": "cl_c15478", "confidence": "high", "note": "Just says hi"}
+{"conv_id": "c_a1818ecf8d90", "labeller": "opus", "theme": "cl_b4afab", "confidence": "high", "note": "Explicit story about a couple"}
+{"conv_id": "c_79951f82c62d", "labeller": "opus", "theme": "cl_1c2f50", "confidence": "medium", "note": "Android karaoke app: improve recording quality, add effects"}
+{"conv_id": "c_b2ea97a69bfa", "labeller": "opus", "theme": "cl_73d576", "confidence": "high", "note": "Fourier series coefficients of a periodic signal"}
+{"conv_id": "c_5b0dac315937", "labeller": "opus", "theme": "cl_5e5dc0", "confidence": "high", "note": "Social post selling a logistics storage service"}
+{"conv_id": "c_3c4cbc3b95c2", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "medium", "note": "Essay answer on international versus domestic law"}
+{"conv_id": "c_09148435854f", "labeller": "opus", "theme": "cl_c15478", "confidence": "low", "note": "Pronoun fill-in reasoning probe"}
+{"conv_id": "c_05726c3ef485", "labeller": "opus", "theme": "cl_63f1bd", "confidence": "high", "note": "Recursive sum_array function in aarch64 assembly"}
+{"conv_id": "c_65bbf9ab7921", "labeller": "opus", "theme": "cl_e88dfa", "confidence": "high", "note": "School argumentative essay that life means work"}
+{"conv_id": "c_df7209d62a1c", "labeller": "opus", "theme": "cl_100b4d", "confidence": "medium", "note": "Choosing a short-video niche and building a creator persona"}
+{"conv_id": "c_452f0554bb00", "labeller": "opus", "theme": "cl_688ed8", "confidence": "low", "note": "jQuery, CORS and Spring Boot errors in a web project"}
+{"conv_id": "c_ca7d22891ef8", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "low", "note": "Differences between Amazon and other e-commerce platforms"}
+{"conv_id": "c_a851b8181771", "labeller": "opus", "theme": "cl_1c2f50", "confidence": "high", "note": "Binance trading bot review and stop-loss check function"}
+{"conv_id": "c_d2b8e5cce899", "labeller": "opus", "theme": "cl_c9b677", "confidence": "low", "note": "How to deploy a Java service on Bluehost"}
+{"conv_id": "c_a49a6294d336", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "low", "note": "Human rights conditions in prisons for women in China"}
+{"conv_id": "c_1dfee0aa8f4b", "labeller": "opus", "theme": "cl_5dfc13", "confidence": "high", "note": "Ant Design Vue custom font icons and component errors"}
+{"conv_id": "c_b85bcfe12e60", "labeller": "opus", "theme": "cl_e87404", "confidence": "low", "note": "Deep learning model predicting minesweeper bombs from past data"}
+{"conv_id": "c_c8d85e19ac1e", "labeller": "opus", "theme": "cl_4f1f8f", "confidence": "high", "note": "Assorted everyday questions: recipe, skincare, health remedies"}
+{"conv_id": "c_92b3b9d7d1a0", "labeller": "opus", "theme": "cl_cde491", "confidence": "medium", "note": "Correct French sentence spelling and grammar keeping same words"}
