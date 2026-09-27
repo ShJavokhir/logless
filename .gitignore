@@ -26,3 +26,10 @@ vultr-agent-arena-research-*.zip
 
 # local Claude Code launch configs
 .claude/
+
+# Local builds, synthetic data, and video drafts
+.next-synthetic/
+.next/
+teaser-video/
+tsconfig.tsbuildinfo
+var-synthetic/

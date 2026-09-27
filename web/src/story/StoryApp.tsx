@@ -92,14 +92,17 @@ export function StoryApp({ tab }: { tab: Tab }) {
               </a>
             ))}
           </nav>
-          <a
-            href={EXPLORE_HREF}
-            aria-label="Open the workspace"
-            title="Open the workspace"
-            className="inline-flex size-8 items-center justify-center justify-self-end rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LayoutGrid aria-hidden className="size-4" />
-          </a>
+          <div className="flex items-center gap-3 justify-self-end">
+            <a href="#/how-it-works" className="text-[12.5px] text-muted-foreground hover:text-foreground">How it works</a>
+            <a
+              href={EXPLORE_HREF}
+              aria-label="Open the workspace"
+              title="Open the workspace"
+              className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LayoutGrid aria-hidden className="size-4" />
+            </a>
+          </div>
         </header>
 
         <main className="relative min-h-0 flex-1">
