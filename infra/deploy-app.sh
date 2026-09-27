@@ -8,7 +8,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SSH="ssh -F infra/ssh_config logless-app"
 RSYNC_SSH="ssh -F infra/ssh_config"
-WITH_DATA=0; [[ "${1:-}" == "--data" ]] && WITH_DATA=1
+WITH_DATA=0
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != "--data" ) ]]; then
+  echo "Usage: infra/deploy-app.sh [--data]" >&2
+  exit 2
+fi
+[[ "${1:-}" == "--data" ]] && WITH_DATA=1
+[[ -s backend/uv.lock ]] || { echo "Missing backend/uv.lock; refusing an unlocked deployment." >&2; exit 1; }
 
 echo "==> build web (real API)"
 (cd web && VITE_MOCK=0 pnpm -s build)
@@ -51,7 +57,7 @@ fi
 echo "==> python env + restart"
 $SSH 'set -e; chown -R logless:logless /opt/logless; cd /opt/logless/backend;
   [ -x .venv/bin/python ] || sudo -u logless uv venv -q -p 3.12 .venv;
-  sudo -u logless env UV_CACHE_DIR=/opt/logless/.uv-cache uv pip install -q --python .venv/bin/python -e .;
+  sudo -u logless env UV_CACHE_DIR=/opt/logless/.uv-cache uv sync -q --locked --no-dev;
   systemctl daemon-reload; systemctl enable -q logless-api; systemctl restart logless-api; sleep 2; systemctl is-active logless-api'
 if [[ $WITH_DATA == 1 ]]; then
   # Published map numbers are computed by the pipeline on the app VM; nothing is re-run here.
@@ -61,4 +67,4 @@ if [[ $WITH_DATA == 1 ]]; then
 fi
 
 echo "==> health"
-curl -s https://144-202-110-2.sslip.io/api/health; echo
+python3 scripts/smoke_live.py --skip-paid --base-url "${LOGLESS_DEMO_URL:-https://144-202-110-2.sslip.io}"

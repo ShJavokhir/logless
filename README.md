@@ -75,7 +75,7 @@ A battery of hostile programs was run against the deployed gVisor sandbox: `rm -
 ## Privacy model (and its limits)
 
 - **The browser gets published aggregates only.** Serializers build each payload field by field from an allowlist. There is no route to a transcript, facet or conversation ID.
-- **The sandbox receives no text.** It gets only typed assignments with per-job pseudonymous integers.
+- **The sandbox receives no conversation text.** It gets typed assignments with pseudonymous integers randomized per analysis export; A, B and repair attempts share that export.
 - **Rare findings are generalized, not suppressed.** There is no minimum cluster size. Wording is generalized until it passes the checks, and counts stay honest. A problem is labelled "common" only when at least 5 distinct people show it.
 - **Published text passes several checks:** canary and injection tokens, contact, URL and ID patterns, overlap with distinctive source phrases, a GLM audit, and Jev's identifiability score.
 - **This is not differential privacy,** and it makes no Clio-equivalent claim. Model providers process raw text. The dataset authors de-identified WildChat with Presidio. "People" means distinct hashed IPs, which is approximate.
@@ -84,7 +84,7 @@ A battery of hostile programs was run against the deployed gVisor sandbox: `rm -
 
 ```bash
 cp .env.example .env            # fill in the keys and random secrets
-cd backend && uv venv -p 3.12 .venv && uv pip install -e ".[dev]"
+cd backend && uv sync --locked --extra dev --python 3.12
 .venv/bin/logless seed           # download the pinned WildChat shard, sample 5,000, plant fixtures
 .venv/bin/logless rebuild        # run the pipeline and publish a snapshot
 .venv/bin/logless eval           # write the evaluation report
@@ -93,6 +93,14 @@ cd ../web && pnpm install && VITE_MOCK=0 pnpm dev   # UI on :5173
 ```
 
 Live analyses need the runner (`runner/README.md`). Use Docker with `runsc`, or `runc` locally; the runtime used is reported honestly.
+
+Python runtime and test dependencies are locked for both services. See
+[reproducible installs and offline wheelhouses](docs/DEPENDENCIES.md) for clean environment checks,
+production installs, and the standalone wheel configuration limits.
+
+For an explicit local `runc` runner, set `SANDBOX_RUNTIME=runc` on the backend too; the default requires `runsc`. The fixed destructive containment fixture requires gVisor and is not a local-runc success claim.
+
+Other text-chat datasets load through the validated [JSONL import adapter](docs/DATA_IMPORT.md) into their own isolated data directory.
 
 ## Deploy
 

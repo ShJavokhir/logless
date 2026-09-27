@@ -10,7 +10,8 @@ All code in this repository was written during the Vultr Agent Arena, which ran 
 |---|---|
 | Pipeline: facets, discovery, classification, leftovers, hierarchy, descriptions, privacy gate, publish | `backend/logless/pipeline/` |
 | Provider clients: Vultr Serverless Inference (GLM), TypeSafe Jev, Fireworks embeddings | `backend/logless/providers/` |
-| Sandbox clean room: export, trusted reference, egress gate, live-analysis loop, containment | `backend/logless/sandbox/`, `backend/sandbox_tasks/` |
+| Sandbox clean room: typed export, frozen inputs, egress gate, paired live programs, containment | `backend/logless/sandbox/`, `backend/sandbox_tasks/` |
+| Validated conversation JSONL import and source provenance | `backend/logless/data/importer.py`, `docs/DATA_IMPORT.md` |
 | Web API, allowlist serializers, leak checks, rate limiting, stories, search | `backend/logless/api/` |
 | Evaluation: reference-set scoring, external-label agreement, ablation, leak scans | `backend/logless/eval/` |
 | Sandbox runner service | `runner/` |
@@ -22,7 +23,7 @@ All code in this repository was written during the Vultr Agent Arena, which ran 
 ## Reused libraries (unmodified, installed from package registries)
 
 - **Backend:** FastAPI, Uvicorn, Pydantic, httpx, NumPy, pandas, PyArrow, scikit-learn, python-dotenv, pytest.
-- **Frontend:** React, Vite, TypeScript, Tailwind CSS, shadcn/ui (Radix primitives), lucide-react, d3-hierarchy, Geist fonts, Vitest.
+- **Frontend:** React, Vite, TypeScript, Tailwind CSS, shadcn/ui (Radix primitives), lucide-react, d3-hierarchy, Geist fonts, Vitest, jsdom (tests).
 - **Infrastructure:** Docker Engine, gVisor (`runsc`), Caddy, Ubuntu 24.04 on Vultr.
 
 ## Data origins

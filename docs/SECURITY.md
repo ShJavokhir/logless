@@ -2,6 +2,8 @@
 
 Track 1 asks for "containment-first" execution: **process isolation, secret hygiene, resource limits and lifecycle discipline**. This page maps each of those to what logless does, and records a hostile-program battery run against the **deployed** gVisor sandbox on Vultr (Sep 27, 2026, 04:20 UTC). The script is `backend/scripts/hostile_battery.py`; run it on the app VM to reproduce.
 
+The battery was run before later app-side changes. The containment check in the web app re-runs the runaway, destructive and leak checks against the live deployment on demand.
+
 ## What runs where
 
 - **App VM:** holds the model API keys and the private data. It never runs agent-written code.
@@ -29,7 +31,7 @@ Track 1 asks for "containment-first" execution: **process isolation, secret hygi
 
 | Attack | Outcome | Container removed |
 |---|---|---|
-| `rm -rf --no-preserve-root /` | Nothing deleted. `rm` exits 1 after about 11,000 refused removals: the root filesystem is read-only (`can_write_root: false`), the program isn't root, and the Python binary was still present. This also runs in the product's containment check (below). | yes |
+| `rm -rf --no-preserve-root /` | Root-image deletion refused. `rm` exits 1 after about 11,000 refused removals: the root filesystem is read-only (`can_write_root: false`), the program isn't root, and the Python binary was still present. Disposable writable tmpfs paths can be changed; this is not a claim that no container-local file was removed. This also runs in the product's containment check (below). | yes |
 | Fork bomb | Refused by the 64-process limit; the job failed in 1.6 s. | yes |
 | Memory bomb (2 GiB) | Killed at the 512 MiB cap (exit 137). | yes |
 | Disk fill | `/tmp` filled at 64 MiB, then `OSError`. | yes |

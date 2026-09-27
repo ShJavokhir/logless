@@ -1,47 +1,63 @@
-# Three-minute live demo: runbook
+# Three-minute manual demo
 
 **URL:** https://144-202-110-2.sslip.io
 
-**Presenter link:** open it once on the demo laptop as `https://144-202-110-2.sslip.io/?presenter=<PRESENTER_KEY>`. The key is in the repo-root `.env`, which is never committed. The app stores the key in the browser and removes it from the URL. The key is what shows the **Live intake** control. It also gives your runs a reserved budget, so public traffic can't exhaust the demo.
+**Lead with the work:** “Which assistant workflows need a product team's attention? Logless groups conversations, then an agent writes and executes checked analysis programs without exposing transcripts to the analyst.” The map is context; the live question and its execution evidence are the centerpiece for Agent Sandboxing Track 1.
 
-**Before you start** (5 minutes ahead):
-- Use a laptop at 1440×900 or larger, browser zoom 100%, light mode.
-- `/api/health` returns `"status":"ok","sandbox":"reachable"`.
-- `/api/intake/status` returns `"ready":true`. If a rehearsal already ingested the batch, click **Reset intake** in the intake panel, or run `logless intake reset` on the app VM.
-- Don't run any pipeline job on the VM during the demo; it would compete for the GLM rate limit.
-- Leave the page on the default map, with nothing selected.
+The prerecorded video shows the September 26 build. Its evaluation clip comes from the base snapshot, not the post-intake snapshot used by the live question, and its intake feed shows the older per-conversation summaries. The recorder resets intake automatically; it is not a read-only rehearsal tool.
 
-| Time | Do | Say (gist) |
+## Before the demo
+
+1. Use a fresh browser session, at least 1440×900, 100% zoom. Confirm the footer says live, not mock. Read the **current** dataset and fixture counts; intake changes them.
+2. `/api/health` must report `status: ok`, `sandbox: reachable`, and the same snapshot ID as `/api/snapshot`. Health alone does not prove a question will pass.
+3. Open the presenter link once, using the local secret without displaying it: `https://144-202-110-2.sslip.io/?presenter=<PRESENTER_KEY>`. The app removes it from the URL and uses a reserved budget. Never put the key in a slide, recording, command history or public doc.
+4. Rehearse one question and containment on the **deployed version**. Read the interpreted plan and both final receipts. Measure wall time, including repair. Historical successful runs include repairs; do not promise first-attempt success or fixed latency.
+5. Keep the snapshot stable during the question. Do not run a rebuild, intake or reset concurrently. Have a completed run's details available as explicitly labelled saved evidence.
+6. Confirm evaluation belongs to the current snapshot. Intake evaluation runs after publication, so “not ready yet” is an honest temporary state.
+7. The one-minute submission video and three-minute live demo are separate deliverables. The supplied guide says submissions close **September 27 at noon PDT**; verify any newer organizer announcement.
+
+## Main sequence
+
+| Time | Manual action | Explain |
 |---|---|---|
-| 0:00–0:15 | Default view. Point at the header. | "Assistant teams sit on the most honest feedback there is, what people actually try to do, and nobody can ethically read it. This map is 5,000 real WildChat conversations. An LLM pipeline on Vultr read them and grouped them by goal. No one on the team read a single one." |
-| 0:15–0:40 | Click **Live intake**. Watch the incoming tiles route through Jev into category rows; orange marks friction, and Other keeps uncertain decisions. After the privacy gate, the flow holds its final counts briefly and returns to the map. | "Three hundred new conversations just arrived. GLM on Vultr already read each one into a generalized summary. Now Jev decides live: which workflow, and whether there was a correction, a repeat, a limit or a complaint. That's five decisions per conversation; the panel shows the live rate. Each tile is a real decision. Then the privacy gate re-checks and the map republishes." |
-| 0:40–0:55 | Point at the toast and the Key finding card. | "Coding is under a fifth of conversations but over a quarter of all friction. In data scripts, about half of conversations hit friction." Click **Show where it breaks**. |
-| 0:55–1:35 | **Ask a question**, then the chip "Which coding workflows have the most distinct people repeating requests?" While it runs, point at the loop strip. | "This is the agent. GLM interprets the question into a plan you can read. It writes two independent programs, one in pandas and one in plain Python, without seeing any data. Each runs in its own gVisor container on a separate VM with no API keys and no internet. The answer is published only if both agree and the gate's checks pass, including consistency with the published map." |
-| 1:35–1:55 | Open **Run details**: both programs, their receipts, the cross-checks. | "Every answer has a receipt: code hashes, runtime, limits, verdicts. Nothing is precomputed. Remove the sandbox and there's no answer." |
-| 1:55–2:20 | Scroll down to **Run containment check**. | "Agent-written code is untrusted. A runaway program is killed at its 2-second deadline and the container removed, while the app stays healthy. Then `rm -rf /`: the root is read-only, so about eleven thousand deletions are refused, the container is destroyed and the next run is clean. A program that tries to export per-person rows is rejected by the gate." |
-| 2:20–2:40 | Select the hot workflow, then **Generate fictional user story**. | "Every need and problem is backed by evidence IDs. The story is labelled fiction, built only from the published aggregate." |
-| 2:40–3:00 | Footer → **Evaluation**. | "And we measure it: zero detected canary leaks, exact reconciliation, and agreement with two independent labellers. Where we miss, correction recall, we show it. GLM on Vultr Serverless Inference, Jev by TypeSafe, gVisor on Vultr." |
+| 0:00–0:15 | Show map and source/fixture disclosure. | “This is a published map of conversation goals. A product team can inspect aggregate patterns without opening a transcript. Providers do process the source text.” |
+| 0:15–0:30 | Ask **“Which coding workflows have the most distinct people repeating requests?”** if that category exists. Otherwise use **“Which workflows have the most distinct people repeating requests?”** | “This is a fresh request. Inspect the plan: workflows, distinct people, repeat-request signal, sorted by count.” |
+| 0:30–1:10 | Show the plan and execution stages. | “GLM on Vultr writes two programs, using pandas and standard Python. They run in separate disposable gVisor containers on our sandbox VM. No transcript or model key enters those containers.” If repair occurs: “A check failed; it gets one bounded repair. We show that.” |
+| 1:10–1:35 | Read the answer and open **Run details**. Point to A/B code, runtime, limits, container removal, agreement and map checks. | “These are executed counts. Agreement and independently computed map totals catch some errors. They do not prove every question was interpreted correctly.” Use the displayed denominator; never memorize a finding. |
+| 1:35–2:05 | Run **containment check**. Wait for timeout, cleanup, destructive fixture, clean follow-up and leak rejection. | “The supervisor terminates a runaway program. The destructive fixture runs only inside the disposable gVisor container. The root stays read-only, cleanup is verified, and the gate refuses a per-person export.” Use the receipt's refusal count; it is image-dependent. |
+| 2:05–2:30 | Select a returned workflow; inspect needs/problems and the friction lens. | “This gives the team an area to investigate. Repetition and correction are signals, not proof of dissatisfaction or model failure.” |
+| 2:30–2:50 | Open **Evaluation**. Show one successful check and one real limitation. | “We reconcile counts and test leaks and containment. Reference labels are model-assisted. Correction currently misses its target; complaint support is too small to score.” Read the current report if results changed. |
+| 2:50–3:00 | Close on the use case and reusable boundary. | “The contribution is a reproducible path from private conversation data to constrained, inspectable executed analysis. Other text-chat datasets can use the validated import format; each new domain needs its own evaluation.” |
 
-**Fallbacks**
-- **A question fails:** the UI says why. "The programs disagreed" or "the gate refused" is a valid outcome; say so and show the receipts. `map_mismatch` means the private data changed since publication, so don't run pipeline jobs before the demo.
-- **Budget or rate limit:** the UI shows "Paused". Use the presenter link, since it has a reserved budget.
-- **Intake fails** (e.g. a Jev outage): nothing is filed or published, and the map stays as it was. Continue with Ask a question.
-- **Wi-Fi fails:** play `demo/logless-demo.mp4`.
+If the question takes longer, spend less time browsing the map. Do not skip containment and claim it ran. If it has not finished, say so and use the labelled recording or saved receipts.
 
-**Judge Q&A (short, honest answers)**
-- **"Why an agent and not a SQL dashboard?"**
-  - The pipeline turns unstructured text in 55 languages into goal-level workflows, which SQL can't do.
-  - The analysis agent turns plain-English questions into programs. We don't precompute answers: two independent programs run in the sandbox and must agree.
-- **"Why two programs?"** It's N-version programming. Without a precomputed reference, agreement between independently written programs, plus consistency with the published map, is how we verify an answer the backend never computed.
-- **"How is this different from Clio?"**
-  - It's open and small, with measured evaluation: two independent model labellers, Microsoft's WildFeedback labels, planted canaries, and a clean-room sandbox with an egress gate.
-  - We don't enforce a minimum cluster size; we generalize the wording instead, and we say so.
-- **"Why TypeSafe Jev?"**
-  - It makes calibrated, typed decisions in about 0.25 s, with five decisions per call.
-  - At our 0.65 confidence cutoff it's precision-first: correction precision is 1.00 and recall 0.64 (F1 0.78), and less confident cases show as "unclear".
-  - GLM Flash alone scores higher F1 on correction (0.84 vs 0.78). We report that.
-- **"Is it private?"**
-  - The browser gets allowlisted aggregates, plus, during live intake, PII-checked, generalized one-line summaries. It never gets transcripts.
-  - The sandbox gets typed rows, never text.
-  - It is not differential privacy, and the model providers do see raw text.
-- **"What did you build this weekend?"** All of the code. See `BUILT_DURING_HACKATHON.md`. The research notes were written that morning before the 11:30 start and contain no code.
+## Optional intake variant
+
+Use intake after rehearsing the main sequence comfortably within three minutes, or during Q&A. It changes the snapshot, so finish it **before** starting the question. Replace map browsing, not execution evidence.
+
+- It uses a prepared WildChat batch. GLM facet extraction happened before the demo; Jev classification and four friction decisions happen live. Say that explicitly.
+- `/api/intake/status` must show `ready: true`. If consumed, an intentional presenter **Reset intake** restores its base snapshot; first verify no newer unrelated build needs to remain current. Never reset during another analysis.
+- The reviewed event feed is presenter-only routing metadata, with no conversation summaries. Each event is real, but the stream is **provisional** until gating and publication finish.
+- Wait for the returned `published_snapshot_id` to become the displayed map before quoting numbers. Evaluation may still be running.
+- An outage or gate rejection is a visible failure. Do not present partial events as published successful intake. Reload to inspect the current snapshot after an unexpected error.
+- Imported custom datasets do not support this WildChat-specific intake adapter yet; rebuild their isolated workspace instead.
+
+## Fallbacks
+
+| Condition | Response |
+|---|---|
+| Wrong interpretation | Point out the plan and rephrase once. A correct calculation of the wrong plan is not a correct answer. |
+| Programs disagree or gate fails | Show the failure/repair receipt: “No answer was released.” Label any saved passing run as saved. |
+| Provider/budget failure | Presenter mode reserves capacity but cannot fix a provider outage. Show the existing map and labelled recorded execution. |
+| Sandbox unavailable | Claim no successful new live answer. Show health/error state and historical receipts. |
+| Wi-Fi failure | Play `demo/logless-demo.mp4`, introduced as a recording. |
+
+## Judge questions
+
+- **Why sandbox instead of SQL?** A fixed aggregate query could use SQL. The sandbox provides a constrained way to execute generated analysis code; this prototype intentionally limits questions to counts, people, signals and ranking. Do not claim arbitrary statistical analysis.
+- **Why two programs?** Different implementations catch some mistakes. Both use the same model family and can agree on the same error. Deterministic validation and independent published totals add checks.
+- **Is it private?** No transcripts or individual summaries reach the analyst UI. Counts can include small groups; providers see inputs; this is not differential privacy or proof against inference. Sensitive production use needs further privacy and access-control work.
+- **Can it use any dataset?** Text assistant conversations in the documented JSONL format, in an isolated workspace. Import validation and synthetic tests establish mechanics, not classification quality across every domain. Arbitrary tables, images and audio are unsupported.
+- **What does friction mean?** Observable correction, repetition, assistant limits or complaints. Iterative writing and retries can be legitimate use; a flag is an investigation signal, not an individual satisfaction judgment.
+- **Why Jev and Fireworks?** Organizers approved their use. Jev provides typed classifications; Fireworks embeds generalized facets. Agent planning, code generation and explanations use Vultr Serverless Inference. The 0.65 cutoff is selected-option probability, not a measured guarantee of accuracy.
+- **What was built here?** Point to `BUILT_DURING_HACKATHON.md`; attribute gVisor, model providers, dependencies and datasets. Do not claim the sandbox runtime or datasets as our invention.

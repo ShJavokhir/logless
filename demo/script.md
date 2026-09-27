@@ -1,5 +1,9 @@
 # logless: one-minute demo script (v2: live intake, two-program answers, rm -rf)
 
+**Recording notes.** This file describes the September 26 cut. The live app has been updated
+since; see [the manual runbook](LIVE_DEMO.md) for the current demo. Commands below spend provider
+usage and reset the live intake; they are not a read-only preview.
+
 **Final cut:** `logless-demo.mp4`, 59.3 s, 1440×900, H.264 High + AAC, with captions burned in. `logless-demo-silent.mp4` is the same cut without audio.
 **Recorded against:** https://144-202-110-2.sslip.io on Sep 26, 2026, about 22:05 PDT, as one live take plus a separate Evaluation clip.
 

@@ -40,3 +40,7 @@ Each container uses `runsc`, `--network=none`, a read-only root and inputs, 1 vC
 ## Honest limitations
 
 No differential privacy, minimum cluster size, or guarantee against inference/leaks. Model providers see inputs outside the VPC; generalized facets can retain sensitive information. Agreement can share model mistakes; snapshot checks cover only derivable metrics. “People” approximates distinct hashed IPs. Sandbox host egress permits VPC traffic plus metadata/DHCP and control exceptions; container networking remains disabled. The runner's Docker access is host-root-equivalent. See [infrastructure](../infra/README.md) and [runner](../runner/README.md) for operational details.
+
+The reviewed intake event stream requires presenter authentication and withholds all per-conversation summaries. It exposes routing diagnostics to the presenter; the public UI receives published aggregates. Snapshot inputs are frozen before an intake snapshot becomes current. Missing frozen inputs fail closed rather than rebuilding a historical answer from mutable assignments.
+
+The JSONL adapter accepts text conversations with explicit public source metadata in an isolated workspace. Its successful synthetic end-to-end test checks the processing mechanics, not live cross-domain model accuracy. The same GLM family generates A and B; independent calls and different implementation instructions do not imply statistically independent errors. Pseudonyms are randomized per export, then shared by A/B and repairs.

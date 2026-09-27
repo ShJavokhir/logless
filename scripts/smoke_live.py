@@ -3,10 +3,13 @@
 
 Live free checks: ./scripts/smoke_live.py --skip-paid
 Offline regression tests: ./scripts/smoke_live.py --self-test
-Omitting --skip-paid spends analysis/story/containment budget.
+Omitting --skip-paid spends search/analysis/story/containment budget.
 """
 
 import argparse
+import datetime
+import hashlib
+from fractions import Fraction
 import http.client
 import json
 import math
@@ -19,13 +22,22 @@ import urllib.request
 
 
 DEFAULT_URL = "https://144-202-110-2.sslip.io"
-DEFAULT_QUESTION = "Which coding workflows have the most distinct people repeating requests?"
+DEFAULT_QUESTION = "Which workflows have the most distinct people repeating requests?"
 UNSUPPORTED_QUESTION = "Show me the conversations about divorce"
 BUDGET_CODES = {"budget_exhausted", "rate_limited"}
 PRIVATE_ID = re.compile(r"\b(?:c_[0-9a-f]{12}|u_[0-9a-f]{10})\b")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 URL = re.compile(r"\b(?:[a-z][a-z0-9+.-]*://|www\.)[^\s<>\"']+", re.I)
 MARKER = re.compile(r"\[([np]\d+)\]")
+AGREEMENT_CHECK = "Two independent programs agree"
+CORE_GATE_CHECKS = {
+    "Result file received", "Size within 1 MiB", "Strict JSON parse", "Document within structural limits",
+    "Only allowlisted field names", "Only allowlisted string values", "Schema matches exactly",
+    "Intent matches the request", "Snapshot id is the current snapshot", "Plan echoed exactly",
+    "Ids are within the question's scope (no Other)", "Counts are non-negative integers",
+    "count ≤ base and share = count ÷ base", "Totals consistent with the rows",
+    "Ranked as the plan says (rank desc, then id)", "Row count is min(limit, groups in scope)",
+}
 
 
 class CheckFailed(Exception):
@@ -58,6 +70,48 @@ def number(value):
 def error_code(payload):
     code = mapping(payload).get("code")
     return code if isinstance(code, str) and re.fullmatch(r"[a-z_]{1,64}", code) else "unknown_error"
+
+
+def checked_verdict(value, label, passed=True):
+    verdict = mapping(value)
+    checks = items(verdict.get("checks"), f"{label} checks")
+    require(checks and all(isinstance(c, dict) and isinstance(c.get("name"), str) and c["name"]
+                           and type(c.get("passed")) is bool for c in checks), f"{label} checks missing or malformed")
+    names = [c["name"] for c in checks]
+    require(len(names) == len(set(names)), f"{label} has duplicate checks")
+    require(verdict.get("passed") is passed and all(c["passed"] for c in checks) is passed,
+            f"{label} is inconsistent or did not {'pass' if passed else 'reject'}")
+    return checks
+
+
+def checked_receipt(value, label, successful=False):
+    receipt = mapping(value)
+    require(receipt.get("runtime") == "runsc", f"{label} runtime is not runsc")
+    for field in ("job_id", "image", "host"):
+        require(isinstance(receipt.get(field), str) and receipt[field], f"{label} {field} missing")
+    require(isinstance(receipt.get("code_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", receipt["code_sha256"]),
+            f"{label} code hash missing or invalid")
+    require(number(receipt.get("elapsed_ms")), f"{label} timing missing")
+    require(type(receipt.get("output_bytes")) is int and receipt["output_bytes"] >= 0, f"{label} output size invalid")
+    require(type(receipt.get("timed_out")) is bool, f"{label} timeout flag missing")
+    require(receipt.get("container_removed") is True, f"{label} container removal not verified")
+    limits = mapping(receipt.get("limits"))
+    require(limits.get("network") == "none" and limits.get("read_only_root") is True, f"{label} isolation limits missing")
+    for field in ("cpus", "memory_mb", "pids", "timeout_s"):
+        require(number(limits.get(field)) and limits[field] > 0, f"{label} invalid resource limit")
+    try:
+        timestamps = [datetime.datetime.fromisoformat(receipt[field].replace("Z", "+00:00"))
+                      for field in ("started_at", "finished_at")]
+        require(all(t.utcoffset() is not None for t in timestamps) and timestamps[1] >= timestamps[0],
+                f"{label} timestamps are inconsistent")
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise CheckFailed(f"{label} timestamps missing or invalid") from None
+    if successful:
+        require(type(receipt.get("exit_code")) is int and receipt["exit_code"] == 0,
+                f"{label} final exit code is not zero")
+        require(receipt["timed_out"] is False and 0 < receipt["output_bytes"] <= 1024 * 1024,
+                f"{label} final execution did not produce output within the gate limit")
+    return receipt
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -145,14 +199,15 @@ def scan_snapshot(payload):
 
 
 class SmokeTest:
-    def __init__(self, client, question=DEFAULT_QUESTION, timeout=90.0, skip_paid=False):
+    def __init__(self, client, question=DEFAULT_QUESTION, timeout=90.0, skip_paid=False, legacy=False):
         self.client = client
         self.question = question
         self.timeout = timeout
         self.skip_paid = skip_paid
+        self.legacy = legacy
         self.snapshot = None
-        self.version = "unknown"
-        self.version_evidence = "no snapshot or analysis evidence"
+        self.version = "legacy" if legacy else "unknown"
+        self.version_evidence = "explicit --legacy compatibility mode" if legacy else "no snapshot or analysis evidence"
         self.version_confirmed = False
         self.checks = []
 
@@ -189,7 +244,7 @@ class SmokeTest:
         require(summed == total, f"leaf sum {summed} != totals.conversations {total}")
         self.snapshot = data
         provenance = data.get("provenance")
-        if isinstance(provenance, dict):
+        if isinstance(provenance, dict) and not self.legacy:
             legacy = "stats_source" in provenance
             self.version = "legacy" if legacy else "question-only"
             self.version_evidence = "snapshot provenance.stats_source " + ("present" if legacy else "absent")
@@ -225,12 +280,13 @@ class SmokeTest:
         require(isinstance(run_id, str) and re.fullmatch(r"run_[A-Za-z0-9_-]+", run_id), "missing or invalid run_id")
         while True:
             data = self.client.request("/api/runs/" + run_id, deadline=deadline)
+            require(data.get("run_id") == run_id, "polled response belongs to a different run")
             if data.get("state") in ("completed", "failed"):
                 code = error_code(mapping(data.get("error")))
                 if data.get("state") == "failed" and code in BUDGET_CODES:
                     raise BudgetSkipped(code)
                 return data
-            require(data.get("state") in {"queued", "planning", "executing", "validating", "repairing", "explaining"},
+            require(data.get("state") in {"queued", "interpreting", "planning", "executing", "validating", "repairing", "explaining"},
                     "run has missing or unknown state")
             remaining = deadline - time.monotonic()
             require(remaining > 0, "run timeout exceeded")
@@ -250,6 +306,7 @@ class SmokeTest:
             self.version_confirmed = True
         elif log:
             # The previous API supports questions too, but has one unlabeled program.
+            require(self.legacy, "unlabeled attempt history requires explicit --legacy")
             self.version = "legacy"
             self.version_evidence = "analysis attempts_log has no program labels"
             self.version_confirmed = True
@@ -271,15 +328,47 @@ class SmokeTest:
         require(rows and all(isinstance(row, dict) and row for row in rows), "analysis has no result rows")
         gate_checks = items(verdict.get("checks") or [], "gate checks")
         sandbox_ms = {}
-        if self.version == "question-only":
+        if not (self.legacy and self.version == "legacy"):
+            require(self.version == "question-only", "modern analysis evidence missing; historical deployments require --legacy")
+            require(run.get("kind") == "analysis" and run.get("intent") == "question", "run is not a question analysis")
+            require(run.get("snapshot_id") == result.get("snapshot_id") == snapshot["snapshot_id"], "analysis snapshot does not match")
+            require(result.get("intent") == "question", "result intent does not match")
+            require(isinstance(run.get("plan"), dict) and result.get("plan") == run["plan"], "result plan does not match run plan")
+            gate_checks = checked_verdict(verdict, "analysis verdict")
+            gate_names = {check["name"] for check in gate_checks}
+            require(AGREEMENT_CHECK in gate_names, "analysis agreement evidence missing")
+            require(any(name.startswith("Consistent with the published map · ") for name in gate_names),
+                    "published-map cross-check evidence missing")
+            require(all(attempt.get("program") in ("A", "B") for attempt in log), "unexpected or missing program label")
+            jobs = set()
+            executions = 0
             for program in ("A", "B"):
                 attempts = [attempt for attempt in log if attempt.get("program") == program]
                 require(attempts, f"program {program} missing from attempts_log")
+                require(all(type(a.get("attempt")) is int for a in attempts)
+                        and [a["attempt"] for a in attempts] in ([1], [1, 2]), f"program {program} attempt sequence invalid")
+                final_checks = checked_verdict(attempts[-1].get("verdict"), f"program {program} final verdict")
+                require(CORE_GATE_CHECKS <= {c["name"] for c in final_checks}, f"program {program} gate evidence incomplete")
+                require({f"{program} · {name}" for name in CORE_GATE_CHECKS} <= gate_names,
+                        f"program {program} missing from combined gate evidence")
+                for attempt in attempts:
+                    code = attempt.get("code")
+                    require(isinstance(code, str) and code.strip(), f"program {program} code missing")
+                    digest = hashlib.sha256(code.encode()).hexdigest()
+                    require(attempt.get("code_sha256") == digest, f"program {program} source hash mismatch")
+                    if attempt.get("receipt") is None:
+                        checked_verdict(attempt.get("verdict"), f"program {program} unexecuted verdict", passed=False)
+                        continue
+                    rc = checked_receipt(attempt["receipt"], f"program {program}", successful=attempt is attempts[-1])
+                    require(rc["code_sha256"] == digest, f"program {program} receipt source hash mismatch")
+                    require(rc["job_id"] not in jobs, "sandbox job reused across program attempts")
+                    jobs.add(rc["job_id"])
+                    executions += 1
                 receipts = [mapping(attempt.get("receipt")) for attempt in attempts if attempt.get("receipt") is not None]
                 require(receipts and mapping(attempts[-1].get("receipt")), f"program {program} has no execution receipt")
-                require(all(receipt.get("runtime") == "runsc" for receipt in receipts), f"program {program} runtime is not runsc")
-                require(all(number(receipt.get("elapsed_ms")) for receipt in receipts), f"program {program} sandbox timing missing")
                 sandbox_ms[program] = sum(receipt["elapsed_ms"] for receipt in receipts)
+            require(type(run.get("attempts")) is int and run["attempts"] == executions, "execution count differs from receipts")
+            self.check_question_rows(run["plan"], result, rows, snapshot)
         else:
             receipts = [mapping(attempt.get("receipt")) for attempt in log if attempt.get("receipt") is not None]
             if not receipts and run.get("receipt") is not None:
@@ -294,6 +383,43 @@ class SmokeTest:
         return f"{self.version}; completed in {elapsed:.2f}s; sandbox {timing}; {len(gate_checks)} gate checks; {len(rows)} rows", {
             "sandbox_ms": sandbox_ms, "gate_checks": len(gate_checks), "rows": len(rows),
         }
+
+    def check_question_rows(self, plan, result, rows, snapshot):
+        require(plan.get("group_by") in ("leaf", "category") and plan.get("measure") in ("conversations", "people")
+                and plan.get("rank_by") in ("count", "share"), "invalid result plan")
+        require(plan.get("signal") in (None, "any_friction", "correction", "repeat_request", "assistant_limit", "complaint"),
+                "invalid result signal")
+        require(type(plan.get("limit")) is int and 1 <= plan["limit"] <= 10, "invalid plan limit")
+        nodes = snapshot["clusters"] if plan["group_by"] == "leaf" else snapshot["categories"]
+        scope = {node["id"] for node in nodes if not node.get("is_other") and node["id"] != "cl_other"
+                 and (not plan.get("scope_category_id") or node.get("parent_id") == plan["scope_category_id"])}
+        require(len(rows) == min(plan["limit"], len(scope)), "result row count differs from scope")
+        row_ids = [row.get("id") for row in rows]
+        require(all(isinstance(i, str) and i in scope for i in row_ids) and len(set(row_ids)) == len(row_ids),
+                "result contains duplicate or out-of-scope ids")
+        for field in ("total_count", "total_base"):
+            require(type(result.get(field)) is int and result[field] >= 0, "result totals invalid")
+        require(result["total_count"] <= result["total_base"], "result total count exceeds base")
+        for row in rows:
+            require(all(type(row.get(f)) is int and row[f] >= 0 for f in ("count", "base")), "result row counts invalid")
+            require(row["count"] <= row["base"] <= result["total_base"] and row["count"] <= result["total_count"],
+                    "result row counts contradict totals")
+            share = row["count"] / row["base"] if row["base"] else 0
+            require(number(row.get("share")) and abs(row["share"] - share) <= 0.0001, "result share differs from count/base")
+            if plan.get("signal") is None:
+                require(row["count"] == row["base"], "unfiltered row count differs from base")
+        if plan.get("signal") is None:
+            require(result["total_count"] == result["total_base"], "unfiltered total count differs from base")
+        if plan["measure"] == "conversations":
+            for field, row_field in (("total_count", "count"), ("total_base", "base")):
+                summed = sum(row[row_field] for row in rows)
+                require(result[field] == summed if len(rows) == len(scope) else result[field] >= summed,
+                        "conversation totals contradict row sums")
+        # Public shares are rounded to four places. Rank using exact source
+        # fractions so legitimate near-ties are not accidentally reversed.
+        rank = (lambda row: Fraction(row["count"], row["base"]) if row["base"] else Fraction(0)) \
+            if plan["rank_by"] == "share" else (lambda row: row["count"])
+        require(rows == sorted(rows, key=lambda row: (-rank(row), row["id"])), "result ranking is inconsistent")
 
     def unsupported(self):
         snapshot = self.snapshot_required()
@@ -316,8 +442,28 @@ class SmokeTest:
             require(data.get(field) is True, f"containment.{field} is not true")
         require(data.get("app_health") == "ok", "containment app_health is not ok")
         require(number(data.get("elapsed_ms")) and number(data.get("deadline_ms")), "containment timings missing")
-        return f"killed and removed; health ok; leak rejected; {data['elapsed_ms']:g} ms vs deadline {data['deadline_ms']:g} ms", {
+        evidence = "legacy partial evidence"
+        legacy_mode = self.legacy and self.version == "legacy"
+        if not legacy_mode:
+            require(run.get("kind") == "containment" and run.get("snapshot_id") == self.snapshot_required()["snapshot_id"],
+                    "containment run scope does not match")
+            require(data.get("followup_passed") is True, "containment follow-up did not pass")
+            destructive = mapping(data.get("destructive"))
+            require(destructive.get("command") == "rm -rf --no-preserve-root /", "destructive fixture evidence missing")
+            for field in ("container_removed", "next_run_clean", "contained"):
+                require(destructive.get(field) is True, f"destructive.{field} is not true")
+            rc = checked_receipt(run.get("receipt"), "runaway receipt")
+            require(rc["timed_out"] is True and rc["elapsed_ms"] == data["elapsed_ms"], "runaway receipt contradicts timing/kill flags")
+            require(data["deadline_ms"] > 0 and rc["limits"]["timeout_s"] * 1000 == data["deadline_ms"],
+                    "runaway deadline contradicts receipt")
+            checks = checked_verdict(run.get("verdict"), "leak verdict", passed=False)
+            rejected = items(data.get("leak_rejection_checks"), "leak rejection checks")
+            require(rejected and all(isinstance(name, str) for name in rejected)
+                    and set(rejected) == {c["name"] for c in checks if not c["passed"]}, "leak rejection evidence inconsistent")
+            evidence = "destructive containment and clean follow-up verified"
+        return f"{evidence}; killed and removed; health ok; leak rejected; {data['elapsed_ms']:g} ms vs deadline {data['deadline_ms']:g} ms", {
             "elapsed_ms": data["elapsed_ms"], "deadline_ms": data["deadline_ms"],
+            "evidence_scope": "legacy_partial" if legacy_mode else "modern_complete",
         }
 
     def story(self):
@@ -368,7 +514,7 @@ class SmokeTest:
             started = time.monotonic()
             record = {"check": index, "name": name, "status": "PASS", "detail": "", "metrics": {}}
             try:
-                if self.skip_paid and index >= 5:
+                if self.skip_paid and index >= 4:
                     record.update(status="SKIPPED", detail="--skip-paid", reason="skip_paid")
                 else:
                     record["detail"], record["metrics"] = check()
@@ -410,6 +556,71 @@ def self_test():
     }
     receipt = {"runtime": "runsc", "elapsed_ms": 12}
     gate = {"passed": True, "checks": [{"name": "Schema matches exactly", "passed": True}]}
+    plan = {"group_by": "leaf", "scope_category_id": None, "measure": "conversations",
+            "signal": None, "rank_by": "count", "limit": 2}
+
+    def full_receipt(code, job_id):
+        return {"runtime": "runsc", "elapsed_ms": 12, "job_id": job_id, "image": "test-image", "host": "test-host",
+                "code_sha256": hashlib.sha256(code.encode()).hexdigest(), "exit_code": 0, "timed_out": False,
+                "container_removed": True, "output_bytes": 100,
+                "limits": {"cpus": 1, "memory_mb": 512, "pids": 64, "timeout_s": 10, "network": "none", "read_only_root": True},
+                "started_at": "2026-09-27T00:00:00Z", "finished_at": "2026-09-27T00:00:01Z"}
+
+    def full_attempt(program, attempt=1):
+        code = f"# {program} version {attempt}\nprint('{{}}')\n"
+        rc = full_receipt(code, f"job_{program}{attempt}")
+        return {"program": program, "attempt": attempt, "code": code, "code_sha256": rc["code_sha256"],
+                "receipt": rc, "verdict": {"passed": True, "checks": [{"name": name, "passed": True}
+                                                                          for name in sorted(CORE_GATE_CHECKS)]}}
+
+    # Paths address the canned response only. Expected diagnostic fragments
+    # prove each mutation exercises the intended check, not some other failure.
+    negative_analysis = {
+        "wrong_run": (("run_id",), "run_wrong", "different run"),
+        "wrong_snapshot": (("result", "snapshot_id"), "snap_old", "snapshot does not match"),
+        "wrong_plan": (("result", "plan", "limit"), 1, "plan does not match"),
+        "empty_gate": (("verdict", "checks"), [], "checks missing"),
+        "contradictory_gate": (("verdict", "checks", 0, "passed"), False, "analysis verdict"),
+        "failed_program": (("attempts_log", 1, "verdict", "passed"), False, "final verdict"),
+        "missing_program_checks": (("attempts_log", 1, "verdict", "checks"), [], "checks missing"),
+        "wrong_exit": (("attempts_log", 1, "receipt", "exit_code"), 1, "exit code"),
+        "timed_out_final": (("attempts_log", 1, "receipt", "timed_out"), True, "did not produce output"),
+        "no_cleanup": (("attempts_log", 1, "receipt", "container_removed"), False, "container removal"),
+        "no_output": (("attempts_log", 1, "receipt", "output_bytes"), 0, "did not produce output"),
+        "bad_network": (("attempts_log", 1, "receipt", "limits", "network"), "bridge", "isolation limits"),
+        "writable_root": (("attempts_log", 1, "receipt", "limits", "read_only_root"), False, "isolation limits"),
+        "bad_limit": (("attempts_log", 1, "receipt", "limits", "timeout_s"), 0, "resource limit"),
+        "bad_clock": (("attempts_log", 1, "receipt", "finished_at"), "2025-01-01T00:00:00Z", "timestamps"),
+        "source_mismatch": (("attempts_log", 1, "code"), "print('other')", "source hash mismatch"),
+        "receipt_mismatch": (("attempts_log", 1, "receipt", "code_sha256"), "0" * 64, "receipt source hash"),
+        "reused_job": (("attempts_log", 1, "receipt", "job_id"), "job_A1", "job reused"),
+        "wrong_attempt_count": (("attempts",), 1, "execution count"),
+        "unknown_row": (("result", "rows", 0, "id"), "cl_missing", "out-of-scope"),
+        "wrong_share": (("result", "rows", 0, "share"), 0.25, "share differs"),
+        "impossible_count": (("result", "rows", 0, "count"), 100, "contradict totals"),
+        "inflated_total": (("result", "total_base"), 11, "unfiltered total"),
+        "missing_label": (("attempts_log", 1, "program"), None, "program label"),
+        "bad_sequence": (("attempts_log", 1, "attempt"), 2, "attempt sequence"),
+    }
+    negative_containment = {
+        "missing_destructive": (("containment", "destructive"), None, "destructive fixture"),
+        "failed_followup": (("containment", "followup_passed"), False, "follow-up"),
+        "dirty_next_run": (("containment", "destructive", "next_run_clean"), False, "next_run_clean"),
+        "destructive_not_removed": (("containment", "destructive", "container_removed"), False, "container_removed"),
+        "not_contained": (("containment", "destructive", "contained"), False, "contained"),
+        "no_leak_reasons": (("containment", "leak_rejection_checks"), [], "leak rejection evidence"),
+        "wrong_leak_reasons": (("containment", "leak_rejection_checks"), ["Unrelated"], "leak rejection evidence"),
+        "leak_gate_passed": (("verdict", "passed"), True, "leak verdict"),
+        "runaway_not_timed_out": (("receipt", "timed_out"), False, "timing/kill flags"),
+        "wrong_deadline": (("containment", "deadline_ms"), 0, "deadline contradicts"),
+    }
+
+    def mutate(response, case):
+        path, value, _ = case
+        target = response
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
     scenario = {"version": "new", "mode": "normal", "requests": [], "polls": {}}
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -431,6 +642,10 @@ def self_test():
                 response = {"status": "ok", "sandbox": "reachable"}
             elif self.path == "/api/snapshot":
                 response = copy.deepcopy(snapshot)
+                if mode == "share_near_tie":
+                    response["clusters"][0]["conversations"] = 1_000_000
+                    response["clusters"][1]["conversations"] = 1_000_000
+                    response["totals"]["conversations"] = 2_000_010
                 if scenario["version"] == "legacy":
                     response["provenance"]["stats_source"] = "sandbox"
                 if mode == "missing_optional":
@@ -472,8 +687,19 @@ def self_test():
                 if run_id == "run_question":
                     log = [{"attempt": 1, "receipt": receipt, "verdict": gate}]
                     if scenario["version"] == "new":
-                        log = [dict(log[0], program=program) for program in ("A", "B")]
+                        log = [full_attempt(program) for program in ("A", "B")]
                     response.update(verdict=gate, result={"rows": [{"id": "cl_large", "count": 1}]}, receipt=receipt, attempts_log=log)
+                    if scenario["version"] == "new":
+                        combined = [{"name": f"{a['program']} · {c['name']}", "passed": True}
+                                    for a in log for c in a["verdict"]["checks"]]
+                        combined += [{"name": "Consistent with the published map · base = published conversations", "passed": True},
+                                     {"name": AGREEMENT_CHECK, "passed": True}]
+                        response.update(kind="analysis", intent="question", snapshot_id="snap_test", plan=copy.deepcopy(plan), attempts=2,
+                                        verdict={"passed": True, "checks": combined}, code=log[0]["code"], receipt=log[0]["receipt"],
+                                        result={"intent": "question", "snapshot_id": "snap_test", "plan": copy.deepcopy(plan),
+                                                "rows": [{"id": "cl_large", "count": 7, "base": 7, "share": 1},
+                                                         {"id": "cl_small", "count": 3, "base": 3, "share": 1}],
+                                                "total_count": 10, "total_base": 10})
                     if mode == "missing_b":
                         response["attempts_log"] = log[:1]
                     elif mode == "wrong_runtime":
@@ -483,9 +709,33 @@ def self_test():
                     elif mode == "interpretation_failed":
                         response.update(state="failed", error={"code": "interpretation_failed"}, attempts_log=None)
                     elif mode == "repair":
-                        response["attempts_log"] = [dict(log[0], receipt=None, verdict={"passed": False})] + log
+                        if scenario["version"] == "new":
+                            failed = dict(log[0], receipt=None, verdict={"passed": False, "checks": [{"name": "Static pre-check", "passed": False}]})
+                            response["attempts_log"] = [failed, log[1], full_attempt("A", 2)]
+                        else:
+                            response["attempts_log"] = [dict(log[0], receipt=None, verdict={"passed": False})] + log
+                    elif mode == "executed_repair" and scenario["version"] == "new":
+                        failed = full_attempt("A")
+                        failed["receipt"].update(exit_code=137, timed_out=True, output_bytes=0)
+                        failed["verdict"] = {"passed": False, "checks": [{"name": "Result file received", "passed": False}]}
+                        response["attempts_log"] = [failed, log[1], full_attempt("A", 2)]
+                        response["attempts"] = 3
+                    elif mode == "share_near_tie" and scenario["version"] == "new":
+                        response["plan"].update(rank_by="share", signal="any_friction")
+                        response["result"].update(plan=copy.deepcopy(response["plan"]), total_count=1001, total_base=2_000_000,
+                                                  rows=[{"id": "cl_small", "count": 501, "base": 1_000_000, "share": 0.0005},
+                                                        {"id": "cl_large", "count": 500, "base": 1_000_000, "share": 0.0005}])
                     elif mode == "null_result":
                         response.update(result=None, verdict=None)
+                    elif mode == "missing_agreement":
+                        response["verdict"]["checks"] = [c for c in response["verdict"]["checks"] if c["name"] != AGREEMENT_CHECK]
+                    elif mode == "missing_map_check":
+                        response["verdict"]["checks"] = [c for c in response["verdict"]["checks"] if not c["name"].startswith("Consistent")]
+                    elif mode == "unlabeled_history":
+                        for attempt in log:
+                            attempt.pop("program", None)
+                    elif mode in negative_analysis:
+                        mutate(response, negative_analysis[mode])
                 elif run_id == "run_unsupported":
                     response.update(state="failed", error={"code": "unsupported_question"})
                     if mode == "unsupported_executed":
@@ -493,10 +743,22 @@ def self_test():
                 elif run_id == "run_containment":
                     response["containment"] = {"killed": True, "container_removed": True, "app_health": "ok",
                                                "leak_attempt_rejected": True, "elapsed_ms": 501, "deadline_ms": 500}
+                    if scenario["version"] == "new":
+                        rc = full_receipt("while True: pass", "job_runaway")
+                        rc.update(elapsed_ms=501, timed_out=True, exit_code=137, output_bytes=0)
+                        rc["limits"]["timeout_s"] = 0.5
+                        response.update(kind="containment", snapshot_id="snap_test", receipt=rc,
+                                        verdict={"passed": False, "checks": [{"name": "Schema matches exactly", "passed": False}]})
+                        response["containment"].update(followup_passed=True, leak_rejection_checks=["Schema matches exactly"],
+                                                       destructive={"command": "rm -rf --no-preserve-root /", "container_removed": True,
+                                                                    "contained": True, "next_run_clean": True,
+                                                                    "root_read_only": None, "binaries_intact": None})
                     if mode == "bad_containment":
                         response["containment"]["killed"] = False
+                    elif mode in negative_containment:
+                        mutate(response, negative_containment[mode])
                 if (mode == "pending" and polls == 0) or mode == "timeout":
-                    response = {"state": "queued"}
+                    response = {"state": "queued", "run_id": run_id}
             else:
                 status, response = 404, {"code": "not_found"}
             encoded = json.dumps(response).encode()
@@ -550,12 +812,16 @@ def self_test():
     try:
         for version in ("new", "legacy"):
             for mode, failures in (("normal", set()), ("pending", set()), ("ready_story", set()), ("repair", set()),
+                                   ("executed_repair", set()), ("share_near_tie", set()),
                                    ("wrong_runtime", {"question"}), ("bad_citation", {"story"}),
                                    ("interpretation_failed", {"question"}), ("null_result", {"question"}),
                                    ("unsupported_executed", {"unsupported_question"}), ("bad_containment", {"containment"}),
-                                   ("paid_budget", set()), ("missing_optional", set())):
+                                   ("paid_budget", set()), ("missing_optional", set()),
+                                   ("bad_search", {"search"}), ("budget_exhausted", set()), ("rate_limited", set())):
                 scenario.update(version=version, mode=mode, requests=[], polls={})
-                summary = SmokeTest(Client(base_url, "secret-presenter-key"), timeout=10).run()
+                summary = SmokeTest(Client(base_url, "secret-presenter-key"), timeout=10, legacy=version == "legacy").run()
+                if version == "new" and mode == "missing_optional":
+                    failures = {"question"}
                 actual = {check["name"] for check in summary["checks"] if check["status"] == "FAIL"}
                 assert actual == failures, (version, mode, summary)
                 assert summary["exit_code"] == bool(failures)
@@ -572,15 +838,33 @@ def self_test():
         summary = SmokeTest(Client(base_url), timeout=10).run()
         assert summary["checks"][4]["status"] == "FAIL"
         cases += 1
+        scenario.update(version="legacy", mode="normal", requests=[], polls={})
+        summary = SmokeTest(Client(base_url), timeout=10).run()
+        assert {c["name"] for c in summary["checks"] if c["status"] == "FAIL"} == {"question", "containment"}
+        cases += 1
+        # Explicit legacy cannot relax a response that declares A/B programs.
+        scenario.update(version="new", mode="missing_b", requests=[], polls={})
+        summary = SmokeTest(Client(base_url), timeout=10, legacy=True).run()
+        assert summary["checks"][4]["status"] == "FAIL"
+        cases += 1
+        for mode, case in {**negative_analysis, **negative_containment,
+                           "missing_agreement": ((), None, "agreement evidence"),
+                           "missing_map_check": ((), None, "map cross-check"),
+                           "unlabeled_history": ((), None, "unlabeled attempt history")}.items():
+            scenario.update(version="new", mode=mode, requests=[], polls={})
+            summary = SmokeTest(Client(base_url), timeout=10).run()
+            name = "containment" if mode in negative_containment else "question"
+            failures = [check for check in summary["checks"] if check["status"] == "FAIL"]
+            assert len(failures) == 1 and failures[0]["name"] == name and case[2] in failures[0]["detail"], (mode, failures)
+            assert summary["exit_code"] == 1
+            cases += 1
         for mode in ("normal", "budget_exhausted", "rate_limited", "bad_search", "stale_eval", "leak"):
             scenario.update(version="legacy", mode=mode, requests=[], polls={})
             summary = SmokeTest(Client(base_url), skip_paid=True).run()
-            assert all(method == "GET" or path == "/api/search" for method, path, _, _ in scenario["requests"])
-            assert sum(path == "/api/search" for _, path, _, _ in scenario["requests"]) <= 1
-            assert all(check["status"] == "SKIPPED" for check in summary["checks"][4:])
-            assert summary["exit_code"] == (mode in {"bad_search", "stale_eval", "leak"})
-            if mode in BUDGET_CODES:
-                assert summary["checks"][3]["reason"] == "budget"
+            assert all(method == "GET" for method, _, _, _ in scenario["requests"])
+            assert not any(path == "/api/search" for _, path, _, _ in scenario["requests"])
+            assert all(check["status"] == "SKIPPED" for check in summary["checks"][3:])
+            assert summary["exit_code"] == (mode in {"stale_eval", "leak"})
             cases += 1
         scenario.update(version="new", mode="timeout", requests=[], polls={})
         summary = SmokeTest(Client(base_url), timeout=0.03).run()
@@ -594,7 +878,7 @@ def self_test():
                 code = main(["--base-url", base_url, "--skip-paid"] + (["--json"] if json_mode else []))
             assert code == 0
             if json_mode:
-                assert json.loads(output.getvalue())["counts"] == {"pass": 4, "fail": 0, "skipped": 4}
+                assert json.loads(output.getvalue())["counts"] == {"pass": 3, "fail": 0, "skipped": 5}
             else:
                 assert "PASS 1. health" in output.getvalue() and "SKIPPED 5. question" in output.getvalue()
             cases += 1
@@ -628,7 +912,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base-url", default=DEFAULT_URL)
     parser.add_argument("--presenter-key-env", metavar="NAME", help="environment variable containing the presenter key (never printed)")
-    parser.add_argument("--skip-paid", action="store_true", help="only free GETs and at most one search")
+    parser.add_argument("--skip-paid", action="store_true", help="only health, snapshot and evaluation GETs; no provider calls")
+    parser.add_argument("--legacy", action="store_true", help="explicit historical single-program API compatibility (reduced evidence checks)")
     parser.add_argument("--question", default=DEFAULT_QUESTION)
     parser.add_argument("--timeout", type=float, default=90, metavar="SECONDS", help="deadline per run, including submission/polling (default: 90)")
     parser.add_argument("--json", action="store_true", help="emit only a machine-readable JSON summary")
@@ -658,7 +943,7 @@ def main(argv=None):
         status = "SKIPPED: budget" if record.get("reason") == "budget" else record["status"]
         print(safe(f"{status} {record['check']}. {record['name']}: {detail} ({record['elapsed_s']:.2f}s)"), flush=True)
 
-    summary = SmokeTest(Client(args.base_url, key), args.question, args.timeout, args.skip_paid).run(None if args.json else emit)
+    summary = SmokeTest(Client(args.base_url, key), args.question, args.timeout, args.skip_paid, args.legacy).run(None if args.json else emit)
     if args.json:
         def redact(value):
             if isinstance(value, str):
