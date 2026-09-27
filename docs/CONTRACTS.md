@@ -1,0 +1,208 @@
+# logless — shared contracts
+
+Every component (pipeline, API, runner, web) builds against this file. If you need to change a contract, change it here first and say so in your report.
+
+## 1. Dataset (hardcoded input)
+
+- Source: `allenai/WildChat-1M` on Hugging Face, revision `7d6490e462285cf85d91eabea0f9a954fbddcd1f`, file `data/train-00000-of-00014.parquet` (Apr 8 – May 4 2023, 59,857 conversations, 13,908 hashed IPs). License ODC-BY 1.0; attribution: Zhao et al., "WildChat: 1M ChatGPT Interaction Logs in the Wild", ICLR 2024.
+- Sample: seeded uniform random sample of conversations whose first user message is non-empty. Default `SAMPLE_SIZE=5000`, `SAMPLE_SEED=20260926`. All languages kept.
+- Row key: the first turn's `turn_identifier` (`conversation_hash` is not unique).
+- Rendering for models: `role: content` lines; each message capped at 3,000 chars (head + ` […] ` + tail 500); whole conversation capped at 16,000 chars (opening + `[… middle of conversation omitted …]` + ending 4,000). Truncation is recorded (`truncated` flag) so the audit can compare full vs truncated labels.
+- Evaluation fixtures: `N_CANARY=40` planted synthetic conversations, each carrying a unique invented name + email + phone (canary tokens). They go through the pipeline like any other conversation (0.8% of the map) and are disclosed in the manifest (`fixtures.canary_conversations`). Their tokens must never appear in anything the browser can receive. We report "zero detected canary leaks", never "zero leaks".
+
+## 2. Identifiers
+
+| ID | Format | Scope |
+|---|---|---|
+| Conversation | `c_` + sha256("conv:" + turn_identifier)[:12] | private |
+| User pseudonym | `u_` + HMAC-SHA256(`PSEUDONYM_SALT`, hashed_ip)[:10] | private |
+| Build | `b_` + UTC `YYYYMMDDTHHMMSS` | private |
+| Snapshot | `snap_` + UTC `YYYYMMDDTHHMMSS` + `_` + 4 hex | public |
+| Category | `cat_` + 6 hex (stable within a snapshot) | public |
+| Leaf cluster | `cl_` + 6 hex; the catch-all leaf is `cl_other` | public |
+| Evidence item | `n1..nK` (needs) / `p1..pK` (problems), unique within a cluster | public |
+| Run | `run_` + 12 hex | public |
+
+Sandbox jobs never see `c_`/`u_` IDs: each job gets fresh per-job integers (`row`, `user`) from a random permutation.
+
+## 3. Friction signals (Jev, tri-state)
+
+Signals: `correction`, `repeat_request`, `assistant_limit`, `complaint`. Each decision is one of `observed | not_observed | unclear`; a decision whose top probability is < 0.65 is stored as `unclear`. Question wording lives in `backend/logless/pipeline/questions.py` (versioned `FRICTION_QV`).
+
+- Observed friction (per conversation) = at least one signal `observed`.
+- Unclear (per conversation) = no signal `observed` and at least one `unclear`.
+- Signals overlap and are never summed.
+
+## 4. Storage (app VM: `/var/lib/logless`, local dev: `./var`)
+
+- `private.db` (SQLite): `conversations`, `facets`, `friction`, `themes`, `assignments`, `builds`, `llm_cache`, plus pipeline-owned `facet_checks` (PII check per facet) and `embedding_cache` — backend only. Embeddings in `embeddings/<build_id>.npy` + ids json. Per-build private artifacts (structure, evidence ids, gate detail) in `artifacts/<build_id>/`. `builds.snapshot_id` maps a build to the snapshot it published.
+- `public.db` (SQLite): `snapshots(snapshot_id, created_at, json, is_current)`, `runs`, `stories`, `eval_reports`.
+- Browser payloads are built field by field from `public.db` by allowlist serializers. Nothing browser-facing carries a `c_`/`u_` ID, source text, facet text, or canary.
+
+## 5. Public snapshot (`GET /api/snapshot`)
+
+```ts
+type Signal = "correction" | "repeat_request" | "assistant_limit" | "complaint";
+type Metrics = {
+  conversations: number;          // union over descendants
+  users: number;                  // "people": distinct hashed-IP pseudonyms (approximate — shared/changing IPs), recomputed per node, never summed
+  share: number;                  // conversations / snapshot conversations (0..1)
+  friction: {
+    conversations: number;        // >=1 observed signal
+    share: number | null;         // friction.conversations / conversations; null if 0 conversations
+    unclear: number;
+    signals: Record<Signal, number>;
+  };
+  languages: { name: string; conversations: number }[]; // top 5; a language is listed only with >= 5 conversations from >= 3 people, the rest fold into a final {name: "Other languages"} entry (present only when non-zero), so entries sum to `conversations`
+};
+type Node = Metrics & {
+  id: string; level: 1 | 2; parent_id: string | null;
+  title: string;                  // <= 8 words
+  short_title: string;            // map label: 1–3 words, <= 22 characters, goal-flavoured, unique across all nodes (case-insensitive); cl_other = "Other or unclear", its category = "Other"
+  description: string;            // 1–2 sentences, generalized
+  children?: string[];            // categories only: leaf ids
+  needs?: { id: string; text: string }[];                       // leaves only
+  problems?: { id: string; text: string; signal: Signal | null; support: "observed" | "common" }[]; // leaves only
+  surprising?: { flag: boolean; score: number };                // leaves only
+  is_other?: boolean;
+};
+type Snapshot = {
+  snapshot_id: string; created_at: string;
+  workspace: { name: string; description: string };
+  dataset: {
+    name: "WildChat-1M"; source_url: string; revision: string; license: "ODC-BY-1.0"; attribution: string;
+    period_start: string; period_end: string;   // YYYY-MM-DD
+    conversations: number; users: number; languages: number;
+    sample_note: string;
+    fixtures: { canary_conversations: number; injection_conversations: number };  // 40 canary + 10 injection-bait fixtures, all counted in totals
+  };
+  totals: Metrics;
+  categories: Node[];             // level 1, 4–8 of them
+  clusters: Node[];               // level 2 leaves, 15–35 incl. cl_other
+  intended_uses: string[];        // what the assistant was designed for; drives "Surprising"
+  provenance: {
+    pipeline_version: string; dataset_hash: string;
+    models: Record<string, string>;         // role -> model id; roles: facets, friction, embeddings, naming, consolidation, classification, hierarchy, descriptions, privacy_audit, identifiability, surprising (pipeline) + analysis_code, explanation, story, relevance (API live features)
+    prompt_versions: Record<string, string>;
+    discovery_rounds: number; build_seconds: number;
+    stats_source: "sandbox" | "local-reference";   // where the published metrics were computed (final builds: "sandbox")
+    stages: { stage: string; started_at: string; finished_at: string; counts: Record<string, number>; models: string[] }[];
+  };
+};
+```
+
+Invariants: leaf `conversations` sum to `totals.conversations`; a category's metrics are recomputed over its leaves' conversations (union); every leaf has exactly one parent. `support: "common"` requires the problem/need to be shown by conversations from >= 5 distinct people; otherwise `"observed"` ("an observed request"). Shares are recomputed by the backend and rounded to 4 decimals before publishing.
+
+## 6. Web API (FastAPI on the app VM, behind Caddy at `/api/*`)
+
+| Method + path | Body | Returns |
+|---|---|---|
+| GET `/api/snapshot` | — | `Snapshot` |
+| POST `/api/search` | `{query: string (<=200 chars), snapshot_id}` | `{snapshot_id, query, results: {cluster_id, relevance: "relevant"\|"unclear"\|"not_relevant", p: number}[], elapsed_ms}` |
+| POST `/api/analyses` | `{intent: "usage"\|"friction", snapshot_id}` | `{run_id}` (a run already in flight for the same intent+snapshot returns its id) |
+| GET `/api/runs/{run_id}` | — | `Run` |
+| POST `/api/clusters/{id}/story` | `{snapshot_id}` | `{status: "ready", story: Story}` or `{status: "pending", run_id}` |
+| POST `/api/demo/containment` | `{}` | `{run_id}` |
+| GET `/api/eval` | — | `EvalReport` |
+| GET `/api/health` | — | `{status: "ok"\|"degraded", sandbox: "reachable"\|"unreachable", snapshot_id}` |
+
+```ts
+type RunState = "queued" | "planning" | "executing" | "validating" | "repairing" | "explaining" | "completed" | "failed";
+type Run = {
+  run_id: string; kind: "analysis" | "story" | "containment"; intent: "usage" | "friction" | null;
+  snapshot_id: string; state: RunState; created_at: string; updated_at: string;
+  stages: { name: string; status: "pending" | "running" | "done" | "failed" | "skipped"; started_at: string | null; finished_at: string | null; detail: string | null }[];
+  attempts: number;                         // sandbox executions used (max 2 for analyses)
+  code: string | null;                      // the GLM-written program (contains no data)
+  receipt: Receipt | null;                  // last sandbox execution
+  verdict: { passed: boolean; checks: { name: string; passed: boolean; detail: string }[] } | null;
+  result: UsageResult | FrictionResult | null;  // only after the gate passed
+  explanation: { text: string; metric_refs: string[] } | null; // text uses {{metric}} placeholders the UI fills from `result`
+  containment: { deadline_ms: number; elapsed_ms: number; killed: boolean; container_removed: boolean; app_health: "ok" | "degraded"; followup_passed: boolean; leak_attempt_rejected: boolean; leak_rejection_checks: string[] } | null;
+  error: { code: string; message: string } | null;  // never raw stderr
+};
+type Receipt = {
+  job_id: string; runtime: "runsc" | "runc"; image: string; code_sha256: string;
+  exit_code: number | null; elapsed_ms: number; timed_out: boolean; output_bytes: number; container_removed: boolean;
+  limits: { cpus: number; memory_mb: number; pids: number; timeout_s: number; network: "none"; read_only_root: true };
+  started_at: string; finished_at: string; host: string;
+};
+type Story = { cluster_id: string; snapshot_id: string; label: string; first_name: string; text: string; citations: string[]; model: string; generated_at: string };
+type EvalReport = { snapshot_id: string; generated_at: string; checks: { id: string; name: string; value: string; target: string; passed: boolean | null; detail: string }[] };
+```
+
+The browser polls `GET /api/runs/{id}` once a second. Public endpoints are rate- and size-limited. There are no accounts.
+
+API details (implemented in `backend/logless/api/`):
+
+- **Errors** are always `{code, message}` (no stack traces): `422 invalid_request` (names the field, never echoes input), `409 stale_snapshot` (body `snapshot_id` is not the current one), `404 not_found`, `413 payload_too_large` (bodies > 8 KiB), `429 rate_limited` (per-IP token buckets) or `429 busy` (≥ 4 runs in flight), `503 no_snapshot | snapshot_blocked | model_unavailable`. `POST /api/analyses` and `/api/demo/containment` return `200 {run_id}`.
+- **Search** results cover every published leaf, sorted relevant (p desc) → unclear → not_relevant; `p` is Jev's top probability; `elapsed_ms` is the Jev call (≈ 0 when served from the per-(snapshot, normalized query) cache). Jev sees only the query and each leaf's public title + description.
+- **Stories**: `POST …/story` returns `{status: "pending", run_id}` while a story run is in flight; when that run is `completed`, POST again to get `{status: "ready", story}` (cached per snapshot + cluster). A run that fails validation twice ends `failed` with `error.code = "story_rejected"` and nothing is shown. Leaves only (categories → 404).
+- **Eval** with no report for the current snapshot: `404 {code: "no_eval_report", message, snapshot_id, generated_at: null, checks: []}`.
+- **Health**: `sandbox` is "reachable" if the runner's `/health` answers `status: "ok"` within 1.5 s (cached 3 s); `status` is "ok" only with a current snapshot and a reachable sandbox.
+- **Run stages** (`name` values; the UI shows the latest started stage of each name):
+  - analysis: `planning → executing → validating → explaining`; a repair inserts `repairing → executing → validating` (same names again) before `explaining`. `attempts` counts sandbox executions (a program rejected by the static pre-check is not executed).
+  - story: `writing → checking`; a repair appends `writing → checking` again.
+  - containment: `runaway → cleanup → health → followup → leak_attempt`. The `containment` object is set only when the run completes (the named stages drive the live checklist until then); `receipt` is the runaway job's receipt; `verdict` is the leak attempt's gate verdict; `attempts` = 3 sandbox executions; `result`/`code`/`explanation` are null.
+- **Explanation placeholders** are dotted paths into the validated `result`: `{{total_conversations}}`, `{{rows.N.cluster_id}}` (the UI renders the published title), `{{rows.N.<field>}}` (`share`/`*_share` render as percentages). `rows[N].x` is accepted and normalized to `rows.N.x`. The backend checks that every placeholder resolves, that the model text has no digits or quantity words outside placeholders, ≤ 2 sentences, ≤ 55 words; otherwise one retry, then a fixed template. `metric_refs` lists the placeholders used.
+
+## 7. Sandbox input (typed assignments, no text)
+
+Files placed read-only at `/in` for every analysis/aggregate job:
+
+- `assignments.csv` — one row per conversation: `row` (int, per-job), `user` (int, per-job), `leaf_id`, `category_id`, `correction`, `repeat_request`, `assistant_limit`, `complaint` (each `observed|not_observed|unclear`). Nothing else: no language, turn counts, timestamps or text (minimum necessary for the intents).
+- `clusters.json` — `[{"id", "parent_id", "level", "is_other"}]` (no titles).
+- `contract.json` — the output contract for the job (`intent`, `snapshot_id`, `output_path`, `fields`, `ordering`, `rules`).
+- `program.py` — the program (GLM-written or a version-controlled task from `backend/sandbox_tasks/`). It must write exactly one file, `/out/result.json`.
+- `main.py` — the runner-owned bootstrap (the container command is `python /in/main.py`); see §9.
+
+Per-job pseudonyms: `row` and `user` are fresh random permutations (1..n) for every export; the mapping back to `c_`/`u_` ids stays in backend memory and is never stored or sent. A missing or invalid friction decision (for the current `FRICTION_QV`) is exported as `unclear`; an assignment whose theme maps to no leaf goes to the `is_other` leaf.
+
+Where live analyses get their inputs: `run_aggregate` (and `pipeline.stats` on the local-reference path) calls `logless.sandbox.export.save_cluster_map(snapshot_id, build_id, clusters)`, which stores the private theme → leaf mapping in `private.db.sandbox_cluster_map` keyed by `snapshot_id`. `POST /api/analyses` and the containment follow-up rebuild the typed inputs from it; a snapshot without an entry cannot run live analyses (`error.code = "no_inputs"`).
+
+## 8. Analysis result schemas (validated by the egress gate on the app VM)
+
+```jsonc
+// usage: every leaf exactly once, ordered by conversations desc, then cluster_id asc
+{"intent": "usage", "snapshot_id": "snap_…", "total_conversations": 5040,
+ "rows": [{"cluster_id": "cl_…", "conversations": 812, "users": 97, "share": 0.1611}]}
+// friction: every leaf exactly once, ordered by friction_conversations desc, then cluster_id asc
+{"intent": "friction", "snapshot_id": "snap_…", "total_conversations": 5040,
+ "rows": [{"cluster_id": "cl_…", "conversations": 812, "friction_conversations": 140, "friction_share": 0.1724,
+           "correction": 60, "repeat_request": 70, "assistant_limit": 20, "complaint": 9, "unclear": 31}]}
+// aggregate (pipeline stage 5): totals + every category and leaf, all Metrics fields except languages;
+// nodes ordered categories by id asc, then leaves by id asc; friction.share is null when conversations is 0
+{"intent": "aggregate", "snapshot_id": "snap_…", "total_conversations": 5040,
+ "totals": {"conversations": 5040, "users": 3100, "share": 1.0,
+            "friction": {"conversations": 900, "share": 0.1786, "unclear": 120,
+                         "signals": {"correction": 300, "repeat_request": 280, "assistant_limit": 250, "complaint": 90}}},
+ "nodes": [{"id": "cat_…", "conversations": …, "users": …, "share": …, "friction": {…}}, {"id": "cl_…", …}]}
+```
+
+In usage/friction rows, `friction_share` is `0.0` for a leaf with 0 conversations. `run_aggregate` returns `metrics = {node_id: Metrics-without-languages, "total": …}` taken from the reference (shares rounded to 4 decimals exactly like `pipeline.stats.metrics_of`), plus `totals`, `total_conversations`, `receipt`, `verdict`; it raises `SandboxUnavailable` (runner unreachable) or `AggregateRejected` (job failed or gate rejected; carries `.verdict`, `.receipt`).
+
+Aggregate interface (pipeline ↔ sandbox): `logless.sandbox.aggregate.run_aggregate(build_id, clusters, snapshot_id)` with `clusters = [{"id", "parent_id", "level", "is_other", "theme_ids": [private theme ids; "other" for cl_other]}]` (categories carry the union of their leaves' theme ids) returns `{"metrics": {node_id: Metrics-without-languages}, "receipt": Receipt, "verdict": {...}}` and raises `SandboxUnavailable` when the runner cannot be reached. `metrics` may also carry `"total"`. The trusted reference lives in `backend/logless/pipeline/stats.py`: `assignment_rows(build_id, clusters)` (one private row per conversation: conv_id, user_id, language, leaf_id, category_id, four friction choices) and `reference_metrics(rows, clusters)` (node_id → Metrics-without-languages, plus `"total"`); the pipeline re-checks the sandbox result against it before publishing.
+
+Gate rules: one JSON document ≤ 1 MiB; strict parse (duplicate keys, NaN/Infinity, booleans-as-integers rejected); exact schema (unknown keys rejected); strings only from the allowlist (intent names, current snapshot id, current leaf/category ids); integers ≥ 0; integers exactly equal to the trusted reference computed in the backend from the same assignments; `share` values within 1e-4 of the reference; ordering exactly as the rule; every leaf present once. On pass, the stored/served result is re-serialized canonically from the REFERENCE values (shares rounded to 4 decimals), never the sandbox bytes. Check names and details come from a fixed vocabulary and never echo output values. Any failure → the run shows the failed checks; nothing from the output reaches the browser.
+
+Gate check names (fixed vocabulary, in evaluation order; checks after a parse/schema failure are not run): "Result file received", "Size within 1 MiB", "Strict JSON parse", "Only allowlisted field names", "Only allowlisted string values", "Schema matches exactly", "Intent matches the request", "Snapshot id is the current snapshot", "Cluster ids belong to this snapshot", "Counts are non-negative integers", "Every leaf exactly once" / "Every category and leaf exactly once", "Total matches the trusted reference", "Counts match the trusted reference", "Shares within 1e-4 of the reference", and the ordering check ("Ordered by conversations, then cluster id" / "Ordered by friction conversations, then cluster id" / "Ordered categories, then leaves, by id"). Details name positions structurally (`rows[3].users`) and quote a field name only if it belongs to our schema or input columns (e.g. "unknown field 'user' in rows[0]").
+
+Repair prompts never contain sandbox-authored text: only the failed gate check names and a trusted error category derived from the exception type (e.g. `KeyError: missing column`, `result schema: missing field`), because the repaired program is public (`Run.code`).
+
+## 9. Runner API (sandbox VM, private VPC address only, port 8787)
+
+Auth: `Authorization: Bearer $RUNNER_TOKEN` (token lives on the app VM and in the runner's systemd env; it is not a cloud credential).
+
+- `POST /jobs` `{job_id (uuid), kind: "analysis"|"aggregate"|"containment", code: string (≤ 64 KiB), files: {name: string content} (≤ 8 MiB total; names only from assignments.csv, clusters.json, contract.json), timeout_s (0.5–10), memory_mb (128–512)}` → `202 {job_id, state}`. Idempotent on `job_id` (same id with a different job → `409`); queue full → `503`. Auth is checked before the body is parsed (`401 {code, message}`).
+- `GET /jobs/{job_id}` → `{job_id, kind, state: "queued"|"running"|"succeeded"|"failed"|"timed_out", exit_code, started_at, finished_at, elapsed_ms, timed_out, container_removed, runtime, image, output (string|null, content of /out/result.json ≤ 1 MiB), output_bytes, stderr_tail (≤ 2 KiB; backend-only, used for the repair prompt, never forwarded to the browser), limits, error (fixed code or null: timeout, nonzero_exit, oom_killed, no_output, output_too_large, output_not_regular_file, too_many_output_files, output_unreadable, not_utf8, bad_output_frame, container_create_failed, image_missing, image_digest_mismatch, runtime_unavailable, runner_error), host, code_sha256}`. A job becomes terminal only after its container is removed and the removal verified. Results are kept in memory for 15 min.
+- `GET /health` (no auth, no config values) → `{status: "ok"|"degraded", runtime, image ("logless-analysis:1@sha256:<image id>"), docker (server version or "unreachable"), queued}`.
+
+Container: image `logless-analysis:1` pinned by digest, `--runtime=runsc --network=none --read-only --tmpfs /tmp:size=64m,nr_inodes=1024 --cap-drop=ALL --security-opt=no-new-privileges --pids-limit=64 --memory=512m --memory-swap=512m --cpus=1 --user 10001:10001 --ulimit core=0 --ulimit nofile=256 --log-driver=none`, default seccomp, `/in` read-only (allowlisted filenames only), `/out` a size-capped writable mount (≤ 2 MiB, ≤ 16 inodes), command `python /in/main.py`, label `logless.job=<job_id>`. Collect only a regular file `/out/result.json` (no symlinks, no FIFOs, ≤ 1 MiB). stdout/stderr are captured through bounded pipes (≤ 64 KiB).
+
+As implemented (`runner/`): `/out` is `--tmpfs /out:size=2m,nr_inodes=16,mode=0700,uid=10001,gid=10001`. A tmpfs is gone once the container stops (verified: `docker cp` after exit finds nothing), so `/in/main.py` is a runner-owned bootstrap that runs `/in/program.py` as a child process (its stdout redirected to stderr), then — only if it exited 0 — opens `/out/result.json` with `O_NOFOLLOW`, requires `S_ISREG`, ≤ 1 MiB and ≤ 16 entries in `/out`, and writes it to the real stdout behind a one-line frame `LOGLESS/1 <status> <exit> <bytes>`. The frame is transport, not a trust boundary; the gate validates everything. gVisor's tmpfs ignores `nr_inodes` (the 2 MiB size cap holds), so the ≤ 16-entry rule is enforced by the bootstrap under runsc. The image is run by its content id (`sha256:…`, optionally pinned via `RUNNER_IMAGE_DIGEST`); the docker CLI gets a minimal environment (no `RUNNER_TOKEN`). The supervisor kills and removes the container at the deadline, removes it after every run, and reaps labelled orphans on start. Locally (macOS) the runner may use `runc` with the same flags; it reports the runtime it used.
+
+## 10. Environment variables (see `.env.example`)
+
+App VM / local backend: `VULTR_INFERENCE_API_KEY`, `TYPESAFE_API_KEY`, `FIREWORKS_API_KEY`, `PSEUDONYM_SALT`, `RUNNER_URL`, `RUNNER_TOKEN`, `LOGLESS_DATA_DIR`, `SAMPLE_SIZE`, `SAMPLE_SEED`, `LOGLESS_ENV` (`production` on the app VM: disables the dev CORS origin `http://localhost:5173` and makes `backend/scripts/dev_snapshot.py` refuse to run).
+Sandbox VM: `RUNNER_TOKEN`, `RUNNER_BIND` (private IP:8787), `RUNNER_RUNTIME` (`runsc`); optional `RUNNER_IMAGE` (default `logless-analysis:1`), `RUNNER_IMAGE_DIGEST` (expected image id; set on the VM — update or remove it after rebuilding the image, or the runner refuses jobs), `RUNNER_WORK_DIR`, `RUNNER_CONCURRENCY` (2), `RUNNER_RESULT_TTL_S` (900).
+Operator machine only: `VULTR_API_KEY` (in `.env.ops`, never on a VM).

@@ -1,0 +1,39 @@
+# logless — Caddy config for the app VM.
+# __LOGLESS_HOST__ is replaced by setup-app.sh with "<public-ip-with-dashes>.sslip.io"
+# (currently 144-202-110-2.sslip.io). Caddy obtains/renews the TLS cert automatically.
+{
+	# HTTP/3 needs UDP/443, which the Vultr firewall group does not open.
+	servers {
+		protocols h1 h2
+	}
+}
+
+__LOGLESS_HOST__ {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	# FastAPI backend (uvicorn on loopback only).
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# Static SPA: real files first, otherwise fall back to index.html for client-side routes.
+	handle {
+		root * /opt/logless/web/dist
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

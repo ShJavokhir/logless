@@ -1,0 +1,13 @@
+# SSH aliases for logless VMs. Use with:  ssh -F infra/ssh_config logless-app
+# (Not included from ~/.ssh/config on purpose.)
+Host logless-app
+    HostName 144.202.110.2
+    User root
+    IdentityFile ~/.ssh/logless_vultr
+    IdentitiesOnly yes
+
+Host logless-sandbox
+    HostName 149.28.223.172
+    User root
+    IdentityFile ~/.ssh/logless_vultr
+    IdentitiesOnly yes

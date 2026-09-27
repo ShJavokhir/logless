@@ -7,3 +7,18 @@
 !.env.example
 *.pem
 *.key
+var/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.parquet
+
+# local dev fixture data dir (never real data) and runner deploy artifacts
+var-dev/
+runner/wheelhouse/
+demo/*.mp4
+demo/frame-*.png
+demo/out/

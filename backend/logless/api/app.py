@@ -1,0 +1,442 @@
+"""logless web API (docs/CONTRACTS.md §6). Served by `logless serve` on 127.0.0.1:8000 behind Caddy.
+
+- Reads only public.db, except the sandbox export (private typed assignments) for live analyses.
+- Background runs execute in a thread pool; run state lives in public.db.runs.
+- Every browser payload is built by the allowlist serializers.
+- Errors are {code, message}; no stack traces; quiet logs (no prompts, completions or bodies).
+- Per-IP token buckets and request size limits; CORS only for local dev (http://localhost:5173).
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+import threading
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import asynccontextmanager
+from typing import Callable
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from .. import db
+from ..config import settings
+from ..providers.http import ProviderError
+from ..sandbox import runs as runstore
+from ..sandbox.analysis import run_analysis
+from ..sandbox.client import RunnerClient
+from ..sandbox.containment import run_containment
+from . import models, search, serializers, stories
+from .ratelimit import HourlyBudget, RateLimiter
+
+log = logging.getLogger("logless.api")
+MAX_BODY = 8 * 1024
+MAX_ACTIVE_RUNS = 4
+DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
+SEARCH_CONCURRENCY = int(os.environ.get("LOGLESS_SEARCH_CONCURRENCY", "4"))
+SEARCH_MAX_PENDING = 16   # distinct queries in flight at once (identical queries coalesce)
+SEARCH_WAIT_S = 25.0
+
+
+class ApiError(Exception):
+    def __init__(self, status: int, code: str, message: str, headers: dict[str, str] | None = None):
+        self.status, self.code, self.message, self.headers = status, code, message, headers or {}
+
+
+def err(status: int, code: str, message: str, headers: dict[str, str] | None = None, **extra) -> JSONResponse:
+    return JSONResponse({"code": code, "message": message, **extra}, status_code=status,
+                        headers={"Cache-Control": "no-store", **(headers or {})})
+
+
+# ---------------------------------------------------------------- snapshot store
+
+class SnapshotStore:
+    """The current published snapshot, parsed and serialized once per snapshot id."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.snap_id: str | None = None
+        self.raw: dict | None = None
+        self.body: bytes | None = None
+        self.checked = 0.0
+
+    def current(self) -> tuple[dict, bytes] | None:
+        with self.lock:
+            row = db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current=1 ORDER BY created_at DESC LIMIT 1").fetchone()
+            if row is None:
+                self.snap_id = self.raw = self.body = None
+                return None
+            if row["snapshot_id"] != self.snap_id or self.body is None:
+                full = db.public().execute("SELECT json FROM snapshots WHERE snapshot_id=?", (row["snapshot_id"],)).fetchone()
+                raw = json.loads(full["json"])
+                out = serializers.serialize_snapshot(raw)   # raises Blocked on any allowlist / leak failure
+                self.snap_id, self.raw = row["snapshot_id"], out
+                self.body = json.dumps(out, ensure_ascii=False, separators=(",", ":")).encode()
+            return self.raw, self.body  # type: ignore[return-value]
+
+    def current_id(self) -> str | None:
+        try:
+            cur = self.current()
+        except serializers.Blocked:
+            return None
+        return cur[0]["snapshot_id"] if cur else None
+
+
+store = SnapshotStore()
+limiter = RateLimiter()
+budget = HourlyBudget()
+executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="logless-run")
+# Search runs on its own small pool, so slow Jev calls can never occupy the request threadpool
+# that serves health checks and run polling.
+search_executor = ThreadPoolExecutor(max_workers=SEARCH_CONCURRENCY, thread_name_prefix="logless-search")
+_search_flights: dict[tuple[str, str], Future] = {}
+_active = 0
+_active_lock = threading.Lock()
+_start_lock = threading.Lock()
+_story_inflight: dict[tuple[str, str], str] = {}
+_runner: RunnerClient | None = None
+_health_cache: tuple[float, str] = (0.0, "unreachable")
+
+
+def runner() -> RunnerClient:
+    global _runner
+    if _runner is None:
+        _runner = RunnerClient()
+    return _runner
+
+
+def sandbox_status(fresh: bool = False) -> str:
+    global _health_cache
+    ts, val = _health_cache
+    if not fresh and time.monotonic() - ts < 3.0:
+        return val
+    ok = runner().health(timeout=1.5)
+    val = "reachable" if ok and ok.get("status") == "ok" else "unreachable"
+    _health_cache = (time.monotonic(), val)
+    return val
+
+
+def health_status(fresh: bool = False) -> dict:
+    snap = store.current_id()
+    sandbox = sandbox_status(fresh)
+    return {"status": "ok" if snap and sandbox == "reachable" else "degraded", "sandbox": sandbox, "snapshot_id": snap}
+
+
+def _require_snapshot(snapshot_id: str | None = None) -> dict:
+    try:
+        cur = store.current()
+    except serializers.Blocked:
+        raise ApiError(503, "snapshot_blocked", "The current snapshot failed a publication check and is not served.")
+    if cur is None:
+        raise ApiError(503, "no_snapshot", "No snapshot has been published yet.")
+    snap = cur[0]
+    if snapshot_id is not None and snapshot_id != snap["snapshot_id"]:
+        raise ApiError(409, "stale_snapshot", "That snapshot is no longer current; reload the page.")
+    return snap
+
+
+def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None) -> None:
+    global _active
+
+    def wrapper():
+        global _active
+        try:
+            fn()
+        finally:
+            with _active_lock:
+                _active -= 1
+            if on_done:
+                on_done()
+
+    with _active_lock:
+        _active += 1
+    executor.submit(wrapper)
+
+
+def _capacity() -> None:
+    with _active_lock:
+        if _active >= MAX_ACTIVE_RUNS:
+            raise ApiError(429, "busy", "Too many runs in progress; try again in a moment.")
+
+
+def _spend(kind: str) -> None:
+    """Consume one unit of the global hourly budget, or refuse honestly."""
+    retry = budget.take(kind)
+    if retry is not None:
+        mins = max(1, round(retry / 60))
+        raise ApiError(429, "budget_exhausted",
+                       f"The live demo has used its hourly budget for {HourlyBudget.label(kind)}. Saved results still "
+                       f"work; new ones are available again in about {mins} minute{'s' if mins != 1 else ''}.",
+                       headers={"Retry-After": str(retry)})
+
+
+# ---------------------------------------------------------------- middleware
+
+def client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else "unknown"
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd and peer in ("127.0.0.1", "::1"):
+        return fwd.split(",")[-1].strip()[:64]   # the entry Caddy appended
+    return peer
+
+
+def bucket_for(method: str, path: str) -> str:
+    if method == "POST":
+        if path == "/api/search":
+            return "search"
+        if path == "/api/analyses":
+            return "analysis"
+        if path == "/api/demo/containment":
+            return "containment"
+        if path.endswith("/story"):
+            return "story"
+    return "default"
+
+
+class BodyLimit:
+    """Pure ASGI: reject bodies larger than MAX_BODY (declared or streamed)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        for k, v in scope.get("headers", []):
+            if k == b"content-length":
+                if not v.isdigit() or int(v) > MAX_BODY:
+                    return await err(413, "payload_too_large", "Request body too large.")(scope, receive, send)
+        total = 0
+        too_big = False
+
+        async def limited():
+            nonlocal total, too_big
+            msg = await receive()
+            if msg["type"] == "http.request":
+                total += len(msg.get("body", b""))
+                if total > MAX_BODY:
+                    too_big = True
+                    return {"type": "http.request", "body": b"", "more_body": False}
+            return msg
+
+        started = False
+
+        async def guarded_send(message):
+            nonlocal started
+            if too_big and not started:
+                started = True
+                resp = err(413, "payload_too_large", "Request body too large.")
+                await resp(scope, receive, send)
+                return
+            if too_big:
+                return
+            started = True
+            await send(message)
+
+        await self.app(scope, limited, guarded_send)
+
+
+# ---------------------------------------------------------------- app
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    global executor, search_executor
+    n = runstore.fail_interrupted()
+    if n:
+        log.warning("marked %d interrupted runs as failed", n)
+    if getattr(executor, "_shutdown", False):
+        executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="logless-run")
+    if getattr(search_executor, "_shutdown", False):
+        search_executor = ThreadPoolExecutor(max_workers=SEARCH_CONCURRENCY, thread_name_prefix="logless-search")
+    _search_flights.clear()
+    yield
+    executor.shutdown(wait=False, cancel_futures=True)
+    search_executor.shutdown(wait=False, cancel_futures=True)
+
+
+def create_app() -> FastAPI:
+    settings()  # loads .env
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # quiet logs: no per-request URL lines
+    from ..sandbox.aggregate import TASKS_DIR
+    if not (TASKS_DIR / "usage.py").exists():
+        log.error("sandbox task programs not found at %s: containment and stage-5 aggregation will fail "
+                  "(run the API from the repo tree)", TASKS_DIR)
+    app = FastAPI(title="logless", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+
+    if os.environ.get("LOGLESS_ENV", "development") != "production":
+        app.add_middleware(CORSMiddleware, allow_origins=DEV_ORIGINS, allow_methods=["GET", "POST"],
+                           allow_headers=["Content-Type"], allow_credentials=False, max_age=600)
+
+    @app.middleware("http")
+    async def rate_limit(request: Request, call_next):
+        if request.url.path.startswith("/api/") and request.method != "OPTIONS":
+            if not limiter.allow(client_ip(request), bucket_for(request.method, request.url.path)):
+                return err(429, "rate_limited", "Too many requests; slow down.")
+        resp = await call_next(request)
+        resp.headers.setdefault("Cache-Control", "no-store")
+        return resp
+
+    @app.exception_handler(ApiError)
+    async def _api_error(_: Request, e: ApiError):
+        return err(e.status, e.code, e.message, headers=e.headers)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation(_: Request, e: RequestValidationError):
+        first = e.errors()[0] if e.errors() else {}
+        loc = ".".join(str(x) for x in first.get("loc", ())[1:]) or "body"
+        return err(422, "invalid_request", f"Invalid field: {loc}"[:120])
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http(_: Request, e: StarletteHTTPException):
+        code = {404: "not_found", 405: "method_not_allowed"}.get(e.status_code, "http_error")
+        return err(e.status_code, code, {404: "Not found.", 405: "Method not allowed."}.get(e.status_code, "Request failed."))
+
+    @app.exception_handler(serializers.Blocked)
+    async def _blocked(_: Request, e: serializers.Blocked):
+        log.error("payload blocked by the allowlist serializer")
+        return err(503, "blocked", "This content failed a publication check and is not served.")
+
+    @app.exception_handler(ProviderError)
+    async def _provider(_: Request, e: ProviderError):
+        log.warning("provider %s failed code=%s", e.provider, e.code)
+        return err(503, "model_unavailable", "A model provider is unavailable right now.")
+
+    @app.exception_handler(Exception)
+    async def _any(_: Request, e: Exception):
+        log.error("unhandled %s", type(e).__name__)
+        return err(500, "internal_error", "Internal error.")
+
+    # ------------------------------------------------------------ routes
+
+    @app.get("/api/health")
+    def api_health():
+        return health_status()
+
+    @app.get("/api/snapshot")
+    def api_snapshot():
+        _require_snapshot()
+        cur = store.current()
+        return Response(cur[1], media_type="application/json")  # type: ignore[index]
+
+    @app.post("/api/search")
+    async def api_search(body: models.SearchIn):
+        snap = await run_in_threadpool(_require_snapshot, body.snapshot_id)
+        q = body.query.strip()
+        if not q:
+            raise ApiError(422, "invalid_request", "Invalid field: query")
+        key = search.cache_key(snap["snapshot_id"], q)
+        hit = search.cached(key)
+        if hit is not None:
+            return serializers.serialize_search(snap["snapshot_id"], q, hit, 0)
+        # Identical queries in flight share one Jev call (event-loop only, so no lock is needed).
+        fut = _search_flights.get(key)
+        if fut is None:
+            if len(_search_flights) >= SEARCH_MAX_PENDING:
+                raise ApiError(429, "busy", "Search is busy; try again in a moment.")
+            _spend("search")
+            fut = search_executor.submit(search.run, snap, q)
+            _search_flights[key] = fut
+            loop = asyncio.get_running_loop()
+
+            def _done(f: Future, key=key) -> None:
+                loop.call_soon_threadsafe(lambda: _search_flights.pop(key, None) if _search_flights.get(key) is f else None)
+            fut.add_done_callback(_done)
+        try:
+            results, elapsed = await asyncio.wait_for(asyncio.shield(asyncio.wrap_future(fut)), timeout=SEARCH_WAIT_S)
+        except asyncio.TimeoutError:
+            raise ApiError(503, "search_timeout", "Search took too long; try again.") from None
+        return serializers.serialize_search(snap["snapshot_id"], q, results, elapsed)
+
+    @app.post("/api/analyses")
+    def api_analyses(body: models.AnalysisIn):
+        snap = _require_snapshot(body.snapshot_id)
+        titles = {n["id"]: n["title"] for n in snap["clusters"]}
+        with _start_lock:
+            existing = runstore.find_inflight("analysis", body.intent, snap["snapshot_id"])
+            if existing:
+                return {"run_id": existing}
+            _capacity()
+            _spend("analysis")
+            run = runstore.Run.create("analysis", body.intent, snap["snapshot_id"])
+            _submit(lambda: run_analysis(run, intent=body.intent, snapshot_id=snap["snapshot_id"], titles=titles, runner=runner()))
+        return {"run_id": run.id}
+
+    @app.get("/api/runs/{run_id}")
+    def api_run(run_id: str):
+        if not serializers.RUN_ID.match(run_id):
+            raise ApiError(404, "not_found", "Unknown run.")
+        raw = runstore.load(run_id)
+        if raw is None:
+            raise ApiError(404, "not_found", "Unknown run.")
+        return serializers.serialize_run(raw)
+
+    @app.post("/api/clusters/{cluster_id}/story")
+    def api_story(cluster_id: str, body: models.StoryIn):
+        snap = _require_snapshot(body.snapshot_id)
+        node = next((n for n in snap["clusters"] if n["id"] == cluster_id), None)
+        if node is None:
+            raise ApiError(404, "not_found", "Unknown cluster.")
+        key = (snap["snapshot_id"], cluster_id)
+        hit = stories.cached(*key)
+        if hit is not None:
+            return {"status": "ready", "story": serializers.serialize_story(hit)}
+        with _start_lock:
+            # Re-check under the lock: a run may have finished and cached its story meanwhile.
+            hit = stories.cached(*key)
+            if hit is not None:
+                return {"status": "ready", "story": serializers.serialize_story(hit)}
+            rid = _story_inflight.get(key)
+            if rid:
+                raw = runstore.load(rid)
+                if raw and raw["state"] not in runstore.TERMINAL:
+                    return {"status": "pending", "run_id": rid}
+            _capacity()
+            _spend("story")
+            run = runstore.Run.create("story", None, snap["snapshot_id"])
+            _story_inflight[key] = run.id
+
+            def _release(key=key, rid=run.id) -> None:
+                with _start_lock:  # only drop the entry if it still belongs to this run
+                    if _story_inflight.get(key) == rid:
+                        del _story_inflight[key]
+            _submit(lambda: stories.run_story(run, snapshot_id=snap["snapshot_id"], node=node), on_done=_release)
+        return {"status": "pending", "run_id": run.id}
+
+    @app.post("/api/demo/containment")
+    def api_containment(body: models.ContainmentIn):
+        snap = _require_snapshot()
+        with _start_lock:
+            existing = runstore.find_inflight("containment", None, snap["snapshot_id"])
+            if existing:
+                return {"run_id": existing}
+            _capacity()
+            _spend("containment")
+            run = runstore.Run.create("containment", None, snap["snapshot_id"])
+            _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"],
+                                            health=lambda: health_status(fresh=True)["status"], runner=runner()))
+        return {"run_id": run.id}
+
+    @app.get("/api/eval")
+    def api_eval():
+        snap_id = store.current_id()
+        row = None
+        if snap_id:
+            row = db.public().execute("SELECT json FROM eval_reports WHERE snapshot_id=? ORDER BY created_at DESC LIMIT 1",
+                                      (snap_id,)).fetchone()
+        if row is None:
+            return err(404, "no_eval_report", "No evaluation report for the current snapshot yet.",
+                       snapshot_id=snap_id, generated_at=None, checks=[])
+        return serializers.serialize_eval(json.loads(row["json"]))
+
+    return BodyLimit(app)  # type: ignore[return-value]
+
+
+app = create_app()

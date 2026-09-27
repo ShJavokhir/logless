@@ -1,0 +1,55 @@
+# logless sandbox runner — install on the sandbox VM as /etc/systemd/system/logless-runner.service
+# Needs /etc/logless-runner/env (root:runner 0640) with RUNNER_TOKEN, RUNNER_BIND=<private-ip>:8787,
+# RUNNER_RUNTIME=runsc (optionally RUNNER_IMAGE_DIGEST=sha256:…). The VM holds no API keys.
+[Unit]
+Description=logless sandbox runner (disposable gVisor containers, no credentials)
+Documentation=file:///opt/logless-runner/README.md
+Requires=docker.service
+After=network-online.target docker.service logless-lockdown.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=runner
+Group=runner
+SupplementaryGroups=docker
+EnvironmentFile=/etc/logless-runner/env
+# Job dirs must live on a real path: the docker daemon cannot see this unit's PrivateTmp.
+Environment=RUNNER_WORK_DIR=/var/lib/logless-runner/jobs
+Environment=HOME=/var/lib/logless-runner
+Environment=DOCKER_CONFIG=/var/lib/logless-runner/docker-config
+Environment=PYTHONUNBUFFERED=1
+StateDirectory=logless-runner
+StateDirectoryMode=0750
+WorkingDirectory=/opt/logless-runner
+ExecStart=/opt/logless-runner/.venv/bin/logless-runner
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=20
+
+# Hardening (the runner only needs the docker socket, its state dir and the network).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/logless-runner
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+UMask=0022
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
