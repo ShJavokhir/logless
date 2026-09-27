@@ -50,7 +50,7 @@ export function useIntake(snapshot: Snapshot | null, onPublished: (s: Snapshot) 
   const [error, setError] = useState<string | null>(null)
 
   const [reducedMotion] = useState(prefersReducedMotion)
-  const [scheduler] = useState(() => createIntakeScheduler<IntakeEvent>({ reducedMotion: prefersReducedMotion() }))
+  const [scheduler] = useState(() => createIntakeScheduler<IntakeEvent>({ reducedMotion: prefersReducedMotion(), maxActive: 400, maxLagMs: 3000 }))
   const feedRef = useRef<IntakeEvent[]>([])
   const latestRef = useRef<IntakeEvent | null>(null)
   const lastFeedAtRef = useRef(0)

@@ -11,6 +11,7 @@ import { proseName } from "@/lib/labels"
 import { fmtInt } from "@/lib/format"
 import { useIntake } from "@/hooks/useIntake"
 import { IntakeFlow } from "@/components/IntakeFlow"
+import { MarbleMachine } from "@/components/MarbleMachine"
 import { IntakePanel } from "@/components/IntakePanel"
 import { hasVerifiedResult, isRunActive } from "@/lib/runs"
 import { useRun } from "@/hooks/useRun"
@@ -88,6 +89,16 @@ export default function App() {
   )
   const intake = useIntake(snapshot, onPublished)
   const intakeActive = intake.phase !== "idle"
+  // Desktop presenters get the full-width marble machine, armed first so the run starts on a keypress.
+  const wide = useWide()
+  const [armed, setArmed] = useState(false)
+  const machine = wide && (armed || intake.flowVisible)
+  useEffect(() => {
+    if (!armed) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setArmed(false)
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [armed])
 
   // selection & navigation
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -176,6 +187,11 @@ export default function App() {
     setSelectedId(null)
     setPeekId(null)
     setView("map")
+    if (wide && !armed) {
+      setArmed(true)
+      return
+    }
+    setArmed(false)
     void intake.start()
   }
 
@@ -205,6 +221,10 @@ export default function App() {
       <Radio aria-hidden className="size-3.5" />
       {intake.phase === "running" || intake.phase === "starting" ? "Live intake running" : "Live intake"}
     </span>
+  ) : armed ? (
+    <Button size="sm" variant="ghost" className="h-7 text-muted-foreground" onClick={() => setArmed(false)}>
+      Cancel (esc)
+    </Button>
   ) : intake.status?.ready ? (
     <Button size="sm" variant="outline" className="h-7 border-brand/40 text-brand hover:bg-brand-soft" onClick={startIntake}>
       <Radio />
@@ -253,12 +273,12 @@ export default function App() {
         notice={<HealthNotice health={health} error={healthError} snapshotId={intakeActive ? undefined : snapshot?.snapshot_id} />}
       />
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-3 lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)]">
+      <main className={`grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-3 ${machine ? "" : "lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)]"}`}>
         <section
           aria-label={view === "map" ? "Usage map" : "Workflow list"}
           className="relative overflow-hidden rounded-xl border bg-card lg:min-h-0"
         >
-          <div inert={intake.flowVisible} aria-hidden={intake.flowVisible || undefined} className={`h-full transition-opacity duration-300 motion-reduce:transition-none ${intake.flowVisible ? "hidden opacity-0 lg:block" : "opacity-100"}`}>
+          <div inert={intake.flowVisible || machine} aria-hidden={intake.flowVisible || machine || undefined} className={`h-full transition-opacity duration-300 motion-reduce:transition-none ${intake.flowVisible || machine ? "hidden opacity-0 lg:block" : "opacity-100"}`}>
             {!index ? (
               <MapSkeleton />
             ) : view === "map" ? (
@@ -291,7 +311,11 @@ export default function App() {
               </div>
             )}
           </div>
-          {index && intake.flowVisible ? <IntakeFlow intake={intake} index={index} /> : null}
+          {index && machine ? (
+            <MarbleMachine intake={intake} index={index} armed={armed && intake.phase === "idle"} onSort={startIntake} />
+          ) : index && intake.flowVisible ? (
+            <IntakeFlow intake={intake} index={index} />
+          ) : null}
           {index && !intake.flowVisible && search.highlight.active && search.highlight.empty ? (
             <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center">
               <div role="status" className="rounded-full border bg-card/95 px-3.5 py-1.5 text-[12.5px] shadow-xs backdrop-blur-sm">
@@ -301,7 +325,7 @@ export default function App() {
           ) : null}
         </section>
 
-        <aside aria-label="Details" className="flex min-h-0 flex-col gap-3">
+        <aside aria-label="Details" className={`flex min-h-0 flex-col gap-3 ${machine ? "lg:hidden" : ""}`}>
           {index && askOpen && !intakeActive ? (
             <AnswerCard
               run={activeRun}
@@ -407,4 +431,17 @@ function DetailSkeleton() {
       <Skeleton className="h-4 w-1/2" />
     </div>
   )
+}
+
+function useWide() {
+  const query = "(min-width: 1024px)"
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia?.(query)
+    if (!mq) return
+    const on = () => setWide(mq.matches)
+    mq.addEventListener("change", on)
+    return () => mq.removeEventListener("change", on)
+  }, [])
+  return wide
 }

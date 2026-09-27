@@ -3,11 +3,11 @@ import type { SnapshotIndex } from "./snapshot"
 import type { IntakeEvent, IntakeStage } from "./types"
 
 export const FLOW_FLIGHT_MS = 1100
-export const FLOW_HOLD_MS = 1200
+export const FLOW_HOLD_MS = 3200
 
 /** Owns every scheduler slot until landing, including teardown and resize. */
-export function createIntakeFlights(visual: IntakeVisual) {
-  const flights = new Map<number, { event: IntakeEvent; start: number }>()
+export function createIntakeFlights(visual: IntakeVisual, durationOf: (event: IntakeEvent) => number = () => FLOW_FLIGHT_MS) {
+  const flights = new Map<number, { event: IntakeEvent; start: number; ms: number }>()
   const land = (seq: number) => {
     const flight = flights.get(seq)
     if (!flight) return
@@ -18,7 +18,7 @@ export function createIntakeFlights(visual: IntakeVisual) {
   return {
     tick(now: number) {
       visual.heartbeat()
-      for (const [seq, flight] of flights) if (now - flight.start >= FLOW_FLIGHT_MS) land(seq)
+      for (const [seq, flight] of flights) if (now - flight.start >= flight.ms) land(seq)
       const tick = visual.scheduler.tick(now)
       for (const event of tick.instant) {
         visual.onSpawn(event)
@@ -26,7 +26,7 @@ export function createIntakeFlights(visual: IntakeVisual) {
       }
       for (const event of tick.spawn) {
         visual.onSpawn(event)
-        flights.set(event.seq, { event, start: now })
+        flights.set(event.seq, { event, start: now, ms: durationOf(event) })
       }
       return [...flights.values()]
     },
