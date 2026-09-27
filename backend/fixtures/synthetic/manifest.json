@@ -1,0 +1,10 @@
+{
+  "version": "synthetic-v1",
+  "synthetic": true,
+  "conversations": 600,
+  "users": 150,
+  "period_start": "2026-08-01",
+  "period_end": "2026-08-28",
+  "sha256": "593cc4a2ef2e6c7c29dbea1f7f8351f5de229eb9a43b1cdd1c3901e79c0205c5",
+  "recipe": "python -m logless.synthetic seed"
+}

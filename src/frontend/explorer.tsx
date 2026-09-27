@@ -18,29 +18,16 @@ import {
   X,
 } from "lucide-react";
 import {
-  createDemoAdapter,
+  createLiveAdapter,
+  LiveApiError,
   type AnalysisIntent,
   type AnalysisResult,
-  type DemoAdapterOptions,
   type DemoRun,
   type Snapshot,
 } from "./data";
 import { DetailPanel } from "./detail-panel";
 import { UsageMap } from "./usage-map";
 import { number, percent } from "./format";
-
-function devOptions(): DemoAdapterOptions {
-  if (process.env.NODE_ENV !== "development" || typeof window === "undefined")
-    return {};
-  const params = new URLSearchParams(window.location.search);
-  const failure = params.get("demoFailure");
-  return {
-    empty: params.get("demoState") === "empty",
-    ...(failure && ["snapshot", "search", "analysis", "story"].includes(failure)
-      ? { failure: failure as DemoAdapterOptions["failure"] }
-      : {}),
-  };
-}
 
 const stageLabels = {
   planning: "Preparing analysis",
@@ -52,7 +39,7 @@ const stageLabels = {
 };
 
 export function Explorer() {
-  const [adapter, setAdapter] = useState(() => createDemoAdapter(devOptions()));
+  const [adapter] = useState(() => createLiveAdapter());
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [snapshotState, setSnapshotState] = useState<
     "loading" | "ready" | "error"
@@ -72,12 +59,12 @@ export function Explorer() {
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<string[] | null>(null);
   const [searchState, setSearchState] = useState<
-    "idle" | "loading" | "ready" | "error"
+    "idle" | "loading" | "ready" | "error" | "stale"
   >("idle");
   const [searchKey, setSearchKey] = useState(0);
   const [run, setRun] = useState<DemoRun | null>(null);
   const [starting, setStarting] = useState(false);
-  const [runError, setRunError] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
   const [results, setResults] = useState<
     Partial<Record<AnalysisIntent, AnalysisResult>>
   >({});
@@ -123,10 +110,10 @@ export function Explorer() {
             setSearchState("ready");
           }
         })
-        .catch(() => {
+        .catch((error) => {
           if (!controller.signal.aborted) {
             setMatches(null);
-            setSearchState("error");
+            setSearchState(error instanceof LiveApiError && error.code === "stale_snapshot" ? "stale" : "error");
           }
         });
     }, 300);
@@ -158,6 +145,8 @@ export function Explorer() {
   function select(id: string) {
     triggerRef.current = document.activeElement as HTMLElement | SVGElement;
     setSelectedId(id);
+    const parent = snapshot?.clusters.find((cluster) => cluster.id === id)?.parentId;
+    if (parent) setCategory(parent);
     setMobileNav(false);
   }
   function closeDetails() {
@@ -171,8 +160,9 @@ export function Explorer() {
       target?.focus({ preventScroll: !narrow });
     });
   }
-  function focusCategory(id: string) {
-    setCategory((current) => (current === id ? null : id));
+  function focusCategory(id: string | null) {
+    setSelectedId(null);
+    setCategory(id);
     setExpanded(id);
     setMobileNav(false);
   }
@@ -183,8 +173,22 @@ export function Explorer() {
     setMobileNav(false);
   }
 
+  function reloadSnapshot() {
+    analysisController.current?.abort();
+    pendingIntent.current = null;
+    setStarting(false);
+    setSelectedId(null);
+    setCategory(null);
+    setMatches(null);
+    setRun(null);
+    setRunError(null);
+    setResults({});
+    setLoadKey((key) => key + 1);
+  }
+
   async function analyze(intent: AnalysisIntent, animate: boolean) {
     if (!snapshot || pendingIntent.current === intent) return;
+    if (snapshot.synthetic) { setMode(intent); return; }
     analysisController.current?.abort();
     const controller = new AbortController();
     analysisController.current = controller;
@@ -192,7 +196,7 @@ export function Explorer() {
     setAnimateAnalysis(animate);
     setMode(intent);
     setRun(null);
-    setRunError(false);
+    setRunError(null);
     setStarting(true);
     try {
       const { runId } = await adapter.createAnalysis({
@@ -214,12 +218,17 @@ export function Explorer() {
           setResults((previous) => ({ ...previous, [intent]: result }));
           break;
         }
-        await new Promise((resolve) => setTimeout(resolve, 180));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-    } catch {
+    } catch (error) {
       if (!controller.signal.aborted) {
         setStarting(false);
-        setRunError(true);
+        setRun(null);
+        setRunError(
+          error instanceof Error
+            ? error.message
+            : "The analysis request failed.",
+        );
       }
     } finally {
       if (!controller.signal.aborted) pendingIntent.current = null;
@@ -230,13 +239,19 @@ export function Explorer() {
   const ranked = useMemo(() => {
     if (!snapshot) return [];
     const order = results[mode]?.orderedClusterIds;
-    return [...snapshot.clusters].sort((a, b) =>
-      order
-        ? order.indexOf(a.id) - order.indexOf(b.id)
-        : mode === "usage"
+    return [...snapshot.clusters].sort((a, b) => {
+      const rank = (id: string) => {
+        const index = order?.indexOf(id) ?? -1;
+        return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+      };
+      // The API returns at most ten rows. Keep remaining workflows in metric order.
+      return (
+        rank(a.id) - rank(b.id) ||
+        (mode === "usage"
           ? b.metrics.conversationCount - a.metrics.conversationCount
-          : b.metrics.observedFrictionCount - a.metrics.observedFrictionCount,
-    );
+          : b.metrics.observedFrictionCount - a.metrics.observedFrictionCount)
+      );
+    });
   }, [snapshot, mode, results]);
   const visibleRanked = ranked.filter(
     (c) =>
@@ -254,8 +269,8 @@ export function Explorer() {
     : failed
       ? "Analysis interrupted"
       : result
-        ? "Analysis complete · Simulated"
-        : "Example finding";
+        ? "Verified finding"
+        : "Published finding";
 
   return (
     <div
@@ -290,7 +305,7 @@ export function Explorer() {
         </div>
         <div className="workspace-name">
           <div>
-            <strong>Muse</strong>
+            <strong>{snapshot?.workspaceName ?? "logless"}</strong>
           </div>
         </div>
         <nav className="nav-content">
@@ -361,6 +376,10 @@ export function Explorer() {
           })}
         </nav>
         <div className="sidebar-bottom">
+          <a href="/how-it-works" className="sidebar-story-link">
+            <CircleDot size={15} />
+            How Logless works
+          </a>
           <details>
             <summary>
               <ShieldCheck size={16} />
@@ -368,9 +387,17 @@ export function Explorer() {
               <ChevronDown size={13} />
             </summary>
             <p>
-              Authored aggregate fixtures only. No transcripts or individual
-              records. Synthetic data is not a privacy guarantee.
+              Published aggregates only. No transcripts or individual records
+              are available. Automated processing still uses model providers.
+              {snapshot?.datasetNote}
             </p>
+            <span className="snapshot-note">
+              {snapshot?.attribution && (
+                <a href={snapshot.sourceUrl} target="_blank" rel="noreferrer">
+                  {snapshot.attribution}
+                </a>
+              )}
+            </span>
           </details>
         </div>
       </aside>
@@ -389,7 +416,7 @@ export function Explorer() {
           </div>
           <span className="demo-indicator">
             <span />
-            Demo · Mock data
+            {snapshot?.synthetic ? "Synthetic · Live Jev" : "WildChat · Live API"}
           </span>
         </header>
         <div className="content-columns">
@@ -467,11 +494,11 @@ export function Explorer() {
                 <button
                   className="primary-button"
                   onClick={() => {
-                    setAdapter(createDemoAdapter());
+                    setLoadKey((n) => n + 1);
                     setSelectedId(null);
                   }}
                 >
-                  Load demo snapshot
+                  Refresh snapshot
                 </button>
               </div>
             ) : (
@@ -518,8 +545,8 @@ export function Explorer() {
                       <button
                         className="text-button"
                         onClick={(event) => analyze(mode, event.detail > 0)}
-                        disabled={busy}
-                        title="Re-run the simulated analysis"
+                        disabled={busy || snapshot.synthetic}
+                        title={snapshot.synthetic ? "Counts are computed during the synthetic rebuild" : "Analyze this snapshot in the live sandbox"}
                       >
                         <RefreshCw size={14} className={busy ? "spin" : ""} />
                         Refresh finding
@@ -540,7 +567,14 @@ export function Explorer() {
                             <ChevronDown size={12} />
                           </summary>
                           <div>
-                            <b>Simulated run</b>
+                            <b>Live API run</b>
+                            {result && (
+                              <p>
+                                Analysis ranks up to ten named workflows,
+                                excluding Other or unclear. The list includes
+                                all workflows.
+                              </p>
+                            )}
                             <p>
                               {run?.executionReceipt?.label ??
                                 "Waiting for an execution receipt."}
@@ -555,15 +589,15 @@ export function Explorer() {
                                     : "Preparing"}
                               </dd>
                               <dt>Source</dt>
-                              <dd>Authored mock snapshot</dd>
+                              <dd>{snapshot?.provenance.label ?? "Published snapshot"}</dd>
                               <dt>Validation</dt>
-                              <dd>
-                                {run?.validationStatus ?? "Pending"} · simulated
-                              </dd>
+                              <dd>{run?.validationStatus ?? "Pending"}</dd>
                             </dl>
                             {failed && (
                               <p>
-                                Mock failure.{" "}
+                                {run?.state === "failed"
+                                  ? run.error.message
+                                  : runError}{" "}
                                 {result
                                   ? "The previous result remains visible."
                                   : "The precomputed finding remains visible."}
@@ -631,6 +665,11 @@ export function Explorer() {
                         <Loader2 className="spin" size={13} />
                         Searching…
                       </span>
+                    ) : searchState === "stale" ? (
+                      <span>
+                        Updated insights are available.
+                        <button onClick={reloadSnapshot}>Load latest insights</button>
+                      </span>
                     ) : searchState === "error" ? (
                       <span>
                         <CircleAlert size={13} />
@@ -670,7 +709,7 @@ export function Explorer() {
                   </div>
                   {view === "map" && (
                     <p className="browse-instruction">
-                      Select a workflow to inspect, or a group to filter.
+                      Zoom into a category, then choose a workflow.
                     </p>
                   )}
                   {view === "map" && (
@@ -708,9 +747,8 @@ export function Explorer() {
                             counts.
                           </p>
                           <p>
-                            Friction means corrections, task complaints, or
-                            unresolved action errors. No observed friction does
-                            not mean success.
+                            {snapshot.synthetic ? "Friction means corrections, task complaints, or unresolved action errors." : "Friction means corrections, repeated requests, assistant limits, or complaints."} No observed
+                            friction does not mean success.
                           </p>
                           {mode === "friction" && (
                             <p>

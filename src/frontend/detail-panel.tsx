@@ -83,7 +83,7 @@ export function DetailPanel({
               });
             break;
           }
-          await new Promise((resolve) => setTimeout(resolve, 180));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     } catch {
@@ -131,7 +131,7 @@ export function DetailPanel({
           {story.status === "ready"
             ? `Fictional user story ready for ${story.story.name}.`
             : story.status === "loading"
-              ? "Preparing a fictional user story from mock evidence."
+              ? "Preparing a fictional user story from published evidence."
               : story.status === "error"
                 ? "Story generation failed. Retry is available."
                 : ""}
@@ -214,15 +214,17 @@ export function DetailPanel({
             </span>
           </summary>
           <p className="fine-print">
-            Friction means a correction, task complaint, or unresolved action
-            error.
+            {snapshot.synthetic ? "Friction means a correction, task complaint, or unresolved action error." : "Friction means a correction, repeated request, assistant limit, or complaint."}
           </p>
           <div className="signals">
             {(
               [
                 ["Corrections", m.signals.corrections],
                 ["Task-related complaints", m.signals.complaints],
-                ["Unresolved action errors", m.signals.unresolvedErrors],
+                ...(snapshot.synthetic
+                  ? [["Unresolved action errors", m.signals.unresolvedErrors ?? 0] as const]
+                  : [["Repeated requests", m.signals.repeatRequests ?? 0] as const,
+                     ["Assistant limits", m.signals.assistantLimits ?? 0] as const]),
               ] as const
             ).map(([label, count]) => (
               <div key={label}>

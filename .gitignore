@@ -11,6 +11,7 @@
 # Frontend build and local tooling
 node_modules/
 .next/
+.next-synthetic/
 out/
 *.tsbuildinfo
 var/
@@ -32,3 +33,6 @@ vultr-agent-arena-research-*.zip
 
 # local Claude Code launch configs
 .claude/
+
+# Private synthetic pipeline artifacts and provider responses
+/var-synthetic/

@@ -387,6 +387,8 @@ def create_app() -> FastAPI:
     def api_analyses(body: models.AnalysisIn, request: Request):
         """Open questions only (usage/friction were retired; the model rejects them with 422)."""
         snap = _require_snapshot(body.snapshot_id)
+        if snap.get("dataset", {}).get("synthetic"):
+            raise ApiError(409, "analysis_unavailable", "This synthetic snapshot has no sandbox input bundle. Published counts remain available.")
         presenter = request.state.presenter
         titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
         nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}

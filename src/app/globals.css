@@ -118,6 +118,19 @@ button:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.sidebar-story-link {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #737373;
+  text-decoration: none;
+  padding: 10px 0;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+@media (hover: hover) {
+  .sidebar-story-link:hover { color: var(--blue); }
+}
 .primary-button {
   display: inline-flex;
   align-items: center;
@@ -1846,4 +1859,39 @@ button:hover {
 }
 .metric-help p + p {
   margin-top: 8px;
+}
+
+/* The camera moves through a stable layout. It never scrolls the page or scales record counts. */
+.usage-map.semantic-map > svg {
+  width: 100%;
+  height: clamp(340px, 52vw, 580px);
+  max-height: none;
+  overflow: hidden;
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 8px;
+}
+.map-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 12px;
+}
+.map-breadcrumbs button {
+  border: 0;
+  background: transparent;
+  color: var(--blue, #002fa7);
+  cursor: pointer;
+  padding: 6px 2px;
+}
+.map-breadcrumbs [aria-current="location"] { color: #333; }
+.map-breadcrumbs .zoom-out { margin-left: auto; }
+.semantic-map .category-circle circle,
+.semantic-map .leaf-circle circle { vector-effect: non-scaling-stroke; }
+.semantic-map .leaf-circle text,
+.semantic-map .category-label { pointer-events: none; }
+.semantic-map figcaption { flex-wrap: wrap; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) {
+  .semantic-map * { transition: none !important; }
 }

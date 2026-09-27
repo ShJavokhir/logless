@@ -70,6 +70,8 @@ class Settings:
 @lru_cache(maxsize=1)
 def settings() -> Settings:
     load_dotenv(REPO_ROOT / ".env", override=False)
+    if os.environ.get("LOGLESS_ENV", "development") != "production":
+        load_dotenv(REPO_ROOT / ".env.local", override=False)
     data_dir = Path(os.environ.get("LOGLESS_DATA_DIR", "./var"))
     if not data_dir.is_absolute():
         data_dir = (REPO_ROOT / data_dir).resolve()

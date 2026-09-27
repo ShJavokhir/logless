@@ -16,6 +16,7 @@ from . import leakcheck, models
 
 log = logging.getLogger("logless.api")
 SIGNALS = ("correction", "repeat_request", "assistant_limit", "complaint")
+SYNTHETIC_SIGNALS = ("correction", "complaint", "unresolved_action_error")
 
 SNAPSHOT_ID = re.compile(r"^snap_\d{8}T\d{6}_[0-9a-f]{4}$")
 CATEGORY_ID = re.compile(r"^cat_[0-9a-f]{6}$")
@@ -72,6 +73,9 @@ def _node_id(v: Any) -> str:
 
 def _metrics(m: dict) -> dict:
     f = m["friction"]
+    signals = SYNTHETIC_SIGNALS if "unresolved_action_error" in f["signals"] else SIGNALS
+    if not set(signals).issubset(f["signals"]):
+        raise Blocked("invalid friction profile")
     return {
         "conversations": _int(m["conversations"]),
         "users": _int(m["users"]),
@@ -80,7 +84,7 @@ def _metrics(m: dict) -> dict:
             "conversations": _int(f["conversations"]),
             "share": None if f.get("share") is None else _share(f["share"]),
             "unclear": _int(f["unclear"]),
-            "signals": {s: _int(f["signals"][s]) for s in SIGNALS},
+            "signals": {s: _int(f["signals"][s]) for s in signals},
         },
         "languages": [{"name": _str(x["name"], 60), "conversations": _int(x["conversations"])} for x in (m.get("languages") or [])][:6],
     }
@@ -114,7 +118,7 @@ def _node(n: dict, level: int) -> dict:
         out["needs"] = [{"id": _id(x["id"], EVIDENCE_ID), "text": _str(x["text"], 300)} for x in n.get("needs") or []]
         out["problems"] = [{
             "id": _id(x["id"], EVIDENCE_ID), "text": _str(x["text"], 300),
-            "signal": x.get("signal") if x.get("signal") in SIGNALS else None,
+            "signal": x.get("signal") if x.get("signal") in (*SIGNALS, *SYNTHETIC_SIGNALS) else None,
             "support": "common" if x.get("support") == "common" else "observed",
         } for x in n.get("problems") or []]
         if isinstance(n.get("surprising"), dict):
@@ -158,6 +162,15 @@ def serialize_snapshot(raw: dict) -> dict:
             } for s in prov.get("stages") or []],
         },
     }
+    if ds.get("synthetic") is True:
+        out["dataset"]["synthetic"] = True
+        version = prov.get("taxonomy_version")
+        if not isinstance(version, str) or not re.fullmatch(r"tax_[a-f0-9]{16}", version):
+            raise Blocked("invalid taxonomy version")
+        out["provenance"]["taxonomy_version"] = version
+    expected_signals = set(SYNTHETIC_SIGNALS if ds.get("synthetic") is True else SIGNALS)
+    if any(set(node["friction"]["signals"]) != expected_signals for node in [out["totals"], *out["categories"], *out["clusters"]]):
+        raise Blocked("snapshot mixes friction profiles")
     models.Snapshot.model_validate(out)
     # Canary tokens and private ids must never appear anywhere; contact patterns are checked on
     # the free-text fields only (the dataset block legitimately carries a URL and dates).

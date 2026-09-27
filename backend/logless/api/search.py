@@ -1,7 +1,8 @@
 """Search over published clusters: one Jev call per query, one tri-state choice per published leaf.
 
 Jev sees the analyst's query and each leaf's PUBLIC title and description — never records. A
-choice whose top probability is below 0.65 is reported as "unclear". Results are cached per
+Synthetic snapshots use Choice confidence; legacy snapshots use the top probability cutoff.
+Results are cached per
 (snapshot, normalized query)."""
 from __future__ import annotations
 
@@ -55,11 +56,20 @@ def run(snapshot: dict, query: str) -> tuple[list[dict], int]:
     leaves = snapshot["clusters"]
     state = {"query": key[1], "clusters": {n["id"]: {"title": n["title"], "description": n["description"]} for n in leaves}}
     t0 = time.monotonic()
-    answers = jev.ask(state, _questions(leaves), use_cache=False, timeout=JEV_TIMEOUT_S, attempts=JEV_ATTEMPTS)
+    synthetic = snapshot.get("dataset", {}).get("synthetic") is True
+    if synthetic:
+        answers = jev.evaluate(state, _questions(leaves), timeout=JEV_TIMEOUT_S, attempts=JEV_ATTEMPTS)["answers"]
+    else:
+        answers = jev.ask(state, _questions(leaves), use_cache=False, timeout=JEV_TIMEOUT_S, attempts=JEV_ATTEMPTS)
     elapsed = int((time.monotonic() - t0) * 1000)
     results = []
     for n in leaves:
-        choice, raw, p = jev.tri_state(answers[n["id"]], JEV_CONFIDENCE_CUTOFF)
+        answer = answers[n["id"]]
+        if synthetic:
+            raw, p = jev.top(answer)
+            choice = raw if answer["confidence"] >= JEV_CONFIDENCE_CUTOFF else "unclear"
+        else:
+            choice, raw, p = jev.tri_state(answer, JEV_CONFIDENCE_CUTOFF)
         if choice not in CRITERIA:
             choice = "unclear"
         results.append({"cluster_id": n["id"], "relevance": choice, "p": round(p, 4)})

@@ -14,7 +14,9 @@ export interface ClusterMetrics {
   signals: {
     corrections: number;
     complaints: number;
-    unresolvedErrors: number;
+    unresolvedErrors?: number;
+    repeatRequests?: number;
+    assistantLimits?: number;
   };
 }
 
@@ -44,7 +46,7 @@ export interface Category {
 
 export interface Snapshot {
   id: string;
-  synthetic: true;
+  synthetic: boolean;
   period: { start: string; end: string; label: string };
   totals: {
     conversationCount: number;
@@ -54,6 +56,11 @@ export interface Snapshot {
   categories: Category[];
   clusters: Cluster[];
   provenance: { label: string; generatedAt: string };
+  workspaceName?: string;
+  datasetNote?: string;
+  attribution?: string;
+  sourceUrl?: string;
+  taxonomyVersion?: string;
 }
 
 export interface SearchResult {
@@ -73,7 +80,7 @@ export interface AnalysisResult {
   summary: string;
   evidenceIds: string[];
   generatedAt: string;
-  simulated: true;
+  simulated: boolean;
 }
 
 export interface FictionalStory {
@@ -86,7 +93,7 @@ export interface FictionalStory {
   body: string;
   evidenceIds: string[];
   generatedAt: string;
-  simulated: true;
+  simulated: boolean;
 }
 
 export interface SimulatedExecutionReceipt {
@@ -117,8 +124,8 @@ interface RunBase {
   clusterId?: string;
   startedAt: string;
   updatedAt: string;
-  attemptCount: 1;
-  simulated: true;
+  attemptCount: number;
+  simulated: boolean;
 }
 
 export type DemoRun = RunBase &
@@ -138,7 +145,7 @@ export type DemoRun = RunBase &
         validationStatus: "passed";
         completedAt: string;
         result: AnalysisResult | { kind: "story"; story: FictionalStory };
-        executionReceipt?: SimulatedExecutionReceipt;
+        executionReceipt?: SimulatedExecutionReceipt | { simulated: false; label: string };
         error?: never;
       }
     | {
@@ -147,7 +154,7 @@ export type DemoRun = RunBase &
         validationStatus: "failed";
         completedAt: string;
         result?: never;
-        executionReceipt?: SimulatedExecutionReceipt;
+        executionReceipt?: SimulatedExecutionReceipt | { simulated: false; label: string };
         error: { code: string; message: string; retryable: true };
       }
   );

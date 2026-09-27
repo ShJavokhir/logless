@@ -21,7 +21,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    ".next-synthetic/types/**/*.ts",
+    ".next-synthetic/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules", "teaser-video"]
 }

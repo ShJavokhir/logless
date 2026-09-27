@@ -40,3 +40,26 @@ def tri_state(answer: dict, cutoff: float = JEV_CONFIDENCE_CUTOFF) -> tuple[str,
     """Map a tri-state choice to (stored_choice, raw_choice, p): below the cutoff → 'unclear'."""
     raw, p = top(answer)
     return (raw if p >= cutoff else "unclear"), raw, p
+
+
+def evaluate(state: Any, questions: dict[str, dict], *, timeout: float = 30, attempts: int = 3) -> dict:
+    """Uncached typed Choice evaluation retaining the actual model, confidence and token usage."""
+    import math
+    out = post_json("jev", TYPESAFE_URL, settings().typesafe_api_key,
+                    {"model": JEV, "state": state, "questions": questions}, timeout=timeout, attempts=attempts)
+    answers = out.get("answers")
+    if not isinstance(out.get("model"), str) or not isinstance(answers, dict) or set(answers) != set(questions):
+        raise ProviderError("jev", None, "malformed_answers")
+    for name, question in questions.items():
+        a = answers[name]
+        choices = question["criteria"]
+        if not isinstance(a, dict) or not isinstance(a.get("probabilities"), dict):
+            raise ProviderError("jev", None, "malformed_choice")
+        probs = a.get("probabilities", {})
+        if (a.get("type") != "choice" or a.get("choice") not in choices or set(probs) != set(choices)
+                or any(type(p) not in (int, float) or not math.isfinite(p) or not 0 <= p <= 1 for p in probs.values())
+                or abs(sum(probs.values()) - 1) > 0.015
+                or type(a.get("confidence")) not in (int, float) or not 0 <= a["confidence"] <= 1
+                or probs[a["choice"]] < max(probs.values()) - 1e-6):
+            raise ProviderError("jev", None, "malformed_choice")
+    return out

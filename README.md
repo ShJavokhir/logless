@@ -13,6 +13,23 @@ No one can open a conversation.
 - **Data:** a fixed sample of 5,000 real conversations from [WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M) (Zhao et al., ICLR 2024, ODC-BY). That is April–May 2023, 2,790 people (hashed IPs) and 55 languages. The map shows 5,050 conversations: the 5,000 real ones plus 50 planted evaluation fixtures (40 canaries and 10 injection tests), disclosed in the UI.
 - **Built for** the Vultr Agent Arena (Track 1, Agent Sandboxing).
 
+## This branch: preserved Next.js frontend
+
+Run `npm install` and `npm run dev` at the repository root. Open http://127.0.0.1:3000.
+This uses the frontend in `src/`, including the branch's list, map, and detail panel.
+It reads the live published snapshot, searches through Jev, requests fictional stories,
+and runs the usage/friction questions through the sandbox API. No mock fallback is used.
+
+`LOGLESS_API_ORIGIN` controls the API proxy. It defaults to the deployed demo at
+`https://144-202-110-2.sslip.io`. To use a local backend, run
+`LOGLESS_API_ORIGIN=http://127.0.0.1:8000 npm run dev`. Restart Next.js after changing it.
+API calls use the public demo's normal quotas; no provider credentials go to the browser.
+The snapshot can change when live intake publishes. Reload to use the latest snapshot.
+The `web/` frontend and deployment scripts from master remain available; deploying
+with those scripts still deploys that Vite frontend, not this local Next.js preview.
+
+Validation: `npm run check` and `npm run build` from the repository root.
+
 ## What the PM sees
 
 - **Usage map:** packed circles, where categories contain workflows and area is the number of conversations. People appear next to conversations, because a big cluster driven by a handful of people is itself an insight.
@@ -112,3 +129,52 @@ Live analyses need the runner (`runner/README.md`). Use Docker with `runsc`, or 
 ## Credits
 
 WildChat-1M by Zhao, Ren, Hessel, Cardie, Choi and Deng (ICLR 2024), ODC-BY 1.0. External reference labels: Microsoft WildFeedback (ODC-By) and sh0416/wildchat-1m-tagged (ODC-By). See `backend/logless/eval/external/README.md`. Built at the Vultr Agent Arena (Sep 26–27, 2026). This project is inspired by Anthropic's Clio paper and is not affiliated with Anthropic, OpenAI or the dataset authors.
+
+## Product context from this branch
+
+
+**Understand your users without reading their conversations.**
+
+logless is an open-source web app that helps personal-assistant product teams discover what people use their assistant for—and what isn't working—without employees inspecting private transcripts.
+
+Think **Google Trends for internal usage data**, with fictional user stories that make aggregate findings tangible.
+
+## Why we built it
+
+Personal assistants handle deeply personal tasks. Improving them shouldn't require PMs and analysts to read through someone's private life. We built logless to answer two practical roadmap questions:
+
+> What are people doing with our assistant?
+> What are they trying to do that isn't working?
+
+The goal is to uncover unexpected workflows and recurring frustrations, not just count messages or produce generic sentiment scores.
+
+## How it works
+
+**Conversations → private summaries → discovered themes → aggregate insights → fictional user stories.**
+
+1. **Discover.** GLM 5.3 extracts private summaries of users' goals and identifies themes from the data, rather than sorting everything into predefined categories.
+2. **Measure.** Jev classifies interactions and observable friction in parallel: corrections, repeated requests, assistant limits, and complaints. Sandboxed code computes counts and shares; models don't invent the numbers. Missing negative feedback is not treated as success.
+3. **Explore.** Browse a hierarchical usage map or search by meaning. Jev highlights relevant published clusters. Open a cluster to understand the workflow, its prevalence, and its friction.
+4. **Make it tangible.** Generate a fictional user story with an invented name, a goal, and evidence-backed frustrations. Stories use only approved aggregate findings—not individual conversations—and are clearly labeled as illustrations, not customer testimonials.
+
+## What “private” means
+
+The analyst interface exposes aggregate insights, not transcripts, individual summaries, or customer drill-downs. Distinctive details are generalized while preserving useful product signals.
+
+Automated processing and inference providers still process underlying data. This is **not** provider-blind computation, a differential-privacy guarantee, or a promise of zero data storage.
+
+The explorer now reads published WildChat aggregates from the API. It is not validated for private customer data.
+
+## Stack and scope
+
+Built for the Vultr Agent Arena hackathon. Vultr hosts the web app and VM backend; GLM 5.3 runs through Vultr Serverless Inference; Jev uses TypeSafe's API. Generated analysis code executes in disposable, resource-limited sandboxes outside the application process.
+
+The MVP covers one bundled dataset, precomputed discovery, live aggregate analysis, semantic exploration, and user stories. Imports, live integrations, and customer simulation are future work.
+
+## Development
+
+Start with the [project brief](./logless-project-brief.md) and [implementation spec](./spec.md). Live inference requires Vultr and TypeSafe API credentials.
+
+## Inspiration
+
+Inspired by Anthropic's Clio: [blog post](https://www.anthropic.com/research/clio) · [research paper](https://arxiv.org/abs/2412.13678). logless simplifies the pipeline and does not claim equivalent privacy protections.

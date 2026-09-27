@@ -21,7 +21,7 @@ class GLMOutputError(RuntimeError):
 
 
 def _body(messages: list[dict], model: str, reasoning: Reasoning, temperature: float, max_tokens: int, json_mode: bool) -> dict:
-    body: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    body: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature, "max_completion_tokens": max_tokens}
     if json_mode:
         body["response_format"] = {"type": "json_object"}
     if reasoning == "off":

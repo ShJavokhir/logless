@@ -16,3 +16,5 @@ export type {
   Snapshot,
   StoryRequestResult,
 } from "./types";
+
+export { createLiveAdapter, LiveApiError } from "./live";

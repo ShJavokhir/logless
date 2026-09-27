@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Signal = Literal["correction", "repeat_request", "assistant_limit", "complaint"]
+Signal = Literal["correction", "repeat_request", "assistant_limit", "complaint", "unresolved_action_error"]
 
 
 class _Out(BaseModel):
@@ -22,11 +22,17 @@ class Signals(_Out):
     complaint: int
 
 
+class SyntheticSignals(_Out):
+    correction: int
+    complaint: int
+    unresolved_action_error: int
+
+
 class Friction(_Out):
     conversations: int
     share: float | None
     unclear: int
-    signals: Signals
+    signals: Signals | SyntheticSignals
 
 
 class Language(_Out):
@@ -84,6 +90,7 @@ class Fixtures(_Out):
 
 
 class Dataset(_Out):
+    synthetic: bool = False
     name: str
     source_url: str
     revision: str
@@ -107,6 +114,7 @@ class ProvenanceStage(_Out):
 
 
 class Provenance(_Out):
+    taxonomy_version: str | None = None
     pipeline_version: str
     dataset_hash: str
     models: dict[str, str]
