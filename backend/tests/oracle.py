@@ -1,6 +1,6 @@
-"""Trusted reference computations (pure pandas, run in the backend on the exact DataFrame the
-sandbox job received). The egress gate compares sandbox output against these, and a passing
-result is re-serialized from these values — never from the sandbox bytes.
+"""TEST ORACLE ONLY. Independent pandas implementations used by the test suite to check the gate
+and the fixture programs. Nothing at runtime imports this: live answers come from the sandbox
+(docs/CONTRACTS.md §0).
 
 Definitions (docs/CONTRACTS.md §3, §5, §8):
 - a category's metrics are computed over the union of its leaves' conversations;
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from .export import SIGNALS
+from logless.sandbox.export import SIGNALS
 
 SHARE_DP = 4
 DEFAULT_OTHER = frozenset({"cl_other"})
@@ -26,36 +26,6 @@ def _flags(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     observed = (sig == "observed").any(axis=1)
     unclear = (~observed) & (sig == "unclear").any(axis=1)
     return observed, unclear
-
-
-def usage(df: pd.DataFrame, leaf_ids: list[str], snapshot_id: str, other_ids: frozenset[str] | set[str] = DEFAULT_OTHER) -> dict:
-    """Every leaf once, by conversations desc then cluster_id asc; the catch-all leaf is always last."""
-    total = int(len(df))
-    rows = []
-    for leaf in leaf_ids:
-        sub = df[df["leaf_id"] == leaf]
-        n = int(len(sub))
-        rows.append({"cluster_id": leaf, "conversations": n, "users": int(sub["user"].nunique()), "share": _share(n, total)})
-    rows.sort(key=lambda r: (r["cluster_id"] in other_ids, -r["conversations"], r["cluster_id"]))
-    return {"intent": "usage", "snapshot_id": snapshot_id, "total_conversations": total, "rows": rows}
-
-
-def friction(df: pd.DataFrame, leaf_ids: list[str], snapshot_id: str, other_ids: frozenset[str] | set[str] = DEFAULT_OTHER) -> dict:
-    """Every leaf once, by friction conversations desc then cluster_id asc; the catch-all leaf is always last."""
-    total = int(len(df))
-    observed, unclear = _flags(df)
-    rows = []
-    for leaf in leaf_ids:
-        m = df["leaf_id"] == leaf
-        n = int(m.sum())
-        fc = int((observed & m).sum())
-        row = {"cluster_id": leaf, "conversations": n, "friction_conversations": fc, "friction_share": _share(fc, n)}
-        for s in SIGNALS:
-            row[s] = int(((df[s] == "observed") & m).sum())
-        row["unclear"] = int((unclear & m).sum())
-        rows.append(row)
-    rows.sort(key=lambda r: (r["cluster_id"] in other_ids, -r["friction_conversations"], r["cluster_id"]))
-    return {"intent": "friction", "snapshot_id": snapshot_id, "total_conversations": total, "rows": rows}
 
 
 def node_metrics(df: pd.DataFrame, mask: pd.Series, total: int, observed: pd.Series, unclear: pd.Series) -> dict:
@@ -108,22 +78,7 @@ def rounded(doc):
 
 # ---------------------------------------------------------------- open questions (docs/CONTRACTS.md §8b)
 
-def question_scope(clusters: list[dict], plan: dict) -> tuple[list[str], set[str]]:
-    """(group ids in scope, leaf ids whose rows are in scope). Other or unclear — any is_other
-    leaf and any is_other category, plus cl_other — never counts."""
-    cats = {c["id"]: c for c in clusters if int(c["level"]) == 1}
-    other_cats = {cid for cid, c in cats.items() if c.get("is_other")}
-    leaves = [c for c in clusters if int(c["level"]) == 2 and not c.get("is_other") and c["id"] != "cl_other"
-              and c.get("parent_id") not in other_cats]
-    scope = plan.get("scope_category_id")
-    if scope is not None:
-        leaves = [c for c in leaves if c["parent_id"] == scope]
-    leaf_ids = {c["id"] for c in leaves}
-    if plan["group_by"] == "leaf":
-        groups = sorted(leaf_ids)
-    else:
-        groups = sorted(cid for cid in cats if cid not in other_cats and any(c["parent_id"] == cid for c in leaves))
-    return groups, leaf_ids
+from logless.sandbox.plan import question_scope  # noqa: E402  (structure only)
 
 
 def _signal_mask(df: pd.DataFrame, signal: str | None) -> pd.Series:

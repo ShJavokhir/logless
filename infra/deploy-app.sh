@@ -54,11 +54,10 @@ $SSH 'set -e; chown -R logless:logless /opt/logless; cd /opt/logless/backend;
   sudo -u logless env UV_CACHE_DIR=/opt/logless/.uv-cache uv pip install -q --python .venv/bin/python -e .;
   systemctl daemon-reload; systemctl enable -q logless-api; systemctl restart logless-api; sleep 2; systemctl is-active logless-api'
 if [[ $WITH_DATA == 1 ]]; then
-  # The copied database may carry a snapshot whose stats came from the local reference.
-  # Re-run aggregation in the gVisor sandbox (over the VPC) so production only serves
-  # sandbox-computed numbers, then refresh the evaluation report.
-  echo "==> re-run stats in the sandbox + eval"
-  $SSH 'cd /opt/logless/backend && sudo -u logless bash -c "set -a; . /etc/logless/env; set +a; .venv/bin/logless rebuild --from-stage stats && .venv/bin/logless eval >/dev/null"'
+  # Published map numbers are computed by the pipeline on the app VM; nothing is re-run here.
+  # Refresh the evaluation report for whatever snapshot is current after the copy.
+  echo "==> eval"
+  $SSH 'cd /opt/logless/backend && sudo -u logless bash -c "set -a; . /etc/logless/env; set +a; .venv/bin/logless eval >/dev/null"'
 fi
 
 echo "==> health"

@@ -1,17 +1,19 @@
-"""Live questions: "What are people doing?" (usage) and "What's not working?" (friction).
+"""Live questions (docs/CONTRACTS.md §0 and §8b). The sandbox is the source of truth: the backend
+never computes a live answer.
 
-State machine (docs/CONTRACTS.md §6):
-  planning → executing → validating → (repairing → executing → validating) → explaining → completed | failed
+  interpreting → planning → executing → validating → (repairing → executing → validating) → explaining
 
-- GLM 5.3 gets ONLY the intent, the data dictionary, the output contract and the ordering rule —
-  never rows — and writes a pandas program.
-- A static pre-check rejects obviously out-of-bounds programs (best effort; the container is the
-  real boundary).
-- The program runs once in a fresh sandbox container; its output must pass the egress gate.
-- One repair attempt. The repair prompt contains no sandbox-authored text: only the failed gate
-  check names and a trusted error category derived from the exception type.
-- GLM writes a two-sentence explanation with {{placeholders}}; the backend resolves them from the
-  validated (reference) result, so no number shown to a PM comes from a model.
+- interpreting: GLM 5.3 maps the question (untrusted) to a validated Plan over published ids, or
+  says it is unsupported. The raw question reaches only this prompt.
+- planning: GLM writes TWO independent programs in parallel from the plan, the data dictionary and
+  the output contract (never rows): A with pandas, B with the standard library only.
+- executing: both run in parallel, each in its own fresh gVisor container.
+- validating: the egress gate checks each output on its own, cross-checks it against the
+  published snapshot where the plan makes that derivable, and requires A and B to agree.
+- repairing: one round that regenerates only the failing or disagreeing program(s); the prompt
+  gets fixed-vocabulary check names, never values or stderr. Then the run fails honestly.
+- explaining: GLM writes two sentences with {{placeholders}} into the validated result, so no
+  number shown to a PM comes from a model.
 """
 from __future__ import annotations
 
@@ -20,156 +22,112 @@ import hashlib
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from typing import Callable
 
 from pydantic import BaseModel
 
 from ..providers import glm
 from ..providers.http import ProviderError
-from . import gate, reference
-from .client import RUNNER_ERRORS, RunnerClient, SandboxInvalidResponse, SandboxUnavailable, receipt
-from .export import SIGNALS, SandboxInputs, export_inputs, load_cluster_map
-from .plan import SIGNAL_WORDS, Interpretation, Plan, clean_unsupported_reason, plan_text, semantic_problems
+from . import gate
+from .client import RunnerClient, SandboxInvalidResponse, SandboxUnavailable, receipt
+from .client import RUNNER_ERRORS as RUNNER_ERROR_CODES
+from .export import SandboxInputs, export_inputs, load_cluster_map
+from .plan import (SIGNAL_WORDS, Interpretation, Plan, clean_unsupported_reason, plan_text, question_scope,
+                   semantic_problems)
 from .runs import Run
 
 log = logging.getLogger("logless.sandbox")
 
 ANALYSIS_TIMEOUT_S = 10.0
-MAX_EXECUTIONS = 2
-ALLOWED_IMPORTS = {"pandas", "numpy", "json", "math", "collections", "pathlib", "csv"}
-ALLOWED_PATHS = {"/in/assignments.csv", "/in/clusters.json", "/in/contract.json", "/out/result.json", "/in", "/in/", "/out", "/out/", "/tmp", "/tmp/"}
+PROGRAMS = ("A", "B")
+STDLIB = {"json", "csv", "collections", "math", "pathlib", "itertools", "functools", "operator", "fractions",
+          "statistics", "decimal"}
+ALLOWED_IMPORTS = {"A": STDLIB | {"pandas", "numpy"}, "B": STDLIB}
+ALLOWED_PATHS = {"/in/assignments.csv", "/in/clusters.json", "/in/contract.json", "/out/result.json", "/in", "/in/",
+                 "/out", "/out/", "/tmp", "/tmp/"}
 BANNED_CALLS = {"eval", "exec", "compile", "__import__", "globals", "locals", "vars", "breakpoint", "input",
                 "getattr", "setattr", "delattr", "memoryview"}
 BANNED_NAMES = {"__builtins__", "__loader__", "__spec__", "__import__"}
 
-# ---------------------------------------------------------------- contract given to the model
+# ---------------------------------------------------------------- contract given to the programs
 
 DATA_DICTIONARY = """\
 /in/assignments.csv — CSV with a header row; one row per conversation. Columns:
   row              int  per-job random row number (not meaningful)
   user             int  per-job pseudonymous person number (count distinct values; never output them)
-  leaf_id          str  the leaf cluster of the conversation, e.g. "cl_3fa2b1" or "cl_other"
+  leaf_id          str  the leaf cluster (workflow) of the conversation, e.g. "cl_3fa2b1" or "cl_other"
   category_id      str  the parent category of that leaf, e.g. "cat_91be0c"
   correction       str  one of "observed", "not_observed", "unclear"
   repeat_request   str  one of "observed", "not_observed", "unclear"
   assistant_limit  str  one of "observed", "not_observed", "unclear"
   complaint        str  one of "observed", "not_observed", "unclear"
 /in/clusters.json — JSON list of {"id": str, "parent_id": str or null, "level": 1 or 2, "is_other": bool}.
-  level 2 = leaf clusters (every leaf must appear in the output, including leaves with zero conversations);
-  level 1 = categories.
-/in/contract.json — JSON object with "intent", "snapshot_id", "output_path", "fields", "ordering", "rules".
+  level 2 = leaves (workflows), level 1 = categories.
+/in/contract.json — JSON object with "intent", "snapshot_id", "plan", "fields", "ordering", "rules" (the output
+  contract; the result itself has only the six keys listed in fields).
 """
 
 FIELDS = {
-    "usage": {
-        "intent": '"usage"',
-        "snapshot_id": "copy from /in/contract.json",
-        "total_conversations": "int: number of rows in assignments.csv",
-        "rows": "list, one object per leaf cluster (level 2) with exactly these keys:",
-        "rows[].cluster_id": "str: the leaf id",
-        "rows[].conversations": "int: rows with this leaf_id",
-        "rows[].users": "int: distinct `user` values among those rows",
-        "rows[].share": "float: conversations / total_conversations rounded to 4 decimals (0.0 if total is 0)",
-    },
-    "friction": {
-        "intent": '"friction"',
-        "snapshot_id": "copy from /in/contract.json",
-        "total_conversations": "int: number of rows in assignments.csv",
-        "rows": "list, one object per leaf cluster (level 2) with exactly these keys:",
-        "rows[].cluster_id": "str: the leaf id",
-        "rows[].conversations": "int: rows with this leaf_id",
-        "rows[].friction_conversations": "int: rows where at least one of the four signal columns == \"observed\"",
-        "rows[].friction_share": "float: friction_conversations / conversations rounded to 4 decimals (0.0 if conversations is 0)",
-        "rows[].correction": "int: rows where correction == \"observed\"",
-        "rows[].repeat_request": "int: rows where repeat_request == \"observed\"",
-        "rows[].assistant_limit": "int: rows where assistant_limit == \"observed\"",
-        "rows[].complaint": "int: rows where complaint == \"observed\"",
-        "rows[].unclear": "int: rows with no \"observed\" signal and at least one \"unclear\" signal",
-    },
-    "aggregate": {
-        "intent": '"aggregate"',
-        "snapshot_id": "copy from /in/contract.json",
-        "total_conversations": "int",
-        "totals": "metrics over all rows",
-        "nodes": "list: every category, then every leaf; each {id, conversations, users, share, friction: {conversations, share, unclear, signals: {correction, repeat_request, assistant_limit, complaint}}}",
-    },
-}
-ORDERING = {
-    "usage": "rows sorted by conversations descending, then cluster_id ascending, except that the catch-all leaf "
-             "(the level-2 cluster with is_other true in clusters.json) is always the last row",
-    "friction": "rows sorted by friction_conversations descending, then cluster_id ascending, except that the catch-all "
-                "leaf (the level-2 cluster with is_other true in clusters.json) is always the last row",
-    "aggregate": "nodes: categories by id ascending, then leaves by id ascending",
-}
-RULES = [
-    "Write exactly one file, /out/result.json, containing one JSON object and nothing else (use json.dump).",
-    "Every leaf cluster (level 2 in clusters.json) appears exactly once, including leaves with zero conversations.",
-    "The catch-all leaf (is_other true) is always the last row, whatever its numbers.",
-    "Use only the keys listed in fields; integers must be JSON integers (convert numpy types with int()).",
-    "Output only aggregate numbers per cluster: never output row numbers, user numbers or any per-row data.",
-    "Do not print data to stdout or stderr.",
-]
-
-
-FIELDS["question"] = {
-    "intent": '"question"',
-    "snapshot_id": "copy from /in/contract.json",
+    "intent": "the string question",
+    "snapshot_id": "copy the snapshot_id value from /in/contract.json",
     "plan": "copy the plan object from /in/contract.json exactly (all six keys, same values, null stays null)",
     "rows": "list of at most plan.limit objects with exactly these keys:",
     "rows[].id": "str: the group id (a leaf id when plan.group_by is \"leaf\", a category id when \"category\")",
     "rows[].count": "int: the plan's measure over the group's in-scope rows that pass the signal filter",
     "rows[].base": "int: the same measure over the group's in-scope rows with NO signal filter",
     "rows[].share": "float: count / base rounded to 4 decimals (0.0 if base is 0)",
-    "total_count": "int: the measure over ALL in-scope rows that pass the signal filter (distinct people over the whole scope when measure is people, never a sum)",
+    "total_count": "int: the measure over ALL in-scope rows that pass the signal filter (distinct people over the "
+                   "whole scope when measure is people, never a sum of groups)",
     "total_base": "int: the measure over ALL in-scope rows with no signal filter",
 }
-ORDERING["question"] = ("rows sorted by plan.rank_by (\"count\" or \"share\") descending — compare the UNROUNDED share — "
-                        "then id ascending; keep only the first plan.limit rows")
-QUESTION_RULES = [
-    "Scope: only rows whose leaf is a level-2 cluster with is_other false, whose category (level 1) has is_other false, "
-    "and whose leaf is not cl_other; if plan.scope_category_id is not null, only rows with that category_id.",
+ORDERING = ("rows sorted by plan.rank_by (\"count\" or \"share\") descending — compare the UNROUNDED share — "
+            "then id ascending; keep only the first plan.limit rows")
+RULES = [
+    "Scope: only rows whose leaf is a level-2 cluster with is_other false, whose category (level 1) has is_other "
+    "false, and whose leaf is not cl_other; if plan.scope_category_id is not null, only rows with that category_id.",
     "Groups: every in-scope leaf (group_by \"leaf\") or every non-Other category that has at least one in-scope leaf "
     "(group_by \"category\"), including groups with zero rows. Never output Other or cl_other.",
     "Measure: \"conversations\" counts rows; \"people\" counts distinct values of the user column.",
     "Signal filter: null = no filter; \"any_friction\" = at least one of the four signal columns == \"observed\"; "
     "otherwise that one column == \"observed\".",
     "Write exactly one file, /out/result.json, containing one JSON object and nothing else (use json.dump).",
-    "Integers must be JSON integers (convert numpy types with int()). Do not print data to stdout or stderr.",
+    "The result object has exactly six top-level keys: intent, snapshot_id, plan, rows, total_count, total_base. "
+    "Build it from scratch; do not copy fields, ordering or rules from contract.json into it.",
+    "Integers must be JSON integers. Do not print data to stdout or stderr.",
     "Output only aggregate numbers per group: never output row numbers, user numbers or any per-row data.",
 ]
 
 
-def output_contract(intent: str, snapshot_id: str, plan: dict | None = None) -> dict:
-    if intent == "question":
-        return {"intent": "question", "snapshot_id": snapshot_id, "plan": plan, "output_path": "/out/result.json",
-                "fields": FIELDS["question"], "ordering": ORDERING["question"], "rules": QUESTION_RULES}
-    return {"intent": intent, "snapshot_id": snapshot_id, "output_path": "/out/result.json",
-            "fields": FIELDS[intent], "ordering": ORDERING[intent], "rules": RULES}
+def output_contract(snapshot_id: str, plan: dict) -> dict:
+    return {"intent": "question", "snapshot_id": snapshot_id, "plan": plan, "fields": FIELDS, "ordering": ORDERING,
+            "rules": RULES}
 
 
-INTENT_TEXT = {
-    "usage": "What are people doing with the assistant? For every leaf cluster, count conversations and distinct people, and its share of all conversations.",
-    "friction": "What is not working? For every leaf cluster, count conversations with observed friction, each friction signal, and unclear conversations.",
-}
-
-SYSTEM = (
-    "You write one self-contained Python 3.12 program for a sandboxed analytics job. Available: pandas, numpy, and the "
-    "standard modules json, math, collections, pathlib, csv. There is no network; the filesystem is read-only except "
-    "/out and /tmp. The program must not import anything else, must not use eval/exec/getattr or dunder attributes, "
+_COMMON = (
+    "You write one self-contained Python 3.12 program for a sandboxed analytics job. There is no network; the "
+    "filesystem is read-only except /out and /tmp. The program must not use eval/exec/getattr or dunder attributes, "
     "and must only open /in/assignments.csv, /in/clusters.json, /in/contract.json and /out/result.json. "
     "Reply with only the program in a single ```python fenced block."
 )
+SYSTEM = {
+    "A": _COMMON + " Use pandas (numpy is available too) for all the counting: read the CSV with pandas (dtype=str "
+                   "for the id and signal columns) and compute every number with pandas operations.",
+    "B": _COMMON + " Use ONLY the Python standard library: csv, json, collections (plus math/itertools if needed). "
+                   "Do NOT import pandas or numpy. Read the CSV with csv.DictReader and count with plain loops, sets "
+                   "and dictionaries.",
+}
 
 
-def plan_prompt(intent: str, snapshot_id: str, plan: dict | None = None, task: str | None = None) -> str:
+def program_prompt(snapshot_id: str, plan: dict, task: str) -> str:
     return (
-        f"Task: {task or INTENT_TEXT[intent]}\n\nData dictionary:\n{DATA_DICTIONARY}\n"
-        f"Output contract (this exact object is also in /in/contract.json; read snapshot_id"
-        f"{' and plan' if plan else ''} from there):\n"
-        f"{json.dumps(output_contract(intent, snapshot_id, plan), indent=1)}\n\n"
-        f"Ordering rule: {ORDERING[intent]}.\n"
-        "Keep it short and robust: read the CSV with pandas (dtype=str for the id and signal columns), take the leaf list "
-        "from clusters.json, compute every number with pandas, sort, and json.dump the result."
+        f"Task: {task}\n\nData dictionary:\n{DATA_DICTIONARY}\n"
+        "Output contract (this exact object is also in /in/contract.json; read snapshot_id and plan from there):\n"
+        f"{json.dumps(output_contract(snapshot_id, plan), indent=1)}\n\n"
+        f"Ordering rule: {ORDERING}.\n"
+        "Keep it short and robust: load clusters.json and the plan, work out the groups in scope, count, sort, "
+        "and json.dump the result."
     )
 
 
@@ -190,22 +148,24 @@ def extract_code(text: str) -> str:
     return (text or "").strip() + "\n"
 
 
-def precheck(code: str) -> list[str]:
-    """Best-effort static check. Returns human-readable problems (the code is model-authored and public)."""
+def precheck(code: str, program: str = "A") -> list[str]:
+    """Best-effort static check (the container is the real boundary). Program B may import only
+    the standard library, which keeps it independent of A. Returns fixed-vocabulary problems."""
     if len(code.encode()) > 60_000:
         return ["the program is too long"]
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
         return [f"SyntaxError at line {e.lineno}"]
+    allowed = ALLOWED_IMPORTS[program]
     problems: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                if a.name.split(".")[0] not in ALLOWED_IMPORTS:
+                if a.name.split(".")[0] not in allowed:
                     problems.append(f"import of '{a.name}' is not allowed")
         elif isinstance(node, ast.ImportFrom):
-            if node.level or (node.module or "").split(".")[0] not in ALLOWED_IMPORTS:
+            if node.level or (node.module or "").split(".")[0] not in allowed:
                 problems.append(f"import from '{node.module}' is not allowed")
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in BANNED_CALLS:
             problems.append(f"call to '{node.func.id}' is not allowed")
@@ -223,27 +183,28 @@ def precheck(code: str) -> list[str]:
 ERROR_CATEGORIES = {
     "KeyError": "KeyError: the program used a column or key that does not exist",
     "ValueError": "ValueError: an invalid value or conversion",
-    "TypeError": "TypeError: an operation got the wrong type (check numpy vs Python types)",
+    "TypeError": "TypeError: an operation got the wrong type",
     "IndexError": "IndexError: an index was out of range",
-    "AttributeError": "AttributeError: an attribute or method does not exist (check the pandas 2.2 API)",
+    "AttributeError": "AttributeError: an attribute or method does not exist",
     "NameError": "NameError: a name was used before it was defined",
     "FileNotFoundError": "FileNotFoundError: a path does not exist (inputs are /in/assignments.csv, /in/clusters.json, /in/contract.json)",
     "PermissionError": "PermissionError: writes are only allowed to /out/result.json and /tmp",
     "OSError": "OSError: a filesystem or resource error",
-    "ZeroDivisionError": "ZeroDivisionError: division by zero (guard clusters with zero conversations)",
+    "ZeroDivisionError": "ZeroDivisionError: division by zero (guard groups with an empty base)",
     "JSONDecodeError": "JSONDecodeError: a JSON input could not be parsed",
-    "ModuleNotFoundError": "ModuleNotFoundError: only pandas, numpy and the standard library are available",
-    "ImportError": "ImportError: only pandas, numpy and the standard library are available",
+    "ModuleNotFoundError": "ModuleNotFoundError: a module is not available",
+    "ImportError": "ImportError: a module is not available",
     "MemoryError": "MemoryError: the 512 MB memory limit was reached",
     "RecursionError": "RecursionError: recursion too deep",
     "SyntaxError": "SyntaxError: the program does not parse",
     "IndentationError": "SyntaxError: the program does not parse",
     "UnboundLocalError": "NameError: a variable was used before assignment",
+    "StopIteration": "StopIteration: an iterator was exhausted",
     "MergeError": "pandas MergeError: an invalid merge",
     "InvalidIndexError": "pandas InvalidIndexError: an invalid index operation",
 }
-RUNNER_ERRORS = {
-    "timeout": "Timeout: the program exceeded the 10 s limit (pandas import alone takes about 2 s)",
+RUNNER_ERROR_TEXT = {
+    "timeout": "Timeout: the program exceeded the 10 s limit",
     "oom_killed": "MemoryError: the 512 MB memory limit was reached",
     "no_output": "NoOutput: the program exited without writing /out/result.json",
     "output_too_large": "OutputTooLarge: /out/result.json exceeded 1 MiB",
@@ -258,9 +219,9 @@ def error_category(res_state: str, error: str | None, stderr_tail: str) -> str:
     """A fixed message chosen by the exception type in the last traceback line. Nothing from
     stderr is passed on except that the type name matched one of our known names."""
     if res_state == "timed_out":
-        return RUNNER_ERRORS["timeout"]
-    if error in RUNNER_ERRORS:
-        return RUNNER_ERRORS[error]
+        return RUNNER_ERROR_TEXT["timeout"]
+    if error in RUNNER_ERROR_TEXT:
+        return RUNNER_ERROR_TEXT[error]
     for line in reversed([x.strip() for x in (stderr_tail or "").splitlines() if x.strip()]):
         m = _EXC_LINE.match(line)
         if m:
@@ -271,10 +232,9 @@ def error_category(res_state: str, error: str | None, stderr_tail: str) -> str:
 
 # ---------------------------------------------------------------- explanation
 #
-# Placeholders are dotted paths into the validated `result` (the UI resolves them itself):
-#   {{total_conversations}}, {{rows.0.cluster_id}} (rendered as the cluster title),
-#   {{rows.0.conversations}}, {{rows.1.friction_share}} (any *share renders as a percentage).
-# `rows[1].x` is accepted and normalized to `rows.1.x`.
+# Placeholders are dotted paths into the validated result, which the UI resolves itself:
+# {{rows.N.id}} (rendered as the node's title), {{rows.N.count}}, {{rows.N.base}},
+# {{rows.N.share}}, {{total_count}}, {{total_base}}. `rows[1].x` is normalized to `rows.1.x`.
 
 class _Explanation(BaseModel):
     text: str
@@ -337,54 +297,35 @@ def validate_explanation(text: str, vocab: set[str]) -> list[str]:
     return problems
 
 
-def fallback_explanation(intent: str, result: dict) -> str:
+def fallback_explanation(result: dict) -> str:
     n = len(result.get("rows") or [])
-    if intent == "question":
-        if n == 0:
-            return "No group in this scope has data for the question; the total is {{total_count}} of {{total_base}}."
-        text = "{{rows.0.id}} ranks first with {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}})."
-        if n >= 2:
-            text += " {{rows.1.id}} follows with {{rows.1.count}} of {{rows.1.base}} ({{rows.1.share}})."
-        return text
-    if intent == "usage":
-        text = ("{{rows.0.cluster_id}} is the most common workflow, with {{rows.0.conversations}} of "
-                "{{total_conversations}} conversations ({{rows.0.share}}).")
-        if n >= 3:
-            text += " {{rows.1.cluster_id}} and {{rows.2.cluster_id}} follow."
-    else:
-        text = ("{{rows.0.cluster_id}} has the most conversations with observed friction: "
-                "{{rows.0.friction_conversations}} of {{rows.0.conversations}} ({{rows.0.friction_share}}).")
-        if n >= 2:
-            text += " {{rows.1.cluster_id}} follows with {{rows.1.friction_conversations}} ({{rows.1.friction_share}})."
+    if n == 0:
+        return "No group in this scope has data for the question; the total is {{total_count}} of {{total_base}}."
+    text = "{{rows.0.id}} ranks first with {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}})."
+    if n >= 2:
+        text += " {{rows.1.id}} follows with {{rows.1.count}} of {{rows.1.base}} ({{rows.1.share}})."
     return text
 
 
-def explain(intent: str, result: dict, titles: dict[str, str], task: str | None = None) -> tuple[dict, str]:
-    """Returns ({text, metric_refs}, source) where source is 'model' or 'template'. For `question`
-    runs, `task` is the validated plan in words — the raw question never reaches this prompt."""
+def explain(result: dict, titles: dict[str, str], task: str) -> tuple[dict, str]:
+    """Returns ({text, metric_refs}, source) where source is 'model' or 'template'. The prompt gets
+    the plan in words (`task`) and the validated result — never the raw question."""
     vocab = result_paths(result)
-    idk = "id" if intent == "question" else "cluster_id"
-    rows = [{"index": i, "title": titles.get(r[idk], r[idk]), **r} for i, r in enumerate(result["rows"][:PROMPT_ROWS])]
-    if intent == "question":
-        plan = result["plan"]
-        unit = "distinct people" if plan["measure"] == "people" else "conversations"
-        filt = SIGNAL_WORDS.get(plan.get("signal")) or "(no filter)"
-        refs = ("{{total_count}} and {{total_base}} for the scope totals, {{rows.N.id}} for the name of the group in row N, "
-                f"and {{{{rows.N.count}}}} = {unit} {filt}, {{{{rows.N.base}}}} = all {unit} in that group, "
-                "{{rows.N.share}} = count ÷ base. Rows are already ranked by the plan; only row 0 may be called the "
-                "highest or most")
-        totals = f"total_count = {result['total_count']}, total_base = {result['total_base']} (both in {unit})"
-    else:
-        refs = ("{{total_conversations}}, {{rows.N.cluster_id}} for the name of the cluster in row N, and "
-                "{{rows.N.<field>}} for its numbers (e.g. {{rows.0.conversations}}, {{rows.1.friction_share}})")
-        totals = f"total_conversations = {result['total_conversations']}"
+    plan = result["plan"]
+    unit = "distinct people" if plan["measure"] == "people" else "conversations"
+    filt = SIGNAL_WORDS.get(plan.get("signal")) or "(no filter)"
+    rows = [{"index": i, "title": titles.get(r["id"], r["id"]), **r} for i, r in enumerate(result["rows"][:PROMPT_ROWS])]
     system = (
         "You explain a finished, validated analysis to a product manager in two short sentences (at most 45 words, "
         "at most 8 placeholders). Never write a digit, a number or a quantity word (half, most, twice, one, …) and never "
         "write a cluster or category title yourself. Refer to values ONLY through placeholders that are paths into the "
-        f"result: {refs}. Shares render as percentages. Do not add up or interpret numbers yourself and do not invent causes."
+        "result: {{total_count}} and {{total_base}} for the scope totals, {{rows.N.id}} for the name of the group in row N, "
+        f"and {{{{rows.N.count}}}} = {unit} {filt}, {{{{rows.N.base}}}} = all {unit} in that group, "
+        "{{rows.N.share}} = count ÷ base. Rows are already ranked by the plan; only row 0 may be called the highest or "
+        "most. Shares render as percentages. Do not add up or interpret numbers yourself and do not invent causes."
     )
-    user = (f"Question: {task or INTENT_TEXT[intent]}\nOrdering: {ORDERING[intent]}.\n{totals}\n"
+    user = (f"Question: {task}\nOrdering: {ORDERING}.\n"
+            f"total_count = {result['total_count']}, total_base = {result['total_base']} (both in {unit})\n"
             f"First rows of the validated result (row index, published title, fields):\n{json.dumps(rows, indent=1)}\n"
             'Return {"text": "..."}.')
     problems: list[str] = []
@@ -398,167 +339,11 @@ def explain(intent: str, result: dict, titles: dict[str, str], task: str | None 
                 return {"text": text, "metric_refs": list(dict.fromkeys(_PH.findall(text)))}, "model"
         except (glm.GLMOutputError, ProviderError):
             problems = ["no valid output"]
-    text = fallback_explanation(intent, result)
+    text = fallback_explanation(result)
     return {"text": text, "metric_refs": list(dict.fromkeys(_PH.findall(text)))}, "template"
 
 
-# ---------------------------------------------------------------- the loop
-
-def _write_code(messages: list[dict]) -> tuple[str, dict]:
-    content, meta = glm.chat(messages, reasoning="low", temperature=0.2, max_tokens=4000, use_cache=False)
-    return extract_code(content), meta
-
-
-def _exec_detail(res, rc: dict) -> str:
-    removed = "container removed" if rc["container_removed"] else "container removal NOT verified"
-    if res.state == "succeeded":
-        return f"exit 0 in {rc['elapsed_ms']:,} ms · {rc['runtime']} · {rc['output_bytes']:,} bytes · {removed}"
-    if res.state == "timed_out":
-        return f"killed at the {ANALYSIS_TIMEOUT_S:.0f} s limit after {rc['elapsed_ms']:,} ms · {removed}"
-    err = res.get("error") if res.get("error") in RUNNER_ERRORS else "error"
-    return f"failed ({err}, exit {rc['exit_code']}) after {rc['elapsed_ms']:,} ms · {removed}"
-
-
-def load_inputs(snapshot_id: str) -> SandboxInputs:
-    found = load_cluster_map(snapshot_id)
-    if found is None:
-        raise LookupError("no sandbox inputs are registered for this snapshot")
-    build_id, clusters = found
-    return export_inputs(build_id, clusters)
-
-
-def run_analysis(run: Run, *, intent: str, snapshot_id: str, titles: dict[str, str],
-                 runner: RunnerClient | None = None, inputs: SandboxInputs | None = None,
-                 question: str | None = None, on_stage: Callable[[str], None] | None = None) -> None:
-    """Drive one analysis run to completed | failed. Never raises (errors are recorded on the run).
-    `titles` maps published leaf AND category ids to titles."""
-    try:
-        if intent == "question":
-            _run_question(run, question or "", snapshot_id, titles, runner or RunnerClient(), inputs)
-        else:
-            _run(run, intent, snapshot_id, titles, runner or RunnerClient(), inputs)
-    except SandboxInvalidResponse:
-        run.fail("sandbox_invalid_response", "The sandbox returned a malformed response, so nothing from it was used.")
-    except SandboxUnavailable:
-        run.fail("sandbox_unavailable", "The sandbox is unreachable right now; the saved snapshot is unaffected.")
-    except LookupError:
-        run.fail("no_inputs", "This snapshot has no sandbox inputs; live analysis is unavailable.")
-    except ProviderError as e:
-        run.fail("model_unavailable", f"The code-writing model is unavailable ({e.provider}).")
-    except Exception as e:  # noqa: BLE001 — never leak a stack trace into the run
-        log.error("analysis %s crashed: %s", run.id, type(e).__name__)
-        run.fail("internal_error", "The analysis failed unexpectedly.")
-
-
-def _plan_and_execute(run: Run, *, intent: str, snapshot_id: str, files: dict[str, str], prompt: str,
-                      runner: RunnerClient, check: Callable[[str | None], "gate.Verdict"]) -> dict | None:
-    """planning → executing → validating → (repairing → executing → validating). Returns the
-    canonical (reference) result, or None after two failed attempts. Every attempt is appended to
-    Run.attempts_log (never overwritten); top-level code/receipt/verdict mirror the latest one."""
-    run.state("planning")
-    run.stage("planning", "running", "GLM 5.3 is writing a pandas program from the data dictionary (it never sees rows)")
-    messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}]
-    code, meta = _write_code(messages)
-    run.update(code=code)
-    problems = precheck(code)
-    run.stage("planning", "done", f"{meta.get('model', glm.GLM)} wrote a {len(code.strip().splitlines())}-line program"
-              + (f"; static check: {problems[0]}" if problems else "; static check passed"))
-
-    executions = 0
-    for attempt in (1, 2):
-        feedback: list[str] = []
-        entry = {"attempt": attempt, "code": code, "code_sha256": hashlib.sha256(code.encode()).hexdigest(),
-                 "receipt": None, "verdict": None, "repair_reason": None}
-        result = None
-        if problems:
-            run.stage("executing", "failed", "not run: the static check rejected the program")
-            run.stage("validating", "skipped")
-            feedback = [f"Static check: {p}" for p in problems]
-            entry["verdict"] = {"passed": False, "checks": [{"name": "Static pre-check", "passed": False,
-                                                             "detail": "; ".join(problems)[:300]}]}
-            run.update(receipt=None, verdict=entry["verdict"])
-        else:
-            run.state("executing")
-            run.stage("executing", "running", ("attempt 2 · " if attempt == 2 else "")
-                      + "fresh gVisor container · no network · read-only inputs · 10 s limit")
-            run.update(verdict=None)
-            res = runner.run(kind="analysis", code=code, files=files, timeout_s=ANALYSIS_TIMEOUT_S)
-            rc = receipt(res, entry["code_sha256"], timeout_s=ANALYSIS_TIMEOUT_S)
-            executions += 1
-            entry["receipt"] = rc
-            run.update(receipt=rc, attempts=executions)
-            if res.state != "succeeded":
-                run.stage("executing", "failed", _exec_detail(res, rc))
-                run.stage("validating", "skipped")
-                feedback = [error_category(res.state, res.get("error"), res.stderr_tail)]
-                entry["verdict"] = check(None).public()   # the fixed "Result file received: failed" verdict
-                run.update(verdict=entry["verdict"])
-            else:
-                run.stage("executing", "done", _exec_detail(res, rc))
-                run.state("validating")
-                run.stage("validating", "running", "egress gate: schema, allowlist, reference equality, ordering")
-                verdict = check(res.output)
-                entry["verdict"] = verdict.public()
-                run.update(verdict=entry["verdict"])
-                n_ok = sum(c.passed for c in verdict.checks)
-                if verdict.passed:
-                    run.stage("validating", "done", f"passed {n_ok}/{len(verdict.checks)} checks")
-                    result = verdict.canonical
-                else:
-                    run.stage("validating", "failed", f"rejected: {', '.join(verdict.failed_names)}")
-                    feedback = [f"Gate check failed: {name}" for name in verdict.failed_names]
-        entry["repair_reason"] = "; ".join(feedback)[:600] if feedback else None
-        run.update(attempts_log=[*run.doc["attempts_log"], entry])
-        if result is not None:
-            return result
-        if attempt == 1:
-            # One repair round: a new repairing → executing → validating sequence before explaining.
-            run.insert_stages(["repairing", "executing", "validating"], before="explaining")
-            run.state("repairing")
-            run.stage("repairing", "running", "GLM 5.3 gets only the failed check names / a fixed error category")
-            repair = ("The program did not pass. Problems:\n- " + "\n- ".join(feedback) +
-                      "\nReturn the complete corrected program in one ```python block.")
-            messages = messages[:2] + [{"role": "assistant", "content": f"```python\n{code}```"}, {"role": "user", "content": repair}]
-            code, meta = _write_code(messages)
-            run.update(code=code)
-            problems = precheck(code)
-            run.stage("repairing", "done", f"new {len(code.strip().splitlines())}-line program"
-                      + (f"; static check: {problems[0]}" if problems else "; static check passed"))
-    return None
-
-
-def _finish(run: Run, intent: str, result: dict | None, titles: dict[str, str], task: str | None = None) -> None:
-    if result is None:
-        run.fail("analysis_failed", "The generated program did not produce a valid result after one repair attempt. "
-                                    "Nothing from its output was used.")
-        return
-    run.update(result=result)
-    run.state("explaining")
-    run.stage("explaining", "running", "GLM 5.3 writes two sentences with placeholders; the UI fills them from the validated result")
-    explanation, source = explain(intent, result, titles, task)
-    run.update(explanation=explanation)
-    run.stage("explaining", "done", "model text validated (placeholders only, no digits)" if source == "model"
-              else "model text failed validation; used the fixed template")
-    run.complete()
-
-
-def _run(run: Run, intent: str, snapshot_id: str, titles: dict[str, str], runner: RunnerClient, inputs: SandboxInputs | None) -> None:
-    if intent not in ("usage", "friction"):
-        raise ValueError("intent")
-    inputs = inputs or load_inputs(snapshot_id)
-    ref = reference.usage(inputs.df, inputs.leaf_ids, snapshot_id, inputs.other_ids) if intent == "usage" else \
-        reference.friction(inputs.df, inputs.leaf_ids, snapshot_id, inputs.other_ids)
-
-    def check(output: str | None) -> gate.Verdict:
-        return gate.check(output, intent=intent, snapshot_id=snapshot_id, leaf_ids=inputs.leaf_ids,
-                          category_ids=inputs.category_ids, reference=ref, other_ids=inputs.other_ids)
-
-    result = _plan_and_execute(run, intent=intent, snapshot_id=snapshot_id, files=inputs.files(output_contract(intent, snapshot_id)),
-                               prompt=plan_prompt(intent, snapshot_id), runner=runner, check=check)
-    _finish(run, intent, result, titles)
-
-
-# ---------------------------------------------------------------- open questions (§8b)
+# ---------------------------------------------------------------- interpreting
 
 INTERPRET_SYSTEM = (
     "You translate a product manager's question about an assistant's usage into a Plan over PUBLISHED aggregate data, "
@@ -573,6 +358,8 @@ INTERPRET_SYSTEM = (
     "(no filter), \"any_friction\", \"correction\", \"repeat_request\", \"assistant_limit\" or \"complaint\"; "
     "rank_by \"count\" or \"share\" (count ÷ the same measure without the signal filter — use it for 'as a share', "
     "'rate', 'most often relative to size'); limit 1–10 (default 5).\n"
+    "Broad questions are fine: \"What are people doing?\" means conversations by workflow with no signal, ranked by "
+    "count; \"What's not working?\" means conversations with any friction by workflow, ranked by count.\n"
     "Return {\"unsupported\": \"<one short sentence, no numbers>\"} if the question asks for individual people, users, "
     "conversations, messages, quotes, contact details, raw rows, anything over time, or anything the Plan cannot "
     "express. Otherwise return {\"plan\": {...}} using only ids from the lists given."
@@ -597,16 +384,225 @@ def interpret(question: str, clusters: list[dict], titles: dict[str, str]) -> tu
             problems = ["the reply did not match the schema"]
             continue
         if out.unsupported is not None:
-            ids = {c["id"] for c in clusters}
-            return None, clean_unsupported_reason(out.unsupported, ids), []
+            return None, clean_unsupported_reason(out.unsupported, {c["id"] for c in clusters}), []
         problems = semantic_problems(out.plan, clusters)
         if not problems:
             return out.plan, None, []
     return None, None, problems
 
 
-def _run_question(run: Run, question: str, snapshot_id: str, titles: dict[str, str], runner: RunnerClient,
-                  inputs: SandboxInputs | None) -> None:
+# ---------------------------------------------------------------- two programs
+
+@dataclass
+class _Prog:
+    name: str                       # "A" | "B"
+    messages: list[dict]
+    code: str = ""
+    problems: list[str] = field(default_factory=list)   # static pre-check
+    receipt: dict | None = None
+    verdict: dict | None = None     # this program's own verdict (gate checks + a published-map summary)
+    gate_checks: list[dict] = field(default_factory=list)
+    map_checks: list[gate.Check] = field(default_factory=list)   # consistency with the published map
+    gate_canonical: dict | None = None   # set when the per-program gate checks passed (map checks aside)
+    canonical: dict | None = None   # set only when every check, incl. the published map, passed
+    feedback: list[str] = field(default_factory=list)   # fixed-vocabulary reasons it did not pass
+    detail: str = ""
+
+
+def _write_code(p: _Prog) -> None:
+    content, _ = glm.chat(p.messages, reasoning="low", temperature=0.2, max_tokens=4000, use_cache=False)
+    p.code = extract_code(content)
+    p.problems = precheck(p.code, p.name)
+
+
+def _exec_detail(p: _Prog, res) -> str:
+    rc = p.receipt
+    removed = "removed" if rc["container_removed"] else "removal NOT verified"
+    if res.state == "succeeded":
+        return f"{p.name}: exit 0 in {rc['elapsed_ms']:,} ms, {rc['output_bytes']:,} bytes, container {removed}"
+    if res.state == "timed_out":
+        return f"{p.name}: killed at the {ANALYSIS_TIMEOUT_S:.0f} s limit, container {removed}"
+    err = res.get("error") if res.get("error") in RUNNER_ERROR_CODES else "error"
+    return f"{p.name}: failed ({err}, exit {rc['exit_code']}), container {removed}"
+
+
+def _run_one(p: _Prog, *, runner: RunnerClient, files: dict[str, str],
+             check: Callable[[str | None], tuple[gate.Verdict, list[gate.Check]]]) -> int:
+    """Execute (unless the pre-check rejected it) and evaluate one program. Returns executions (0/1)."""
+    p.receipt, p.verdict, p.canonical, p.feedback, p.gate_checks, p.map_checks = None, None, None, [], [], []
+    p.gate_canonical = None
+    if p.problems:
+        p.gate_checks = [{"name": "Static pre-check", "passed": False, "detail": "; ".join(p.problems)[:300]}]
+        p.verdict = {"passed": False, "checks": p.gate_checks}
+        p.feedback = [f"Static check: {x}" for x in p.problems]
+        p.detail = f"{p.name}: not run (static check)"
+        return 0
+    res = runner.run(kind="analysis", code=p.code, files=files, timeout_s=ANALYSIS_TIMEOUT_S)
+    p.receipt = receipt(res, hashlib.sha256(p.code.encode()).hexdigest(), timeout_s=ANALYSIS_TIMEOUT_S)
+    p.detail = _exec_detail(p, res)
+    if res.state != "succeeded":
+        v, _ = check(None)
+        p.gate_checks = v.public()["checks"]
+        p.verdict = {"passed": False, "checks": p.gate_checks}
+        p.feedback = [error_category(res.state, res.get("error"), res.stderr_tail)]
+        return 1
+    v, p.map_checks = check(res.output)
+    p.gate_checks = v.public()["checks"]
+    p.gate_canonical = v.canonical
+    checks = list(p.gate_checks)
+    if p.map_checks:   # one summary line in the program's own verdict; the details are run-level
+        bad = [c for c in p.map_checks if not c.passed]
+        checks.append({"name": gate.C_MAP_SUMMARY, "passed": not bad,
+                       "detail": "; ".join(c.name.split(" · ", 1)[1] for c in bad) if bad else
+                       f"{len(p.map_checks)} cross-checks passed"})
+    passed = v.passed and all(c.passed for c in p.map_checks)
+    p.verdict = {"passed": passed, "checks": checks}
+    if passed:
+        p.canonical = v.canonical
+    else:
+        p.feedback = [f"Gate check failed: {c['name']}" for c in p.gate_checks if not c["passed"]] + \
+                     [f"Gate check failed: {c.name}" for c in p.map_checks if not c.passed]
+    return 1
+
+
+def _combined_verdict(progs: dict[str, _Prog], agree: gate.Check | None) -> dict:
+    """Run-level verdict: per-program checks prefixed "A · " / "B · ", then the published-map
+    cross-checks (one line each, over every program that reached them), then the agreement."""
+    checks = [{"name": f"{n} · {c['name']}", "passed": c["passed"], "detail": c["detail"]}
+              for n in PROGRAMS for c in progs[n].gate_checks]
+    names: list[str] = []
+    for n in PROGRAMS:
+        for c in progs[n].map_checks:
+            if c.name not in names:
+                names.append(c.name)
+    for name in names:
+        per = [(n, c) for n in PROGRAMS for c in progs[n].map_checks if c.name == name]
+        bad = [(n, c) for n, c in per if not c.passed]
+        detail = "; ".join(f"{n}: {c.detail}" for n, c in bad) if bad else \
+            f"{' and '.join(n for n, _ in per)}: {per[0][1].detail}"
+        checks.append({"name": name, "passed": not bad, "detail": detail[:400]})
+    if agree is not None:
+        checks.append({"name": agree.name, "passed": agree.passed, "detail": agree.detail})
+    return {"passed": bool(checks) and all(c["passed"] for c in checks), "checks": checks}
+
+
+def _log_entry(p: _Prog, attempt: int, repair_reason: str | None) -> dict:
+    return {"attempt": attempt, "program": p.name, "code": p.code, "code_sha256": hashlib.sha256(p.code.encode()).hexdigest(),
+            "receipt": p.receipt, "verdict": p.verdict, "repair_reason": repair_reason}
+
+
+def _two_programs(run: Run, *, snapshot_id: str, plan: dict, task: str, files: dict[str, str], runner: RunnerClient,
+                  check: Callable[[str | None], tuple[gate.Verdict, list[gate.Check]]]) -> dict | None:
+    """Plan, execute and validate programs A and B, with one repair round. Returns the agreed
+    canonical sandbox result, or None."""
+    prompt = program_prompt(snapshot_id, plan, task)
+    progs = {n: _Prog(n, [{"role": "system", "content": SYSTEM[n]}, {"role": "user", "content": prompt}]) for n in PROGRAMS}
+    pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="logless-prog")
+    try:
+        run.state("planning")
+        run.stage("planning", "running", "GLM 5.3 writes two independent programs from the plan: A with pandas, B with the standard library only")
+        list(pool.map(_write_code, progs.values()))
+        run.update(code=progs["A"].code)
+        run.stage("planning", "done", " · ".join(
+            f"{p.name}: {len(p.code.strip().splitlines())}-line {'pandas' if p.name == 'A' else 'stdlib'} program"
+            + (f" (static check: {p.problems[0]})" if p.problems else "") for p in progs.values()))
+
+        todo = list(PROGRAMS)
+        executions = 0
+        for attempt in (1, 2):
+            run.state("executing")
+            run.stage("executing", "running", ("attempt 2 · " if attempt == 2 else "")
+                      + f"{' and '.join(todo)} in parallel, each in a fresh gVisor container · no network · 10 s limit")
+            executions += sum(pool.map(lambda n: _run_one(progs[n], runner=runner, files=files, check=check), todo))
+            run.update(attempts=executions, receipt=progs["A"].receipt, code=progs["A"].code)
+            ran = [progs[n] for n in todo]
+            run.stage("executing", "done" if all(p.receipt and p.receipt["exit_code"] == 0 for p in ran) else "failed",
+                      " · ".join(p.detail for p in ran))
+
+            run.state("validating")
+            run.stage("validating", "running", "egress gate per program · consistency with the published snapshot · agreement")
+            # Agreement is judged on the gate-checked outputs, so it is reported even when the
+            # published-map cross-checks fail (e.g. both programs right about data that drifted).
+            agree = None
+            if progs["A"].gate_canonical is not None and progs["B"].gate_canonical is not None:
+                agree = gate.check_agreement(progs["A"].gate_canonical, progs["B"].gate_canonical)
+            verdict = _combined_verdict(progs, agree)
+            run.update(verdict=verdict)
+            ok = agree is not None and agree.passed and all(progs[n].canonical is not None for n in PROGRAMS)
+
+            failing = []
+            if not ok:
+                if agree is not None and not agree.passed:   # each valid on its own but they disagree: regenerate both
+                    for n in PROGRAMS:
+                        progs[n].feedback = progs[n].feedback + ([x.strip() for x in agree.detail.split(";")
+                                                                  if x.strip().startswith("Programs")] or ["Programs disagree"])
+                failing = [n for n in PROGRAMS if progs[n].feedback]
+            log_ = [*run.doc["attempts_log"]] + [
+                _log_entry(progs[n], attempt, "; ".join(progs[n].feedback)[:600] if progs[n].feedback else None) for n in todo]
+            run.update(attempts_log=log_)
+            n_ok = sum(c["passed"] for c in verdict["checks"])
+            if ok:
+                run.stage("validating", "done", f"passed {n_ok}/{len(verdict['checks'])} checks · A and B agree")
+                return progs["A"].canonical
+            run.stage("validating", "failed", "failed: " + ", ".join(
+                sorted({c["name"] for c in verdict["checks"] if not c["passed"]}))[:380])
+            if attempt == 2:
+                return None
+
+            # One repair round for the failing / disagreeing program(s) only.
+            todo = failing
+            run.insert_stages(["repairing", "executing", "validating"], before="explaining")
+            run.state("repairing")
+            run.stage("repairing", "running", f"regenerating {' and '.join(todo)} from the failed check names only")
+
+            def repair(n: str) -> None:
+                p = progs[n]
+                p.messages = p.messages[:2] + [
+                    {"role": "assistant", "content": f"```python\n{p.code}```"},
+                    {"role": "user", "content": "The program did not pass. Problems:\n- " + "\n- ".join(p.feedback)
+                     + "\nReturn the complete corrected program in one ```python block."}]
+                _write_code(p)
+            list(pool.map(repair, todo))
+            run.stage("repairing", "done", " · ".join(
+                f"{n}: new {len(progs[n].code.strip().splitlines())}-line program"
+                + (f" (static check: {progs[n].problems[0]})" if progs[n].problems else "") for n in todo))
+        return None
+    finally:
+        pool.shutdown(wait=False)
+
+
+# ---------------------------------------------------------------- the run
+
+def load_inputs(snapshot_id: str) -> SandboxInputs:
+    found = load_cluster_map(snapshot_id)
+    if found is None:
+        raise LookupError("no sandbox inputs are registered for this snapshot")
+    build_id, clusters = found
+    return export_inputs(build_id, clusters, snapshot_id=snapshot_id)
+
+
+def run_analysis(run: Run, *, snapshot_id: str, titles: dict[str, str], nodes: dict[str, dict], question: str,
+                 runner: RunnerClient | None = None, inputs: SandboxInputs | None = None) -> None:
+    """Drive one question run to completed | failed. Never raises (errors are recorded on the run).
+    `titles` maps published leaf and category ids to titles; `nodes` maps them to the published
+    snapshot nodes (for the consistency checks)."""
+    try:
+        _run_question(run, question, snapshot_id, titles, nodes, runner or RunnerClient(), inputs)
+    except SandboxInvalidResponse:
+        run.fail("sandbox_invalid_response", "The sandbox returned a malformed response, so nothing from it was used.")
+    except SandboxUnavailable:
+        run.fail("sandbox_unavailable", "The sandbox is unreachable right now; the saved snapshot is unaffected.")
+    except LookupError:
+        run.fail("no_inputs", "This snapshot has no sandbox inputs; live analysis is unavailable.")
+    except ProviderError as e:
+        run.fail("model_unavailable", f"The language model is unavailable right now ({e.provider}); try again shortly.")
+    except Exception as e:  # noqa: BLE001 — never leak a stack trace into the run
+        log.error("analysis %s crashed: %s", run.id, type(e).__name__)
+        run.fail("internal_error", "The analysis failed unexpectedly.")
+
+
+def _run_question(run: Run, question: str, snapshot_id: str, titles: dict[str, str], nodes: dict[str, dict],
+                  runner: RunnerClient, inputs: SandboxInputs | None) -> None:
     run.state("planning")   # RunState has no "interpreting"; the stage name carries it
     run.stage("interpreting", "running", "GLM 5.3 maps the question to a bounded plan (it sees only published ids and titles)")
     inputs = inputs or load_inputs(snapshot_id)
@@ -623,14 +619,38 @@ def _run_question(run: Run, question: str, snapshot_id: str, titles: dict[str, s
     words = plan_text(plan_d, titles)
     run.update(plan=plan_d)
     run.stage("interpreting", "done", words)
-    ref = reference.question(inputs.df, inputs.clusters, plan_d, snapshot_id)
 
-    def check(output: str | None) -> gate.Verdict:
-        return gate.check_question(output, snapshot_id=snapshot_id, plan=plan_d, leaf_ids=inputs.leaf_ids,
-                                   category_ids=inputs.category_ids, reference=ref)
+    def check(output: str | None) -> tuple[gate.Verdict, list[gate.Check]]:
+        v = gate.check_program(output, snapshot_id=snapshot_id, plan=plan_d, clusters=inputs.clusters,
+                               leaf_ids=inputs.leaf_ids, category_ids=inputs.category_ids)
+        snap = gate.check_snapshot(v.canonical, plan=plan_d, clusters=inputs.clusters, nodes=nodes) if v.passed else []
+        return v, snap
 
     task = f"Answer this plan over the published aggregates: {words}."
-    result = _plan_and_execute(run, intent="question", snapshot_id=snapshot_id,
-                               files=inputs.files(output_contract("question", snapshot_id, plan_d)),
-                               prompt=plan_prompt("question", snapshot_id, plan_d, task), runner=runner, check=check)
-    _finish(run, "question", result, titles, task)
+    result = _two_programs(run, snapshot_id=snapshot_id, plan=plan_d, task=task, runner=runner, check=check,
+                           files=inputs.files(output_contract(snapshot_id, plan_d)))
+    if result is None:
+        checks = (run.doc.get("verdict") or {}).get("checks") or []
+        failed = {c["name"] for c in checks if not c["passed"]}
+        agreed = any(c["name"] == gate.C_AGREE and c["passed"] for c in checks)
+        if agreed and failed and all(n.startswith(gate.MAP) for n in failed):
+            # Every program check passed for A and B, but the published map disagrees with both.
+            run.fail("map_mismatch", "Both independent programs passed every check but disagree with the published map "
+                                     "on: " + ", ".join(sorted(n.split(" · ", 1)[1] for n in failed)) + ". The private "
+                                     "data may have changed since the map was published. Nothing from their output was used.")
+        else:
+            run.fail("analysis_failed", "The two independent programs did not produce valid, agreeing results after one "
+                                        "repair round. Nothing from their output was used.")
+        return
+    run.update(result=result)
+    run.state("explaining")
+    run.stage("explaining", "running", "GLM 5.3 writes two sentences with placeholders; the UI fills them from the validated result")
+    explanation, source = explain(result, titles, task)
+    run.update(explanation=explanation)
+    run.stage("explaining", "done", "model text validated (placeholders only, no digits)" if source == "model"
+              else "model text failed validation; used the fixed template")
+    run.complete()
+
+
+__all__ = ["run_analysis", "interpret", "precheck", "extract_code", "error_category", "output_contract",
+           "validate_explanation", "result_paths", "fallback_explanation", "explain", "question_scope", "load_inputs"]

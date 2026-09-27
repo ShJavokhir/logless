@@ -1,7 +1,7 @@
-Version-controlled programs that run inside the sandbox (never on the app VM). They read only
-`/in/assignments.csv`, `/in/clusters.json` and `/in/contract.json` and write `/out/result.json`.
+Version-controlled containment fixtures that run inside the sandbox (never on the app VM). They read
+only `/in/assignments.csv`, `/in/clusters.json` and `/in/contract.json` and write `/out/result.json`.
+Live questions are answered by agent-written programs, not by anything in this directory.
 
-- `aggregate.py` — pipeline stage 5: snapshot metrics for every category and leaf (gated).
-- `usage.py` — fixed "What are people doing?" program; the containment check's follow-up run.
-- `runaway.py` — containment fixture: an infinite loop killed at the 2 s deadline.
-- `leak_attempt.py` — containment fixture: tries to publish per-user friction rows; the gate must reject it.
+- `runaway.py` — an infinite loop killed at the 2 s deadline.
+- `followup.py` — a benign standard-library program answering a fixed plan; it must pass the gate.
+- `leak_attempt.py` — tries to publish per-user friction rows; the gate must reject it.

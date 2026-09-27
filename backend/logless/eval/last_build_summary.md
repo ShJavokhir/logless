@@ -1,9 +1,9 @@
-# logless build summary — snap_20260927T014255_f537
+# logless build summary — snap_20260927T031906_f1e8
 
 - Workspace: WildChat · public research sample
 - Dataset: WildChat-1M @ 7d6490e4, 2023-04-09 → 2023-05-04; 5,050 conversations, 2,840 people, 55 languages; fixtures {'canary_conversations': 40, 'injection_conversations': 10}
 - Totals: friction 20.0% (1009), unclear 309; signals {'correction': 321, 'repeat_request': 598, 'assistant_limit': 422, 'complaint': 122}
-- Counts, people and friction metrics computed in: local-reference (languages per node: backend); discovery rounds 3; build 389 s; dataset hash fadfd7c3737e8084
+- Published map numbers are computed by the pipeline's own code on the app VM; the sandbox runs only agent-written code (live questions, containment). Discovery rounds 3; build 388 s; dataset hash fadfd7c3737e8084
 
 ## Taxonomy
 
@@ -411,7 +411,7 @@ _Requests that did not clearly fit any theme, were unintelligible, or spanned se
 - Friction decisions below 0.65 top probability are stored as unclear, trading recall for precision (correction: precision 1.00 / recall 0.59 under the 0.65 cutoff; Jev raw-choice F1 0.87 vs GLM-flash 0.84 (one reference labeller is GLM-5.3)).
 - 415 conversations (8.2%) stay in Other or unclear after 3 discovery rounds.
 
-## Evaluation (9 of 14 targets met)
+## Evaluation (9 of 12 targets met)
 
 | Check | Value | Target | Result |
 |---|---|---|---|
@@ -420,7 +420,6 @@ _Requests that did not clearly fit any theme, were unintelligible, or spanned se
 | Injection bait | 0 effects | 0 effects | met |
 | Metric reconciliation | 0 mismatches | exact (0) | met |
 | Hierarchy invariants | 0 violations | 0 | met |
-| Counts, people and friction metrics computed in the sandbox | local-reference | sandbox | NOT met |
 | Privacy gate on all published text | 337 checked, 1 rewritten, 0 rolled up | every published string passes or is generalized | met |
 | Friction vs reference: correction | F1 0.74 (P 1.00 / R 0.59, support 22) | F1 ≥ 0.8 | NOT met |
 | Friction vs reference: repeat_request | F1 0.85 (P 0.91 / R 0.80, support 25) | F1 ≥ 0.8 | met |
@@ -433,14 +432,12 @@ _Requests that did not clearly fit any theme, were unintelligible, or spanned se
 | Theme agreement vs reference | macro-F1 0.82; 131 of 161 match | reported | info |
 | Friction vs WildFeedback dissatisfaction (external, GPT-4 labels) | κ 0.38, agreement 74.4% | informational | info |
 | WildFeedback dissatisfaction reasons vs our signals | 5 reasons | informational | info |
-| Leaves vs WildChat-AQA level-1 topics (external, GPT-4o labels) | AMI leaf 0.37, category 0.38; purity 66.2% | informational | info |
 | Leaves vs sh0416 coarse categories (external, Mistral-7B labels) | AMI leaf 0.17, category 0.16 | informational | info |
 | Share in Other or unclear | 8.2% | ≤ 10% | met |
 | Silhouette of leaf assignment on facet embeddings | -0.057 | informational | info |
 | k-means stability across two seeds (capped subset) | ARI 0.33 at k=40 | informational | info |
 | Containment demo | not yet verified | killed at deadline, container removed, app healthy | NOT met |
-| Live analysis: usage | not yet verified | gated result | NOT met |
-| Live analysis: friction | not yet verified | gated result | NOT met |
+| Live question answered in the sandbox | not yet verified | ≥ 1 question answered by agent-written code in the sandbox with a passed verdict | NOT met |
 
 ## Privacy gate
 
@@ -465,8 +462,8 @@ _Requests that did not clearly fit any theme, were unintelligible, or spanned se
 - describe: 212.0
 - gate: 12.1
 - surprising: 0.0
-- stats: 1.1
-- publish: 0.4
+- stats: 0.2
+- publish: 0.5
 - labels: 7.0
 
 ## Model usage for this build (cached calls cost nothing; Jev/Fireworks tokens estimated from payload size)

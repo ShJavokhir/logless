@@ -27,6 +27,8 @@ export type PackedLayout = {
   categories: PackedCircle[]
   leaves: PackedCircle[]
   byId: Map<string, PackedCircle>
+  /** rotation used to fit the viewport (radians); pass back via `angle` to keep it */
+  angle: number
 }
 
 const byConversationsDesc = (a: SnapshotNode, b: SnapshotNode) =>
@@ -37,7 +39,17 @@ const byConversationsDesc = (a: SnapshotNode, b: SnapshotNode) =>
  * as the source of truth (cross-checked against `children`). Leaves whose parent
  * is missing are returned in `orphans` and left out of the map.
  */
-export function buildTree(snapshot: Pick<Snapshot, "categories" | "clusters">): {
+/** Node id → rank; lets a later snapshot keep an earlier snapshot's packing order. */
+export type LayoutOrder = Map<string, number>
+
+export function layoutOrderOf(snapshot: Pick<Snapshot, "categories" | "clusters">): LayoutOrder {
+  const order: LayoutOrder = new Map()
+  ;[...snapshot.categories].sort(byConversationsDesc).forEach((n, i) => order.set(n.id, i))
+  ;[...snapshot.clusters].sort(byConversationsDesc).forEach((n, i) => order.set(n.id, i))
+  return order
+}
+
+export function buildTree(snapshot: Pick<Snapshot, "categories" | "clusters">, order?: LayoutOrder): {
   root: TreeDatum
   orphans: SnapshotNode[]
 } {
@@ -53,7 +65,10 @@ export function buildTree(snapshot: Pick<Snapshot, "categories" | "clusters">): 
     list.push(leaf)
     byParent.set(leaf.parent_id, list)
   }
-  const cats = [...snapshot.categories].sort(byConversationsDesc)
+  const by = order
+    ? (a: SnapshotNode, b: SnapshotNode) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9) || byConversationsDesc(a, b)
+    : byConversationsDesc
+  const cats = [...snapshot.categories].sort(by)
   const root: TreeDatum = {
     kind: "root",
     id: "root",
@@ -64,7 +79,7 @@ export function buildTree(snapshot: Pick<Snapshot, "categories" | "clusters">): 
         node: cat,
         children: (byParent.get(cat.id) ?? [])
           .slice()
-          .sort(byConversationsDesc)
+          .sort(by)
           .map((leaf): TreeDatum => ({ kind: "leaf", id: leaf.id, node: leaf })),
       }))
       .filter((c) => c.kind === "category" && c.children.length > 0),
@@ -81,6 +96,10 @@ export type PackOptions = {
   categoryBand?: number
   /** outer margin (px) */
   margin?: number
+  /** keep an earlier snapshot's packing order (stable layout across updates) */
+  order?: LayoutOrder
+  /** keep an earlier rotation instead of searching for the best fit */
+  angle?: number
 }
 
 type Raw = { r: number; x: number; y: number }
@@ -99,7 +118,7 @@ export function packLayout(
   opts: PackOptions = {},
 ): PackedLayout {
   const { categoryPadding = 14, leafPadding = 3, categoryBand = 16, margin = 8 } = opts
-  const { root } = buildTree(snapshot)
+  const { root } = buildTree(snapshot, opts.order)
   const groups = root.kind === "root" ? root.children.filter((c) => c.kind === "category") : []
 
   const once = (scale: number) => {
@@ -125,11 +144,10 @@ export function packLayout(
   // lets wide containers use their width.
   const availW = Math.max(1, width - margin * 2)
   const availH = Math.max(1, height - margin * 2)
-  const ANGLES = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]
+  const ANGLES = opts.angle !== undefined ? [opts.angle] : [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165].map((d) => (d * Math.PI) / 180)
   const fit = (p: ReturnType<typeof once>) => {
     let best = { k: 0, angle: 0, minX: 0, minY: 0, bw: 1, bh: 1 }
-    for (const deg of ANGLES) {
-      const a = (deg * Math.PI) / 180
+    for (const a of ANGLES) {
       const cos = Math.cos(a)
       const sin = Math.sin(a)
       let minX = Infinity
@@ -190,7 +208,7 @@ export function packLayout(
       byId.set(leaf.id, leaf)
     })
   })
-  return { width, height, categories, leaves, byId }
+  return { width, height, categories, leaves, byId, angle: best.angle }
 }
 
 /** Transform that fits `circle` into the viewport (for category zoom). */
@@ -203,4 +221,18 @@ export function zoomTransform(
   if (!circle || circle.r <= 0) return { k: 1, tx: 0, ty: 0 }
   const k = (Math.min(width, height) * fill) / (2 * circle.r)
   return { k, tx: width / 2 - circle.x * k, ty: height / 2 - circle.y * k }
+}
+
+/** Interpolates positions and radii from `from` to `to` (t in 0..1) by node id. */
+export function lerpLayout(from: PackedLayout, to: PackedLayout, t: number): PackedLayout {
+  const lerp = (a: number, b: number) => a + (b - a) * t
+  const mix = (c: PackedCircle): PackedCircle => {
+    const f = from.byId.get(c.id)
+    return f ? { ...c, x: lerp(f.x, c.x), y: lerp(f.y, c.y), r: lerp(f.r, c.r) } : c
+  }
+  const categories = to.categories.map(mix)
+  const leaves = to.leaves.map(mix)
+  const byId = new Map<string, PackedCircle>()
+  for (const c of [...categories, ...leaves]) byId.set(c.id, c)
+  return { ...to, categories, leaves, byId }
 }

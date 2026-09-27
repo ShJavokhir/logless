@@ -80,7 +80,6 @@ export type Snapshot = {
     prompt_versions: Record<string, string>
     discovery_rounds: number
     build_seconds: number
-    stats_source?: 'sandbox' | 'local-reference'
     stages: ProvenanceStage[]
   }
 }
@@ -98,12 +97,15 @@ export type SearchResponse = {
   elapsed_ms: number
 }
 
-/** The two fixed questions. */
+/** Retired fixed intents (§0 removed them from the API); kept only to read old runs. */
 export type Intent = "usage" | "friction"
-/** Every analysis intent, including open questions (§8b). */
 export type AnalysisIntent = Intent | "question"
 
-export type AnalysisRequest = { intent: AnalysisIntent; snapshot_id: string; question?: string }
+/** §0: `question` is the only live intent. */
+export type AnalysisRequest = { intent: "question"; snapshot_id: string; question: string }
+
+/** §0: two independent programs per plan — A uses pandas, B only the standard library. */
+export type ProgramId = "A" | "B"
 export type RunIdResponse = { run_id: string }
 
 export type RunState =
@@ -169,10 +171,13 @@ export type Containment = {
  * One program version of an analysis (§8b "Attempt history"). `receipt` is null
  * when the static pre-check rejected the program before it ran (its verdict is
  * then a single "Static pre-check" check). `attempt` numbers program versions;
- * `Run.attempts` counts sandbox executions.
+ * `Run.attempts` counts sandbox executions. `repair_reason` says why this
+ * version did not pass (fixed vocabulary) and is null when it passed.
  */
 export type Attempt = {
   attempt: 1 | 2
+  /** §0: which of the two independent programs this version belongs to */
+  program?: ProgramId
   code: string
   code_sha256: string
   receipt: Receipt | null
@@ -182,7 +187,7 @@ export type Attempt = {
 
 export type Run = {
   run_id: string
-  kind: "analysis" | "story" | "containment"
+  kind: "analysis" | "story" | "containment" | "intake"
   intent: AnalysisIntent | null
   snapshot_id: string
   state: RunState
@@ -201,6 +206,8 @@ export type Run = {
   question?: string | null // sanitized echo of the asked question
   plan?: Plan | null // the validated plan, once interpreting finishes
   attempts_log?: Attempt[] // every sandbox attempt, never overwritten
+  // §11 live intake (set when an intake run completes)
+  intake?: IntakeSummary | null
 }
 
 export type Story = {
@@ -287,3 +294,55 @@ export type QuestionResult = {
   total_count: number // over the whole scope, excluding Other
   total_base: number
 }
+
+// ---------------------------------------------------------------- §11 live intake
+
+export type Decision = "observed" | "not_observed" | "unclear"
+
+export type IntakeStage = "deciding" | "filing" | "gating" | "publishing" | "evaluating" | "done"
+
+export type IntakeEvent = {
+  seq: number
+  t_ms: number // since the run started
+  leaf_id: string // cl_other below the cutoff
+  p: number // Jev's top probability for the theme choice
+  friction: Record<Signal, Decision>
+  language: string
+  turns: number
+  summary: string | null // generalized facet task (≤ 90 chars); null → "summary withheld"
+}
+
+export type IntakeCounters = {
+  total: number
+  decided: number
+  per_second: number
+  p50_ms: number
+  decisions_per_conversation: number
+}
+
+export type IntakeEventsResponse = {
+  run_id: string
+  state: "running" | "completed" | "failed"
+  stage: IntakeStage
+  counters: IntakeCounters
+  events: IntakeEvent[]
+}
+
+export type IntakeDelta = {
+  id: string
+  conversations_before: number
+  conversations_after: number
+  friction_share_before: number | null
+  friction_share_after: number | null
+}
+
+export type IntakeSummary = {
+  batch_size: number
+  decided: number
+  other: number
+  published_snapshot_id: string
+  base_snapshot_id: string
+  deltas: IntakeDelta[] // top 8 by absolute change
+}
+
+export type IntakeStatus = { ready: boolean; batch_size: number; base_snapshot_id: string | null }

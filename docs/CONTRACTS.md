@@ -2,6 +2,32 @@
 
 Every component (pipeline, API, runner, web) builds against this file. If you need to change a contract, change it here first and say so in your report.
 
+## 0. Design change (Sat 20:30): the sandbox is the source of truth for live answers
+
+An audit found that live answers were precomputed by the backend, and the sandbox only confirmed them. This section overrides anything below that conflicts with it.
+
+- **One live intent: `question`.** `usage` and `friction` are removed from the API. "What are people doing?" and "What's not working?" become example questions the interpreter turns into plans. The map's Usage/Friction lens is a view of published data, and it needs no run.
+- **No runtime reference.** The backend never computes a live answer. For each validated Plan, GLM writes **two independent programs** in parallel with different instructions: **A** uses pandas, and **B** uses only the Python standard library (`csv`, `json`, `collections`), with no pandas or numpy. Each runs in its own fresh gVisor container.
+- **Gate checks on each output:**
+  - strict parse and structural limits;
+  - an exact schema, with the plan echoed exactly;
+  - ids are allowlisted, within scope, and never Other;
+  - integers are ≥ 0, `count` ≤ `base`, and `share` equals count ÷ base within 1e-4;
+  - ordering follows `rank_by` (desc, then id asc);
+  - length is min(limit, groups in scope).
+- **Consistency with the published snapshot,** wherever the plan makes it derivable:
+  - measure `conversations` with no signal: each row's `base` equals that node's published `conversations`, and `total_base` equals the scope's published total excluding Other;
+  - measure `people` with no signal: each row's `base` equals the node's published `users`;
+  - `signal: "any_friction"` with measure `conversations`: each row's `count` equals the node's published `friction.conversations`;
+  - a named signal with measure `conversations`: each row's `count` equals the node's published `friction.signals[signal]`.
+
+  The published snapshot comes from the pipeline, and the programs come from the agent, so these are genuine cross-checks.
+- **Agreement:** after canonicalization (shares rounded to 4 dp), A's and B's outputs must be identical.
+- **Repair:** on a gate failure, a crash or a disagreement, one repair round regenerates the failing or disagreeing program(s). The repair prompt gets only the check names from the fixed vocabulary, e.g. "Programs disagree on row 3 · count". It never gets values or stderr. After that, the run fails honestly.
+- **What's served:** the sandbox output itself, canonicalized. `Run.attempts_log` entries gain `program: "A" | "B"`. `Run.verdict` lists the per-program checks, the snapshot-consistency checks and "Two independent programs agree".
+- **Published map numbers** are computed by the pipeline's own trusted code on the app VM, and nothing in the product claims otherwise. `provenance.stats_source` is removed. Aggregation no longer runs in the sandbox, because it is trusted code and gains nothing from containment.
+- **The sandbox runs only untrusted, agent-written code:** live question programs, plus the containment fixtures.
+
 ## 1. Dataset (hardcoded input)
 
 - Source: `allenai/WildChat-1M` on Hugging Face, revision `7d6490e462285cf85d91eabea0f9a954fbddcd1f`, file `data/train-00000-of-00014.parquet` (Apr 8 – May 4 2023, 59,857 conversations, 13,908 hashed IPs). License ODC-BY 1.0; attribution: Zhao et al., "WildChat: 1M ChatGPT Interaction Logs in the Wild", ICLR 2024.
@@ -85,7 +111,6 @@ type Snapshot = {
     models: Record<string, string>;         // role -> model id; roles: facets, friction, embeddings, naming, consolidation, classification, hierarchy, descriptions, privacy_audit, identifiability, surprising (pipeline) + analysis_code, explanation, story, relevance (API live features)
     prompt_versions: Record<string, string>;
     discovery_rounds: number; build_seconds: number;
-    stats_source: "sandbox" | "local-reference";   // where counts, people and friction metrics were computed (final builds: "sandbox"; with LOGLESS_ENV=production publish refuses anything else). Languages per node are always computed by the backend.
     stages: { stage: string; started_at: string; finished_at: string; counts: Record<string, number>; models: string[] }[];
   };
 };
@@ -99,7 +124,7 @@ Invariants: leaf `conversations` sum to `totals.conversations`; a category's met
 |---|---|---|
 | GET `/api/snapshot` | — | `Snapshot` |
 | POST `/api/search` | `{query: string (<=200 chars), snapshot_id}` | `{snapshot_id, query, results: {cluster_id, relevance: "relevant"\|"unclear"\|"not_relevant", p: number}[], elapsed_ms}` |
-| POST `/api/analyses` | `{intent: "usage"\|"friction", snapshot_id}` | `{run_id}` (a run already in flight for the same intent+snapshot returns its id) |
+| POST `/api/analyses` | `{intent: "question", question: string (1–200), snapshot_id}` | `{run_id}` (a run already in flight for the same normalized question + snapshot returns its id). `usage`/`friction` → `422` (retired, §0) |
 | GET `/api/runs/{run_id}` | — | `Run` |
 | POST `/api/clusters/{id}/story` | `{snapshot_id}` | `{status: "ready", story: Story}` or `{status: "pending", run_id}` |
 | POST `/api/demo/containment` | `{}` | `{run_id}` |
@@ -141,12 +166,12 @@ API details (implemented in `backend/logless/api/`):
 - **Eval** with no report for the current snapshot: `404 {code: "no_eval_report", message, snapshot_id, generated_at: null, checks: []}`.
 - **Health**: `sandbox` is "reachable" if the runner's `/health` answers `status: "ok"` within 1.5 s (cached 3 s); `status` is "ok" only with a current snapshot and a reachable sandbox.
 - **Run stages** (`name` values; the UI shows the latest started stage of each name):
-  - analysis: `planning → executing → validating → explaining`; a repair inserts `repairing → executing → validating` (same names again) before `explaining`. `attempts` counts sandbox executions (a program rejected by the static pre-check is not executed).
+  - analysis (question only, §0): `interpreting → planning → executing → validating → explaining`; `planning` writes programs A and B, `executing` runs them in parallel, `validating` covers both programs' checks, the snapshot-consistency checks and the agreement check. A repair inserts `repairing → executing → validating` (same names again) before `explaining`. `attempts` counts sandbox executions over both programs (2 normally, up to 4).
   - story: `writing → checking`; a repair appends `writing → checking` again.
-  - containment: `runaway → cleanup → health → followup → leak_attempt`. The `containment` object is set when the run ends (the named stages drive the live checklist until then). Every flag is set only from observed evidence (`killed` from a timed-out job, `container_removed` from the runner's verified removal, `followup_passed` from a passing verdict, `leak_attempt_rejected` only from an actual gate rejection). The run is `completed` only if all five hold; otherwise it is `failed` with `error.code` `leak_fixture_failed` (the leak program produced no output, so the gate was not exercised), `containment_check_failed` (message lists what was not observed) or `no_inputs`; `receipt` is the runaway job's receipt; `verdict` is the leak attempt's gate verdict; `attempts` = 3 sandbox executions; `result`/`code`/`explanation` are null.
+  - containment: `runaway → cleanup → health → followup → leak_attempt`. The `containment` object is set when the run ends (the named stages drive the live checklist until then). Every flag is set only from observed evidence (`killed` from a timed-out job, `container_removed` from the runner's verified removal, `followup_passed` from a passing verdict of a fixed benign stdlib program (`sandbox_tasks/followup.py`, answering the fixed plan "conversations by category, top 5") including the snapshot-consistency checks, `leak_attempt_rejected` only from an actual gate rejection). The run is `completed` only if all five hold; otherwise it is `failed` with `error.code` `leak_fixture_failed` (the leak program produced no output, so the gate was not exercised), `containment_check_failed` (message lists what was not observed) or `no_inputs`; `receipt` is the runaway job's receipt; `verdict` is the leak attempt's gate verdict; `attempts` = 3 sandbox executions; `result`/`code`/`explanation` are null.
 - **Receipts** show only validated runner measurements (state flags, exit code, timings, sizes). `image` and `host` come from app-side config (`SANDBOX_IMAGE`, `SANDBOX_IMAGE_DIGEST` — the digest is shown only if the runner reports exactly that reference — and `SANDBOX_HOST_LABEL`), `limits` from what the app submitted, `code_sha256` from the app's own hash of the program.
 - **Node `short_title`** (≤ 24 chars) is always served: the published value, or the title shortened at a word boundary with "…". It goes through the same leak checks as the title.
-- **Explanation placeholders** are dotted paths into the validated `result`: `{{total_conversations}}`, `{{rows.N.cluster_id}}` (the UI renders the published title), `{{rows.N.<field>}}` (`share`/`*_share` render as percentages). `rows[N].x` is accepted and normalized to `rows.N.x`. The backend checks that every placeholder resolves, that the model text has no digits or quantity words outside placeholders, ≤ 2 sentences, ≤ 55 words; otherwise one retry, then a fixed template. `metric_refs` lists the placeholders used.
+- **Explanation placeholders** are dotted paths into the validated `result` (§8b): `{{rows.N.id}}` (the UI renders the published title), `{{rows.N.count}}`, `{{rows.N.base}}`, `{{rows.N.share}}` (renders as a percentage), `{{total_count}}`, `{{total_base}}`. `rows[N].x` is accepted and normalized to `rows.N.x`. The backend checks that every placeholder resolves, that the model text has no digits or quantity words outside placeholders, ≤ 2 sentences, ≤ 55 words, and that only row 0 is called the highest/most; otherwise one retry, then a fixed template. `metric_refs` lists the placeholders used. `POST /api/analyses` with `usage`/`friction` → `422`; stored runs of those retired intents → `410 {code: "run_retired"}`.
 
 ## 7. Sandbox input (typed assignments, no text)
 
@@ -160,9 +185,11 @@ Files placed read-only at `/in` for every analysis/aggregate job:
 
 Per-job pseudonyms: `row` and `user` are fresh random permutations (1..n) for every export; the mapping back to `c_`/`u_` ids stays in backend memory and is never stored or sent. A missing or invalid friction decision (for the current `FRICTION_QV`) is exported as `unclear`; an assignment whose theme maps to no leaf goes to the `is_other` leaf.
 
-Where live analyses get their inputs: `run_aggregate` (and `pipeline.stats` on the local-reference path) calls `logless.sandbox.export.save_cluster_map(snapshot_id, build_id, clusters)`, which stores the private theme → leaf mapping in `private.db.sandbox_cluster_map` keyed by `snapshot_id`. `POST /api/analyses` and the containment follow-up rebuild the typed inputs from it; a snapshot without an entry cannot run live analyses (`error.code = "no_inputs"`).
+Where live analyses get their inputs: the pipeline's `stats` stage calls `logless.sandbox.export.save_cluster_map(snapshot_id, build_id, clusters)` for every snapshot it publishes, which stores the private theme → leaf mapping in `private.db.sandbox_cluster_map` keyed by `snapshot_id`. `POST /api/analyses` and the containment follow-up/leak fixtures rebuild the typed inputs from it; a snapshot without an entry cannot run live questions (`error.code = "no_inputs"`).
 
 ## 8. Analysis result schemas (validated by the egress gate on the app VM)
+
+> **Superseded by §0.** The `usage`, `friction` and `aggregate` schemas below, the "reference equality" gate rules and the reference-based check names are retired: there is no runtime reference, and aggregation no longer runs in the sandbox. The only live result is the `question` result (§8b), checked as described in §0 and in "Gate as implemented (§0)" under §8b. The strict-parse, structural-limit, allowlist and fixed-vocabulary rules below still apply.
 
 ```jsonc
 // usage: every leaf exactly once, ordered by conversations desc, then cluster_id asc — except the catch-all
@@ -185,7 +212,7 @@ Where live analyses get their inputs: `run_aggregate` (and `pipeline.stats` on t
 
 In usage/friction rows, `friction_share` is `0.0` for a leaf with 0 conversations. `run_aggregate` returns `metrics = {node_id: Metrics-without-languages, "total": …}` taken from the reference (shares rounded to 4 decimals exactly like `pipeline.stats.metrics_of`), plus `totals`, `total_conversations`, `receipt`, `verdict`; it raises `SandboxUnavailable` (runner unreachable) or `AggregateRejected` (job failed or gate rejected; carries `.verdict`, `.receipt`).
 
-Aggregate interface (pipeline ↔ sandbox): `logless.sandbox.aggregate.run_aggregate(build_id, clusters, snapshot_id)` with `clusters = [{"id", "parent_id", "level", "is_other", "theme_ids": [private theme ids; "other" for cl_other]}]` (categories carry the union of their leaves' theme ids) returns `{"metrics": {node_id: Metrics-without-languages}, "receipt": Receipt, "verdict": {...}}` and raises `SandboxUnavailable` when the runner cannot be reached. `metrics` may also carry `"total"`. The trusted reference lives in `backend/logless/pipeline/stats.py`: `assignment_rows(build_id, clusters)` (one private row per conversation: conv_id, user_id, language, leaf_id, category_id, four friction choices) and `reference_metrics(rows, clusters)` (node_id → Metrics-without-languages, plus `"total"`); the pipeline re-checks the sandbox result against it before publishing.
+Published map metrics (pipeline stage 5, per §0): computed by trusted pipeline code on the app VM, not in the sandbox. `backend/logless/pipeline/stats.py`: `assignment_rows(build_id, clusters)` (one private row per conversation: conv_id, user_id, language, leaf_id, category_id, four friction choices) and `reference_metrics(rows, clusters)` (node_id → Metrics-without-languages, plus `"total"`); languages per node via `languages_by_node`. `logless rebuild --no-cache` (or `LOGLESS_NO_CACHE=1`) makes every model and embedding call fresh (cache reads off, writes on) and recomputes facets and friction; each provenance stage record then carries `counts.fresh_model_calls = 1`.
 
 Gate rules: one JSON document ≤ 1 MiB; bounded structure (see check list below); strict parse (duplicate keys, NaN/Infinity, booleans-as-integers rejected); exact schema (unknown keys rejected); strings only from the allowlist (intent names, current snapshot id, current leaf/category ids); integers ≥ 0; integers exactly equal to the trusted reference computed in the backend from the same assignments; `share` values within 1e-4 of the reference; ordering exactly as the rule; every leaf present once. On pass, the stored/served result is re-serialized canonically from the REFERENCE values (shares rounded to 4 decimals), never the sandbox bytes. Check names and details come from a fixed vocabulary and never echo output values. Any failure → the run shows the failed checks; nothing from the output reaches the browser.
 
@@ -229,7 +256,18 @@ The gate checks exact schema, that `plan` equals the validated plan, allowlisted
 
 **Attempt history (all analysis intents).** `Run.attempts_log: [{attempt: 1|2, code: string, code_sha256, receipt: Receipt | null, verdict: {passed, checks}, repair_reason: string | null}]` keeps every attempt. Code and receipts are never overwritten, so a repair stays visible. `repair_reason` comes from the fixed vocabulary only.
 
-As implemented (backend): an entry is appended for every program version, including one the static pre-check rejected — that entry has `receipt: null` (it was never executed) and `verdict: {passed: false, checks: [{name: "Static pre-check", …}]}`. An execution that failed before the gate (non-zero exit, timeout, OOM…) has its receipt and the gate's fixed `{"Result file received": failed}` verdict. `repair_reason` is why that attempt did not pass — the same fixed-vocabulary lines the repair prompt gets (`"Static check: …"`, a trusted error category such as `"KeyError: the program used a column or key that does not exist"`, or `"Gate check failed: <check name>"`, joined with "; ") — and `null` when it passed. `attempt` numbers program versions while `Run.attempts` counts sandbox executions, so they differ when a version was rejected before execution. Top-level `code`/`receipt`/`verdict` always equal the latest attempt. Story and containment runs have `attempts_log: []`.
+As implemented (backend): an entry is appended for every program version, including one the static pre-check rejected — that entry has `receipt: null` (it was never executed) and `verdict: {passed: false, checks: [{name: "Static pre-check", …}]}`. An execution that failed before the gate (non-zero exit, timeout, OOM…) has its receipt and the gate's fixed `{"Result file received": failed}` verdict. `repair_reason` is why that attempt did not pass — the same fixed-vocabulary lines the repair prompt gets (`"Static check: …"`, a trusted error category such as `"KeyError: the program used a column or key that does not exist"`, or `"Gate check failed: <check name>"`, joined with "; ") — and `null` when it passed. `attempt` numbers program versions while `Run.attempts` counts sandbox executions, so they differ when a version was rejected before execution. Story and containment runs have `attempts_log: []`.
+
+**Gate as implemented (§0, backend).** No reference answer is computed. `Run.verdict.checks` lists, in order:
+1. per-program checks, prefixed `"A · "` / `"B · "`: "Result file received", "Size within 1 MiB", "Strict JSON parse", "Document within structural limits" (depth ≤ 4, ≤ 20,000 values, lists ≤ 1,000, objects ≤ 32 fields, strings ≤ 64 chars), "Only allowlisted field names", "Only allowlisted string values", "Schema matches exactly", "Intent matches the request", "Snapshot id is the current snapshot", "Plan echoed exactly", "Ids are within the question's scope (no Other)" (also rejects duplicate ids), "Counts are non-negative integers", "count ≤ base and share = count ÷ base" (±1e-4), "Totals consistent with the rows" (total_count ≤ total_base; totals ≥ every row; for `conversations`, totals = the sum of all groups when every group is listed, ≥ the listed sum otherwise), "Ranked as the plan says (rank desc, then id)" (share compared as exact fractions of the program's own integers), "Row count is min(limit, groups in scope)" — or a single "Static pre-check" when the program was rejected before running;
+2. run-level cross-checks against the published map, unprefixed, one line each over every program that reached them (detail "A and B: …" or "B: rows[0].base differs…"), only where derivable: "Consistent with the published map · base = published conversations" / "· base = published people" (base is unfiltered, so for every signal), "Consistent with the published map · count = published friction conversations" (or `correction` / `repeat-request` / `assistant-limit` / `complaint`; `conversations` with a signal only), "Consistent with the published map · totals = published scope totals" (`conversations`: sums of the in-scope published leaves; `people`: only when scoped to one category, against its `users`). A category row is cross-checked only if all of its leaves are in scope;
+3. "Two independent programs agree" (canonical equality; details like "Programs disagree on row 3 · count").
+
+Each `attempts_log[]` entry's own `verdict` holds that program's per-program checks (unprefixed) plus one summary line "Matches the published map" when cross-checks applied. The served result is the agreed sandbox output, canonicalized: keys in contract order, `share` recomputed from the program's own `count`/`base` and rounded to 4 dp. Live inputs are the typed rows frozen when the snapshot was published (`private.db.sandbox_inputs`, written by `save_cluster_map`), so later pipeline work can't make live answers drift from the published map.
+
+Failure codes: `analysis_failed` (no valid, agreeing pair after the repair round), `map_mismatch` (A and B passed every per-program check and agree, but both disagree with the published map — the message names the cross-checks; typically the private data changed after publication), plus `unsupported_question`, `interpretation_failed`, `sandbox_unavailable`, `sandbox_invalid_response`, `model_unavailable`, `no_inputs`.
+
+Programs and repair: A's system prompt requires pandas; B's forbids pandas/numpy (standard library only: csv, json, collections, …), and the static pre-check enforces B's import list. Both get the same plan-only prompt. One repair round regenerates only the programs that failed a check or crashed; if both passed on their own but disagree, both are regenerated. `attempts_log` entries carry `program: "A" | "B"` (normally A1, B1; after a repair also A2 and/or B2). Top-level `code`/`receipt` are program A's latest; `verdict` is the combined verdict.
 
 Open-question details (backend):
 - During `interpreting`, `Run.state` is `"planning"` (RunState is unchanged; the stage name carries it). The raw question reaches only the interpreting prompt; planning gets the validated plan, and the explanation gets the plan in words. `Run.question` is the sanitized echo (control characters removed, whitespace collapsed, ≤ 200 chars, emails/URLs/phone numbers/private ids/canary tokens replaced with `[removed]`).
@@ -259,3 +297,52 @@ As implemented (`runner/`): `/out` is `--tmpfs /out:size=2m,nr_inodes=16,mode=07
 App VM / local backend: `VULTR_INFERENCE_API_KEY`, `TYPESAFE_API_KEY`, `FIREWORKS_API_KEY`, `PSEUDONYM_SALT`, `RUNNER_URL`, `RUNNER_TOKEN`, `LOGLESS_DATA_DIR`, `SAMPLE_SIZE`, `SAMPLE_SEED`, `LOGLESS_ENV` (`production` on the app VM: disables the dev CORS origin `http://localhost:5173` and makes `backend/scripts/dev_snapshot.py` refuse to run). Optional: `LOGLESS_BUDGET_SEARCH_PER_HOUR` (600), `LOGLESS_BUDGET_ANALYSES_PER_HOUR` (120), `LOGLESS_BUDGET_STORIES_PER_HOUR` (60), `LOGLESS_BUDGET_CONTAINMENT_PER_HOUR` (60), `LOGLESS_SEARCH_CONCURRENCY` (4), `SANDBOX_IMAGE` (`logless-analysis:1`), `SANDBOX_IMAGE_DIGEST` (the sandbox image id, shown in receipts when the runner reports exactly it), `SANDBOX_HOST_LABEL` (`logless-sandbox`), `PRESENTER_KEY` (random; unset = presenter capacity off), `PRESENTER_BUDGET_ANALYSES` (60), `PRESENTER_BUDGET_STORIES` (30), `PRESENTER_BUDGET_SEARCH` (300), `PRESENTER_BUDGET_CONTAINMENT` (30).
 Sandbox VM: `RUNNER_TOKEN`, `RUNNER_BIND` (private IP:8787), `RUNNER_RUNTIME` (`runsc`); optional `RUNNER_IMAGE` (default `logless-analysis:1`), `RUNNER_IMAGE_DIGEST` (expected image id; set on the VM — update or remove it after rebuilding the image, or the runner refuses jobs), `RUNNER_WORK_DIR`, `RUNNER_CONCURRENCY` (2), `RUNNER_RESULT_TTL_S` (900).
 Operator machine only: `VULTR_API_KEY` (in `.env.ops`, never on a VM).
+
+## 11. Live intake (presenter-only, real incremental update)
+
+Purpose: show the pipeline working on *new* conversations in real time, and really update the published map. It is not a canned animation.
+
+**Prepare (operator CLI, before the demo):** `logless intake prepare --n 300 [--seed S]`
+1. Picks N conversations from the pinned WildChat shard that aren't in the sample: eligible rows, minus the sampled `source_row`s, chosen with a seed.
+2. Stores them in `private.db.conversations` with a new column `intake_batch` (batch id). They are not part of any snapshot until ingested.
+3. Runs GLM facets plus the PII check and rewrite for them now; this is the slow, rate-limited part.
+4. Marks the batch `ready`, and records the base snapshot id it was prepared against.
+
+Friction and theme are not decided at this step. Other commands: `logless intake status` and `logless intake reset`.
+
+**Run:** `POST /api/intake/runs {}` requires a valid `X-Logless-Presenter` header and returns `{run_id}`. Errors: 403 `presenter_required`, 409 `intake_not_ready` or `intake_in_flight`. The run kind is `"intake"`. Stages:
+1. `deciding`: one Jev call per conversation with 5 questions, the 4 friction signals plus a theme Choice over the current snapshot's leaves and "Other or unclear". 24-way concurrency, cutoff 0.65.
+2. `filing`: store the assignments and friction decisions.
+3. `gating`: the privacy gate plus invariants and leak scans on the updated snapshot. Texts come unchanged from the base build; only metrics change.
+4. `publishing`: an atomic new snapshot with the base build's texts and metrics recomputed by the pipeline's trusted code over base plus batch conversations. The `sandbox_cluster_map` is saved so live questions work on it.
+5. `evaluating`: the eval report for the new snapshot is regenerated in the background.
+
+**Events:** `GET /api/intake/runs/{run_id}/events?after=<seq>` returns up to 200 events per call. The browser polls about every 300 ms.
+```jsonc
+{"run_id": "run_…", "state": "running|completed|failed", "stage": "deciding|filing|gating|publishing|evaluating|done",
+ "counters": {"total": 300, "decided": 187, "per_second": 46.2, "p50_ms": 241, "decisions_per_conversation": 5},
+ "events": [{"seq": 188, "t_ms": 3912, "leaf_id": "cl_…", "p": 0.93,
+             "friction": {"correction": "observed", "repeat_request": "not_observed", "assistant_limit": "not_observed", "complaint": "not_observed"},
+             "language": "Chinese", "turns": 3,
+             "summary": "Fix an error when loading a trained model"}]}   // summary: null → "summary withheld"
+```
+- `summary` is the conversation's generalized facet `task` sentence, at most 90 characters. It is present only if it passed the PII check and the API leak scan (emails, URLs, phones, private ids, canary tokens, contact patterns).
+- There are no conversation ids, user ids or raw text anywhere in the events.
+- `leaf_id` is `cl_other` below the cutoff.
+
+**Completion:** `Run.intake = {batch_size, decided, other, published_snapshot_id, base_snapshot_id, deltas: [{id, conversations_before, conversations_after, friction_share_before, friction_share_after}]}`, top 8 by absolute change.
+
+**Other endpoints:**
+- `GET /api/intake/status` (public) returns `{ready, batch_size, base_snapshot_id}`. The UI shows the control only when a batch is ready and a presenter key is stored; the server enforces the key.
+- `POST /api/intake/reset` (presenter only) re-publishes the base snapshot and clears the batch's decisions, so the demo can be rehearsed.
+
+**Product copy:** "Live intake shows a generalized, PII-checked one-line summary for each new conversation as it is classified. Transcripts are never shown."
+
+**Backend notes (as implemented, `backend/logless/intake.py` + `backend/logless/api/intake.py`):**
+- The events response also carries `intake` (the completion object above) once `state` is `completed`, and `error: {code, message}` if it failed. `stage` becomes `done` when the background evaluation finishes. Events live in the API process's memory; after a restart the endpoint serves the persisted Run record with no events.
+- The Run record is stored in `public.db.runs` with kind `"intake"` and the usual Run fields (`intake` set on completion). While it runs, `state` is `executing` (a valid RunState); the events payload uses `running`.
+- Batch decisions are stored like the pipeline's own: friction rows with `FRICTION_QV`, and assignments under the base snapshot's build with `round = 100`. A leaf's first private theme id is used; below the cutoff the theme is `other`. So `pipeline.stats` and the sandbox export (`save_cluster_map` freezes the rows for the new snapshot) cover base plus batch without special cases. A conversation whose Jev call fails twice is filed as Other with friction `unclear` (never guessed), and it emits no event.
+- Intake Jev calls bypass the response cache (no reads and no writes), so every rehearsal is live.
+- The gating stage re-runs the deterministic privacy checks on every published text (short titles included), with the corpus now including the batch. It also runs the publish invariants (strict ranges for full builds), the payload scans and the API `serialize_snapshot`. Any failure rolls back the batch's decisions, and the base snapshot stays live.
+- `logless rebuild` never includes intake conversations (`conversations.intake_batch IS NULL`). An intake snapshot resolves to its base build for `eval` and `--from-stage`. `prepare` refuses while an intake snapshot is live, and replaces any previous batch.
+- CLI: `logless intake prepare [--n 300] [--seed S]`, `logless intake status`, `logless intake reset`.

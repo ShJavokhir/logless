@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, TypeVar
@@ -23,6 +23,13 @@ T = TypeVar("T")
 
 # USD per million tokens (input, output) from the Vultr catalog snapshot of 2026-09-26.
 PRICES = {GLM_FLASH: (0.10, 0.35), GLM: (0.75, 3.00)}
+
+
+def no_cache() -> bool:
+    """`logless rebuild --no-cache` / LOGLESS_NO_CACHE=1: fresh model and embedding calls, and per-conversation
+    facets/friction are recomputed instead of reused (cache writes still happen)."""
+    import os
+    return os.environ.get("LOGLESS_NO_CACHE", "").strip().lower() in ("1", "true", "yes")
 
 
 # ---------------------------------------------------------------- build context
@@ -144,27 +151,69 @@ def jev_ask(state: Any, questions: dict[str, dict]) -> dict[str, dict]:
 
 # ---------------------------------------------------------------- parallelism
 
+FAIL_FAST_AFTER = 5   # consecutive account-level provider failures (401/402/403) before a stage aborts
+
+
+class ProviderUnavailable(RuntimeError):
+    """A provider refuses every call (auth, billing): the stage stops instead of burning through its items."""
+
+    def __init__(self, provider: str, code: str):
+        super().__init__(f"{provider} unavailable: {code}")
+        self.provider, self.code = provider, code
+
+
 def pmap(fn: Callable[[Any], T], items: list, threads: int, label: str) -> tuple[list[T | None], int]:
-    """Run fn over items in a thread pool. Returns (results in order, error count); failed items are None."""
+    """Run fn over items in a thread pool. Returns (results in order, error count); failed items are None.
+    Raises ProviderUnavailable after FAIL_FAST_AFTER consecutive account-level provider failures (the
+    remaining items are not attempted)."""
     results: list[T | None] = [None] * len(items)
     errors = 0
     if not items:
         return results, 0
     t0 = time.monotonic()
     step = max(1, len(items) // 10)
+    abort = threading.Event()
+
+    def guarded(it):
+        if abort.is_set():
+            raise _Skipped()
+        return fn(it)
+
+    fatal: ProviderError | None = None
+    consecutive = 0
     with ThreadPoolExecutor(max_workers=threads) as ex:
-        futs = {ex.submit(fn, it): i for i, it in enumerate(items)}
+        futs = {ex.submit(guarded, it): i for i, it in enumerate(items)}
         for n, f in enumerate(as_completed(futs), 1):
             i = futs[f]
             try:
                 results[i] = f.result()
+                consecutive = 0
+            except (_Skipped, CancelledError):
+                continue
             except Exception as e:  # quiet: type and provider code only
                 errors += 1
                 code = e.code if isinstance(e, ProviderError) else ""
-                log.warning("%s: item failed (%s %s)", label, type(e).__name__, code)
+                if isinstance(e, ProviderError) and e.fatal:
+                    consecutive += 1
+                    fatal = e
+                    if consecutive >= min(FAIL_FAST_AFTER, len(items)) and not abort.is_set():
+                        abort.set()
+                        for other in futs:
+                            other.cancel()
+                else:
+                    consecutive = 0
+                if not abort.is_set() or consecutive <= FAIL_FAST_AFTER:
+                    log.warning("%s: item failed (%s %s)", label, type(e).__name__, code)
             if n % step == 0 or n == len(items):
                 log.info("%s: %d/%d done, %d errors, %.1fs", label, n, len(items), errors, time.monotonic() - t0)
+    if abort.is_set() and fatal is not None:
+        log.error("%s: aborted after %d consecutive %s failures (%s)", label, FAIL_FAST_AFTER, fatal.provider, fatal.code)
+        raise ProviderUnavailable(fatal.provider, fatal.code)
     return results, errors
+
+
+class _Skipped(Exception):
+    pass
 
 
 def chunks(xs: list, n: int) -> Iterable[list]:

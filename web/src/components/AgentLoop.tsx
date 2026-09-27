@@ -1,67 +1,85 @@
 import { Check, CornerDownRight, RotateCcw, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Run } from "@/lib/types"
-import { deriveSteps, type Step, type StepKey } from "@/lib/runs"
+import type { Run, StageStatus } from "@/lib/types"
+import { deriveSteps, type StepStatus } from "@/lib/runs"
 import { fmtMs } from "@/lib/format"
+import { crossChecks, isTwoProgram, PROGRAM_KIND, programGateTally, programTracks, repairs } from "@/lib/programs"
 
-const LABEL: Record<Exclude<StepKey, "repairing">, { live: string; done: string }> = {
-  interpreting: { live: "Interpreting", done: "Interpreted" },
-  planning: { live: "Writing program", done: "Wrote program" },
-  executing: { live: "Running in gVisor", done: "Ran in gVisor" },
-  validating: { live: "Gate checking", done: "Gate" },
-  explaining: { live: "Explaining", done: "Explained" },
-}
+type LoopStep = { key: string; label: string; status: StepStatus; values: string[] }
 
-/** Evidence for each loop step, only from data the run actually carries. */
-function valueOf(key: StepKey, step: Step, run: Run | null): string | null {
-  if (!run) return null
-  const log = run.attempts_log ?? []
-  const lastAttempt = log[log.length - 1]
-  const receipt = [...log].reverse().find((a) => a.receipt)?.receipt ?? run.receipt
-  const verdict = lastAttempt?.verdict ?? run.verdict
-  switch (key) {
-    case "interpreting":
-      return step.status === "done" ? "plan ready" : step.status === "failed" ? "no plan" : null
-    case "planning": {
-      const sha = lastAttempt?.code_sha256 ?? receipt?.code_sha256
-      if (sha) return sha.slice(0, 8)
-      return step.status === "done" ? "written" : null
-    }
-    case "executing":
-      if (!receipt) return null
-      return `${(run.attempts ?? 0) >= 2 ? "×2 · " : ""}${fmtMs(receipt.elapsed_ms)}`
-    case "validating":
-      if (!verdict) return null
-      return `${verdict.checks.filter((c) => c.passed).length}/${verdict.checks.length}${verdict.passed ? "" : " ✕"}`
-    case "explaining":
-      return step.status === "done" ? "text checked" : null
-    default:
-      return null
-  }
-}
-
-export function AgentLoop({ run, forQuestion = false }: { run: Run | null; forQuestion?: boolean }) {
+/**
+ * The agent loop with real values only (§0): interpreted → wrote programs →
+ * ran in gVisor → gate + published map → programs agree → explained.
+ */
+export function AgentLoop({ run, forQuestion = true }: { run: Run | null; forQuestion?: boolean }) {
   const steps = deriveSteps(run, forQuestion)
-  const main = steps.filter((s) => s.key !== "repairing")
-  const repair = steps.find((s) => s.key === "repairing")
-  const log = run?.attempts_log ?? []
-  const first = log[0]
-  const failedChecks = first && !first.verdict.passed ? first.verdict.checks.filter((c) => !c.passed).map((c) => c.name) : []
-  const firstNotRun = !!first && !first.receipt
-  const reason = log.find((a) => a.repair_reason)?.repair_reason ?? null
+  const status = (key: string): StepStatus => steps.find((s) => s.key === key)?.status ?? "pending"
+  const tracks = programTracks(run)
+  const two = isTwoProgram(run) || (tracks.length === 0 && forQuestion)
+  const cross = crossChecks(run)
+  const tally = programGateTally(run)
+  const done = (s: StepStatus) => s === "done" || s === "failed"
+
+  const planning = status("planning")
+  const executing = status("executing")
+  const validating = status("validating")
+  const explaining = status("explaining")
+
+  const shaLines = tracks.map((t) => `${t.program} ${t.latest.code_sha256.slice(0, 8)}`)
+  const timeLines = tracks.map((t) => `${t.program} ${t.latest.receipt ? fmtMs(t.latest.receipt.elapsed_ms) : "not run"}`)
+  const gateLines: string[] = []
+  if (tally) gateLines.push(`${tally.passed}/${tally.total}${tally.passed === tally.total ? "" : " ✕"}`)
+  else if (run?.verdict) gateLines.push(`${run.verdict.checks.filter((c) => c.passed).length}/${run.verdict.checks.length}`)
+  if (two && (tally || run?.verdict) && done(validating)) {
+    const c = cross.consistency
+    gateLines.push(c.length ? `map ${c.filter((x) => x.passed).length}/${c.length}` : "map n/a")
+  }
+
+  let agree: StepStatus = "pending"
+  if (cross.agreement) agree = cross.agreement.passed ? "done" : "failed"
+  else if (run?.state === "failed") agree = "skipped"
+  else if (explaining !== "pending") agree = "done"
+
+  const loop: LoopStep[] = [
+    ...(steps.some((s) => s.key === "interpreting")
+      ? [{ key: "interpreting", label: done(status("interpreting")) ? "Interpreted" : "Interpreting", status: status("interpreting"), values: status("interpreting") === "done" ? ["plan ready"] : status("interpreting") === "failed" ? ["no plan"] : [] }]
+      : []),
+    {
+      key: "planning",
+      label: done(planning) ? (two ? `Wrote ${Math.max(tracks.length, 2)} programs` : "Wrote program") : two ? "Writing 2 programs" : "Writing program",
+      status: planning,
+      values: shaLines.length ? shaLines : done(planning) ? ["written"] : [],
+    },
+    {
+      key: "executing",
+      label: done(executing) ? (two ? "Ran both in gVisor" : "Ran in gVisor") : "Running in gVisor",
+      status: executing,
+      values: timeLines,
+    },
+    {
+      key: "validating",
+      label: two ? "Gate + published map" : "Gate",
+      status: validating,
+      values: done(validating) || tally ? gateLines : [],
+    },
+    ...(two ? [{ key: "agree", label: agree === "failed" ? "Programs differ" : "Programs agree", status: agree, values: agree === "done" ? ["identical"] : agree === "failed" ? ["mismatch"] : [] }] : []),
+    { key: "explaining", label: done(explaining) ? "Explained" : "Explaining", status: explaining, values: explaining === "done" ? ["checked"] : [] },
+  ]
+
+  const fixes = repairs(run)
+  const repairing = status("repairing")
+  const repairStage = run?.stages.filter((s) => s.name === "repairing").at(-1)
 
   return (
     <div className="flex flex-col gap-2">
       <ol className="flex items-start gap-1" aria-label="Agent loop">
-        {main.map((s, i) => {
-          const key = s.key as Exclude<StepKey, "repairing">
+        {loop.map((s, i) => {
           const live = s.status === "running"
-          const value = valueOf(s.key, s, run)
           return (
             <li key={s.key} className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-1">
                 <LoopDot status={s.status} />
-                {i < main.length - 1 ? (
+                {i < loop.length - 1 ? (
                   <span aria-hidden className={cn("h-px flex-1 transition-colors duration-200", s.status === "done" ? "bg-foreground/40" : "bg-border")} />
                 ) : null}
               </div>
@@ -72,32 +90,46 @@ export function AgentLoop({ run, forQuestion = false }: { run: Run | null; forQu
                   s.status === "failed" && "text-destructive",
                 )}
               >
-                {s.status === "done" || s.status === "failed" ? LABEL[key].done : LABEL[key].live}
+                {s.label}
                 <span className="sr-only"> — {s.status}</span>
               </span>
-              <span className={cn("min-h-4 truncate pr-1 font-mono text-[10.5px] tabular-nums", s.status === "failed" ? "text-destructive" : "text-muted-foreground")}>
-                {value ?? (live ? "…" : "")}
+              <span className={cn("flex min-h-4 flex-col pr-1 font-mono text-[10.5px] leading-[1.35] tabular-nums", s.status === "failed" ? "text-destructive" : "text-muted-foreground")}>
+                {s.values.length ? s.values.map((v) => <span key={v} className="truncate">{v}</span>) : <span>{live ? "…" : ""}</span>}
               </span>
             </li>
           )
         })}
       </ol>
 
-      {(repair && repair.status !== "pending") || log.length >= 2 ? (
+      {two ? (
+        <p className="text-[11.5px] leading-snug text-muted-foreground">
+          <span className="font-medium text-foreground/80">A</span> {PROGRAM_KIND.A} · <span className="font-medium text-foreground/80">B</span> {PROGRAM_KIND.B} — written independently, each run in its own container
+          {cross.consistency.length ? ", cross-checked against the published map" : ""}.
+        </p>
+      ) : null}
+
+      {fixes.length || repairing === "running" ? (
         <div className="flex items-start gap-2 rounded-lg border border-dashed px-2.5 py-2 text-[12px] leading-snug">
-          <RotateCcw aria-hidden className={cn("mt-0.5 size-3.5 shrink-0", repair?.status === "running" ? "animate-spin text-brand [animation-duration:2s]" : "text-muted-foreground")} />
+          <RotateCcw
+            aria-hidden
+            className={cn("mt-0.5 size-3.5 shrink-0", repairing === "running" ? "animate-spin text-brand [animation-duration:2s]" : "text-muted-foreground")}
+          />
           <div className="min-w-0">
-            <span className="font-medium">{firstNotRun ? "Program 1 stopped by the static pre-check" : "Attempt 1 rejected by the gate"}</span>
-            {failedChecks.length ? <span className="text-muted-foreground">: {failedChecks.join(", ")}</span> : null}
-            {first ? (
-              <span className="ml-1 font-mono text-[10.5px] text-subtle">
-                ({first.code_sha256.slice(0, 8)}
-                {first.receipt ? ` · ${fmtMs(first.receipt.elapsed_ms)}` : " · not run"})
-              </span>
-            ) : null}
+            {fixes.map((f) => (
+              <div key={`${f.program}-${f.failed.attempt}`}>
+                <span className="font-medium">
+                  Program {f.program} v{f.failed.attempt} {f.failed.receipt ? "rejected" : "stopped by the static pre-check"}
+                </span>
+                {f.reason ? <span className="text-muted-foreground">: {f.reason}</span> : null}
+              </div>
+            ))}
             <div className="mt-0.5 flex items-center gap-1 text-muted-foreground">
               <CornerDownRight aria-hidden className="size-3 shrink-0" />
-              {repair?.status === "running" ? "GLM is repairing the program from the failed check names only…" : `Repaired${reason ? ` for "${reason}"` : ""} and ran again`}
+              {repairing === "running"
+                ? (repairStage?.detail ?? "Regenerating the failing program from check names only…")
+                : `Regenerated ${fixes.map((f) => f.program).filter((p, i, a) => a.indexOf(p) === i).join(" and ")} from the failed check names only${
+                    tracks.length === 2 && fixes.every((f) => f.program === fixes[0].program) ? `; ${fixes[0].program === "A" ? "B" : "A"} kept` : ""
+                  }`}
             </div>
           </div>
         </div>
@@ -106,7 +138,7 @@ export function AgentLoop({ run, forQuestion = false }: { run: Run | null; forQu
   )
 }
 
-function LoopDot({ status }: { status: Step["status"] }) {
+function LoopDot({ status }: { status: StepStatus | StageStatus }) {
   if (status === "done")
     return (
       <span className="grid size-4 shrink-0 place-items-center rounded-full bg-foreground text-background">

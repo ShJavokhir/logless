@@ -1,13 +1,9 @@
-"""Stage 5 — stats. Published numbers come from executed code, never from a model.
-
-Preferred path: `logless.sandbox.aggregate.run_aggregate(build_id, clusters, snapshot_id)` runs the
-version-controlled aggregation task in the sandbox VM and gates it against a trusted reference.
-If the sandbox module is not importable yet or raises `SandboxUnavailable`, the same metrics come
-from `reference_metrics` below and provenance records `stats_source: "local-reference"` (the final
-build must use the sandbox: re-run with `logless rebuild --from-stage stats`).
-
-`assignment_rows` + `reference_metrics` are the trusted reference; the sandbox gate may reuse them.
-Languages are always computed here from private data (the sandbox never sees language)."""
+"""Stage 5 — stats. Published map numbers come from executed code, never from a model: they are
+computed here by the pipeline's own trusted code on the app VM (`assignment_rows` + `reference_metrics`).
+The sandbox runs only untrusted, agent-written code (live question programs, containment fixtures), so
+aggregation does not run there (docs/CONTRACTS.md §0). Languages per node are computed here as well.
+The stage also records the snapshot's private theme -> leaf map, which live question runs load by
+snapshot id to rebuild their typed inputs."""
 from __future__ import annotations
 
 import logging
@@ -119,12 +115,14 @@ def languages_by_node(rows: list[dict], clusters: list[dict]) -> dict[str, list[
     return out
 
 
-def _sandbox():
+def save_cluster_map(snapshot_id: str, build_id: str, clusters: list[dict]) -> None:
+    """Private theme -> leaf map for live question runs (stored by the sandbox/API module's helper)."""
     try:
-        from ..sandbox import aggregate  # owned by the sandbox/API agent
-        return aggregate
+        from ..sandbox.export import save_cluster_map as _save
     except ImportError:
-        return None
+        log.warning("sandbox export module not importable; live questions will not find this snapshot's inputs")
+        return
+    _save(snapshot_id, build_id, clusters)
 
 
 def run(build: util.Build) -> dict:
@@ -132,43 +130,12 @@ def run(build: util.Build) -> dict:
     clusters = clusters_for(st)
     snap = new_snapshot_id()
     build.info["snapshot_id"] = snap
+    build.info.pop("stats_source", None)
     rows = assignment_rows(build.build_id, clusters)
-    ref = reference_metrics(rows, clusters)
-    source, receipt, verdict = "local-reference", None, None
-    sb = _sandbox()
-    if sb is not None:
-        try:
-            res = sb.run_aggregate(build.build_id, [{k: v for k, v in c.items()} for c in clusters], snap)
-            metrics = res["metrics"]
-            receipt, verdict = res.get("receipt"), res.get("verdict")
-            if verdict is not None and not (verdict.get("passed") if isinstance(verdict, dict) else verdict):
-                raise RuntimeError("sandbox aggregate failed its gate")
-            # defense in depth: the sandbox result must equal the trusted reference exactly
-            for c in clusters:
-                if metrics.get(c["id"]) != ref[c["id"]]:
-                    raise RuntimeError("sandbox aggregate disagrees with the reference")
-            metrics = {**ref, **{k: v for k, v in metrics.items() if k in ref}}
-            source = "sandbox"
-        except Exception as e:
-            if type(e).__name__ != "SandboxUnavailable":
-                raise
-            log.warning("sandbox unavailable; using the local reference for stats")
-            metrics = ref
-    else:
-        log.warning("sandbox aggregate module not importable; using the local reference for stats")
-        metrics = ref
-    if source != "sandbox" and sb is not None:
-        # live analyses on this snapshot rebuild their inputs from the same theme -> leaf map
-        # (run_aggregate saves it itself on the sandbox path)
-        try:
-            from ..sandbox.export import save_cluster_map
-            save_cluster_map(snap, build.build_id, clusters)
-        except Exception as e:
-            log.warning("could not save the cluster map for live analyses (%s)", type(e).__name__)
+    metrics = reference_metrics(rows, clusters)
     langs = languages_by_node(rows, clusters)
-    build.info["stats_source"] = source
-    build.info["_stage_models"] = ["sandbox:" + str((receipt or {}).get("runtime", "?"))] if source == "sandbox" else ["local-reference"]
-    build.save("stats", {"snapshot_id": snap, "source": source, "metrics": metrics, "languages": langs,
-                         "receipt": receipt, "verdict": verdict})
-    return {"nodes": len(clusters), "conversations": ref["total"]["conversations"], "users": ref["total"]["users"],
-            "sandbox": int(source == "sandbox")}
+    save_cluster_map(snap, build.build_id, clusters)
+    build.info["_stage_models"] = ["pipeline code (app VM)"]
+    build.save("stats", {"snapshot_id": snap, "metrics": metrics, "languages": langs})
+    return {"nodes": len(clusters), "conversations": metrics["total"]["conversations"],
+            "users": metrics["total"]["users"]}

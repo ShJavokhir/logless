@@ -98,8 +98,8 @@ def main() -> int:
     sys.path.insert(0, str(REPO / "backend"))
     from logless import db, ids
     from logless.config import settings
-    from logless.sandbox import reference
-    from logless.sandbox.export import export_inputs, save_cluster_map
+    from logless.pipeline import stats as pstats   # the pipeline's own trusted metrics code
+    from logless.sandbox.export import save_cluster_map
     try:
         from logless.pipeline.questions import FRICTION_QV
     except ImportError:
@@ -161,10 +161,10 @@ def main() -> int:
         con.execute("INSERT INTO builds(build_id, started_at, finished_at, status, stages_json, snapshot_id) VALUES (?,?,?,?,?,?)",
                     (build_id, now, now, "dev_fixture", "[]", snap_id))
 
-    # ------------------------------------------------ metrics via the trusted reference (same code the gate uses)
-    inputs = export_inputs(build_id, clusters)
-    agg = reference.rounded(reference.aggregate(inputs.df, inputs.clusters, snap_id))
-    nodes = {n["id"]: n for n in agg["nodes"]}
+    # ------------------------------------------------ metrics via the pipeline's own trusted code (as a real build publishes them)
+    ref = pstats.reference_metrics(pstats.assignment_rows(build_id, clusters), clusters)
+    agg = {"totals": ref["total"], "total_conversations": ref["total"]["conversations"]}
+    nodes = {k: {"id": k, **v} for k, v in ref.items() if k != "total"}
     conv_lang = {cid: lang for cid, _, _, lang in rows}
     conv_user = {cid: uid for cid, _, uid, _ in rows}
     conv_leaf = {cid: leaf["id"] for cid, leaf, _, _ in rows}

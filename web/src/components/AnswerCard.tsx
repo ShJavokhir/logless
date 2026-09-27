@@ -1,21 +1,20 @@
 import { useState, type FormEvent } from "react"
-import { ArrowRight, Check, ChevronDown, CircleAlert, FileCode, LoaderCircle, MessageSquareText, RotateCcw, Users, X } from "lucide-react"
+import { ArrowRight, Check, ChevronDown, FileCode, LoaderCircle, MessageSquareText, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { AnalysisIntent, FrictionRow, QuestionResult, Run, UsageRow } from "@/lib/types"
+import type { QuestionResult, Run } from "@/lib/types"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { isRunActive, runDurationMs } from "@/lib/runs"
 import { fillTemplate, resolvePath } from "@/lib/template"
 import { fmtDuration, fmtInt, fmtPct } from "@/lib/format"
 import { planShareNote, planToPhrases } from "@/lib/plan"
 import { proseName } from "@/lib/labels"
-import { ASK_LABEL, ASK_SCOPE_NOTE, EXAMPLE_QUESTIONS, QUESTION } from "@/lib/copy"
+import { ASK_LABEL, ASK_SCOPE_NOTE, EXAMPLE_QUESTIONS } from "@/lib/copy"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentLoop } from "./AgentLoop"
 import { Bar, Dot } from "./common"
 
 type Props = {
-  intent: AnalysisIntent
   run: Run | null
   error: string | null
   /** the run could not start for a "try later" reason (budget, rate limit, capacity) */
@@ -26,7 +25,6 @@ type Props = {
   onFocusCategory: (id: string) => void
   onPeek: (id: string | null) => void
   onOpenDetails: () => void
-  onRunAgain: () => void
   onClose: () => void
   /** question intent: submit a question (also used by example chips) */
   onAsk?: (question: string) => void
@@ -37,17 +35,15 @@ type Props = {
 }
 
 export function AnswerCard(props: Props) {
-  const { intent, run, error, paused, onClose } = props
+  const { run, error, paused, onClose } = props
   const [collapsed, setCollapsed] = useState(false)
-  const q = intent === "question"
   const unsupported = run?.state === "failed" && (run.error?.code === "unsupported_question" || run.error?.code === "interpretation_failed")
-  const showForm = q && !run && !error && !props.asking
+  const showForm = !run && !error && !props.asking
   const active = !showForm && !unsupported && (isRunActive(run) || (!run && !error))
   const done = run?.state === "completed"
   const failed = !unsupported && (run?.state === "failed" || (!!error && !run))
   const duration = runDurationMs(run)
-  const Icon = q ? MessageSquareText : intent === "usage" ? Users : CircleAlert
-  const title = q ? (run?.question ?? (showForm ? ASK_LABEL : "Your question")) : QUESTION[intent]
+  const title = run?.question ?? (showForm ? ASK_LABEL : "Your question")
 
   return (
     <section
@@ -56,9 +52,9 @@ export function AnswerCard(props: Props) {
       className="shrink-0 overflow-hidden rounded-xl border bg-card shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(0_0_0/0.12)]"
     >
       <header className="flex items-center gap-2 border-b px-4 py-2.5">
-        <Icon aria-hidden className={cn("size-4 shrink-0", intent === "friction" ? "text-heat" : "text-brand")} />
+        <MessageSquareText aria-hidden className="size-4 shrink-0 text-brand" />
         <h2 id="answer-h" className="min-w-0 flex-1 truncate text-[14px] font-semibold" title={title}>
-          {q && run?.question ? <span className="font-medium">“{run.question}”</span> : title}
+          {run?.question ? <span className="font-medium">“{run.question}”</span> : title}
         </h2>
         {showForm ? null : <StatusChip run={run} error={error} paused={!!paused} unsupported={unsupported} duration={duration} />}
         <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} aria-label={collapsed ? "Expand answer" : "Collapse answer"}>
@@ -81,8 +77,8 @@ export function AnswerCard(props: Props) {
             />
           ) : (
             <>
-              <AgentLoop run={run} forQuestion={q} />
-              {q && run?.plan ? <PlanLine run={run} index={props.index} /> : null}
+              <AgentLoop run={run} />
+              {run?.plan ? <PlanLine run={run} index={props.index} /> : null}
               {active ? <LiveLine run={run} asking={!!props.asking} /> : null}
 
               {failed ? (
@@ -107,11 +103,7 @@ export function AnswerCard(props: Props) {
               {done && run?.result ? (
                 <>
                   <Explanation run={run} index={props.index} onSelect={props.onSelectCluster} onFocusCategory={props.onFocusCategory} />
-                  {run.result.intent === "question" ? (
-                    <QuestionRanking result={run.result} {...props} />
-                  ) : (
-                    <Ranking run={run} index={props.index} selectedId={props.selectedId} onSelect={props.onSelectCluster} onPeek={props.onPeek} />
-                  )}
+                  {run.result.intent === "question" ? <QuestionRanking result={run.result} {...props} /> : null}
                 </>
               ) : done ? (
                 <p className="text-[13px] text-muted-foreground">The run completed without a publishable result.</p>
@@ -133,24 +125,19 @@ export function AnswerCard(props: Props) {
                 <span className="font-mono">
                   {run.run_id}
                   {run.verdict && !unsupported ? ` · gate ${run.verdict.checks.filter((c) => c.passed).length}/${run.verdict.checks.length}` : ""}
-                  {run.attempts ? ` · ${run.attempts} ${run.attempts === 1 ? "attempt" : "attempts"}` : ""}
+                  {run.attempts ? ` · ${run.attempts} sandbox ${run.attempts === 1 ? "run" : "runs"}` : ""}
                 </span>
               ) : (
                 <span>{failed ? "No run was started" : "Starting…"}</span>
               )}
               <span className="ml-auto flex items-center gap-1">
-                {q && (done || failed || unsupported) && props.onAskAnother ? (
+                {(done || failed || unsupported) && props.onAskAnother ? (
                   <Button variant="ghost" size="xs" onClick={props.onAskAnother}>
                     <MessageSquareText />
                     Ask another
                   </Button>
                 ) : null}
-                {!q && (done || failed) ? (
-                  <Button variant="ghost" size="xs" onClick={props.onRunAgain}>
-                    <RotateCcw />
-                    {paused && !run ? "Try again" : "Run again"}
-                  </Button>
-                ) : null}
+
                 <Button variant="outline" size="xs" onClick={props.onOpenDetails} disabled={!run || unsupported}>
                   <FileCode />
                   Run details
@@ -350,83 +337,6 @@ function Explanation({
         ),
       )}
     </p>
-  )
-}
-
-function Ranking({
-  run,
-  index,
-  selectedId,
-  onSelect,
-  onPeek,
-}: {
-  run: Run
-  index: SnapshotIndex
-  selectedId: string | null
-  onSelect: (id: string) => void
-  onPeek: (id: string | null) => void
-}) {
-  const result = run.result
-  if (!result || result.intent === "question") return null
-  const friction = result.intent === "friction"
-  const rows = (result.rows as (UsageRow | FrictionRow)[]).slice(0, 5)
-  const max = Math.max(1, ...rows.map((r) => (friction ? (r as FrictionRow).friction_conversations : (r as UsageRow).conversations)))
-  return (
-    <div>
-      <div className="mb-1 flex items-baseline justify-between text-[11px] font-medium tracking-[0.05em] text-muted-foreground uppercase">
-        <span>Top 5 {friction ? "by conversations with friction" : "by conversations"}</span>
-        <span className="tracking-normal normal-case">{friction ? "of cluster total · rate" : `of ${fmtInt(result.total_conversations)} · people`}</span>
-      </div>
-      <ol className="flex flex-col">
-        {rows.map((r, i) => {
-          const title = index.titleOf(r.cluster_id) ?? r.cluster_id
-          const pal = index.paletteOf(r.cluster_id)
-          const fr = r as FrictionRow
-          const us = r as UsageRow
-          const value = friction ? fr.friction_conversations : us.conversations
-          return (
-            <li key={r.cluster_id}>
-              <button
-                type="button"
-                onClick={() => onSelect(r.cluster_id)}
-                onMouseEnter={() => onPeek(r.cluster_id)}
-                onMouseLeave={() => onPeek(null)}
-                onFocus={() => onPeek(r.cluster_id)}
-                onBlur={() => onPeek(null)}
-                aria-current={selectedId === r.cluster_id ? "true" : undefined}
-                className={cn(
-                  "grid w-full grid-cols-[1.1rem_1fr_auto] items-center gap-x-2 gap-y-0.5 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-muted",
-                  selectedId === r.cluster_id && "bg-muted",
-                )}
-              >
-                <span className="font-mono text-[11px] text-subtle tabular-nums">{i + 1}</span>
-                <span className="flex min-w-0 items-center gap-1.5 text-[13px]">
-                  <Dot color={pal.dot} />
-                  <span className="truncate">{title}</span>
-                </span>
-                <span className="font-mono text-[12px] tabular-nums">
-                  {friction ? (
-                    <>
-                      {fmtInt(fr.friction_conversations)}
-                      <span className="text-muted-foreground"> of {fmtInt(fr.conversations)} · </span>
-                      <span className="font-medium">{fmtPct(fr.friction_share)}</span>
-                    </>
-                  ) : (
-                    <>
-                      {fmtInt(us.conversations)}
-                      <span className="text-muted-foreground"> · {fmtPct(us.share)} · </span>
-                      <span className={cn(us.users * 3 <= us.conversations && "font-medium text-brand")}>{fmtInt(us.users)} ppl</span>
-                    </>
-                  )}
-                </span>
-                <span />
-                <Bar value={value} max={max} className="col-span-2 h-1" hatched={friction} fillClassName={friction ? "bg-heat/35" : "bg-foreground/35"} />
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-    </div>
   )
 }
 

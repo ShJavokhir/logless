@@ -8,6 +8,8 @@ import type {
   AnalysisRequest,
   EvalReport,
   Health,
+  IntakeEventsResponse,
+  IntakeStatus,
   Run,
   RunIdResponse,
   SearchRequest,
@@ -28,6 +30,11 @@ export interface Api {
   startContainment(): Promise<RunIdResponse>
   getEval(signal?: AbortSignal): Promise<EvalReport>
   getHealth(signal?: AbortSignal): Promise<Health>
+  // §11 live intake (start/reset are presenter-only; the server enforces the key)
+  getIntakeStatus(signal?: AbortSignal): Promise<IntakeStatus>
+  startIntake(): Promise<RunIdResponse>
+  getIntakeEvents(runId: string, after: number, signal?: AbortSignal): Promise<IntakeEventsResponse>
+  resetIntake(): Promise<{ ok?: boolean } | Record<string, unknown>>
 }
 
 export class ApiError extends Error {
@@ -89,6 +96,11 @@ const live: Api = {
   startContainment: () => request<RunIdResponse>("POST", "/demo/containment", {}),
   getEval: (signal) => request<EvalReport>("GET", "/eval", undefined, signal),
   getHealth: (signal) => request<Health>("GET", "/health", undefined, signal),
+  getIntakeStatus: (signal) => request<IntakeStatus>("GET", "/intake/status", undefined, signal),
+  startIntake: () => request<RunIdResponse>("POST", "/intake/runs", {}),
+  getIntakeEvents: (runId, after, signal) =>
+    request<IntakeEventsResponse>("GET", `/intake/runs/${encodeURIComponent(runId)}/events?after=${Math.max(0, Math.floor(after))}`, undefined, signal),
+  resetIntake: () => request<Record<string, unknown>>("POST", "/intake/reset", {}),
 }
 
 let mockPromise: Promise<Api> | null = null
@@ -111,6 +123,10 @@ export const api: Api = {
   startContainment: async () => (await impl()).startContainment(),
   getEval: async (signal) => (await impl()).getEval(signal),
   getHealth: async (signal) => (await impl()).getHealth(signal),
+  getIntakeStatus: async (signal) => (await impl()).getIntakeStatus(signal),
+  startIntake: async () => (await impl()).startIntake(),
+  getIntakeEvents: async (runId, after, signal) => (await impl()).getIntakeEvents(runId, after, signal),
+  resetIntake: async () => (await impl()).resetIntake(),
 }
 
 const FRIENDLY: Record<string, string> = {
@@ -126,6 +142,9 @@ const FRIENDLY: Record<string, string> = {
   no_eval_report: "No evaluation report has been published for this snapshot yet.",
   no_inputs: "This snapshot has no sandbox inputs, so live questions can't run on it.",
   invalid_request: "That request wasn't accepted. Questions need 1–200 characters.",
+  presenter_required: "Live intake is presenter-only.",
+  intake_not_ready: "No intake batch is prepared right now.",
+  intake_in_flight: "A live intake is already running.",
   interpretation_failed: "The question couldn't be interpreted this time. Try rephrasing it.",
   story_rejected: "The story didn't pass the privacy check twice, so nothing is shown.",
   payload_too_large: "That request was too large.",

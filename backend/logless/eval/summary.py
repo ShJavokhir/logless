@@ -81,8 +81,8 @@ def render(snap: dict, build: util.Build | None = None, report: dict | None = No
              f"{snap['dataset']['fixtures']}",
              f"- Totals: friction {_pct(t['friction']['share'])} ({t['friction']['conversations']}), unclear "
              f"{t['friction']['unclear']}; signals {t['friction']['signals']}",
-             f"- Counts, people and friction metrics computed in: {snap['provenance'].get('stats_source')} "
-             f"(languages per node: backend); discovery rounds "
+             "- Published map numbers are computed by the pipeline's own code on the app VM; the sandbox runs only "
+             f"agent-written code (live questions, containment). Discovery rounds "
              f"{snap['provenance']['discovery_rounds']}; build {snap['provenance']['build_seconds']} s; dataset hash "
              f"{snap['provenance']['dataset_hash']}", ""]
     leaves = {l["id"]: l for l in snap["clusters"]}

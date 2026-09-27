@@ -135,6 +135,8 @@ def run(build: util.Build) -> dict:
         for row in con.execute(q, [FRICTION_QV, *chunk]):
             if row["n"] == len(SIGNALS):
                 done_x[row["conv_id"]] = True
+    if util.no_cache():  # fresh run: recompute every conversation's facets and friction
+        done_f, done_x = {}, {}
     need_f = [c for c in ids if c not in done_f]
     need_x = [c for c in ids if c not in done_x]
     texts = util.load_rows(sorted(set(need_f) | set(need_x)), "SELECT conv_id, text FROM conversations WHERE conv_id IN ({})")
@@ -154,11 +156,23 @@ def run(build: util.Build) -> dict:
         out, errs = util.pmap(lambda c: friction_one(c, texts[c]["text"]), need_x, s.jev_concurrency, "friction")
         res["friction_errors"] = errs
 
-    threads = [threading.Thread(target=do_facets), threading.Thread(target=do_friction)]
+    failed: list[BaseException] = []
+
+    def guard(fn):
+        def inner():
+            try:
+                fn()
+            except BaseException as e:  # surfaced after join (e.g. ProviderUnavailable on billing errors)
+                failed.append(e)
+        return inner
+
+    threads = [threading.Thread(target=guard(do_facets)), threading.Thread(target=guard(do_friction))]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+    if failed:
+        raise failed[0]
 
     # retry friction failures once, sequentially-ish
     still = []

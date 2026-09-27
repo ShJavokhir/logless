@@ -3,7 +3,7 @@
 Two Ubuntu 24.04 VMs in Vultr **sjc** (Silicon Valley) on a private VPC:
 
 - **logless-app**: Caddy (HTTPS) → FastAPI on `127.0.0.1:8000`, static SPA, SQLite. It holds the model keys (deployed separately from `.env`).
-- **logless-sandbox**: a credential-free box that runs untrusted analysis code in **gVisor (runsc, systrap)** containers. Its egress is locked down to the VPC. The runner will listen on `10.20.0.4:8787`, and only the app VM can reach that port.
+- **logless-sandbox**: a box with no API keys or cloud credentials (its only secret is the runner's auth token) that runs untrusted analysis code in **gVisor (runsc, systrap)** containers. Its egress is locked down to the VPC. The runner will listen on `10.20.0.4:8787`, and only the app VM can reach that port.
 
 Provisioned and verified on 2026-09-26 (PDT). Resource IDs and addresses are also in [`resources.env`](resources.env), which `provision.sh` generates.
 
@@ -124,7 +124,7 @@ What the script does:
   { "runtimes": { "runsc": { "path": "/usr/bin/runsc", "runtimeArgs": ["--platform=systrap"] } } }
   ```
 - **Platform:** systrap, gVisor's default, worked first try on Vultr's `6.8.0-139-generic` kernel. The KVM platform is not an option because vc2 has no nested virtualization (0 `vmx`/`svm` flags in `/proc/cpuinfo`). ptrace was not needed.
-- Creates the system user `runner` (uid 999, member of `docker`) and `/opt/logless-runner` (`runner:runner 750`). Note that `docker` group membership is root-equivalent on this host. That is acceptable only because the box holds no credentials.
+- Creates the system user `runner` (uid 999, member of `docker`) and `/opt/logless-runner` (`runner:runner 750`). Note that `docker` group membership is root-equivalent on this host. That is acceptable only because the box holds no API keys or cloud credentials; the runner's auth token is its only secret.
 - Builds `logless-analysis:1` (image ID `sha256:91c87e91583e…`, 376 MB) from `sandbox-image/Dockerfile`:
   - Base: `python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f`, which is Python 3.12.14 on Debian 13.
   - pandas 2.2.3 and numpy 2.1.3.

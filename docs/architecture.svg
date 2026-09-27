@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">logless architecture</title>
+  <desc id="desc">The app VM holds the private data and model keys, runs the offline pipeline and computes the published map. External model services process raw text or facets. Live questions become two independently written programs, A using pandas and B using the standard library. Typed rows without conversation or facet text cross the private VPC to the runner on a separate sandbox VM. Each program runs in a fresh gVisor container. The app gates both outputs, checks consistency with the published map where derivable, and requires agreement before serving the canonical sandbox result. The sandbox host holds its own bearer token but no model API keys or cloud credentials. This is a design diagram, not a deployment attestation or differential privacy guarantee.</desc>
+  <defs>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #203044; }
+      .title { font-size: 29px; font-weight: 700; }
+      .heading { font-size: 19px; font-weight: 650; }
+      .label { font-size: 16px; font-weight: 600; }
+      .body { font-size: 15px; }
+      .muted { fill: #526175; }
+      .blue { fill: #285b80; }
+      .green { fill: #286657; }
+      .boundary { stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .wire { fill: none; stroke: #65788b; stroke-width: 1.6; marker-end: url(#arrow); }
+      .return { fill: none; stroke: #286657; stroke-width: 1.6; marker-end: url(#greenArrow); }
+      .rule { fill: none; stroke: #b9c7d3; stroke-width: 1; }
+    </style>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7Z" fill="#65788b"/></marker>
+    <marker id="greenArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7Z" fill="#286657"/></marker>
+  </defs>
+
+  <rect width="1200" height="720" fill="#ffffff"/>
+  <text x="24" y="37" class="title">logless</text>
+  <text x="142" y="36" class="heading muted">Private inputs. Published map. Sandbox-computed live answers.</text>
+  <text x="24" y="63" class="body muted">On Vultr: two VMs on a private VPC · Serverless Inference (GLM 5.3) · gVisor sandbox · no differential-privacy claim</text>
+
+  <!-- External processors: requests originate on the app VM, with provider keys held there. -->
+  <rect x="20" y="82" width="1160" height="134" rx="10" fill="#f8fafc" stroke="#a9b6c5" class="boundary"/>
+  <text x="35" y="104" class="label muted">EXTERNAL MODEL PROVIDERS · separate data-processing boundary</text>
+  <path d="M548 116 V202 M866 116 V202" class="rule"/>
+  <text x="35" y="130" class="label">Vultr Serverless Inference · GLM 5.3 / Flash</text>
+  <text x="35" y="152" class="body">All LLM reasoning: facets, naming, descriptions, privacy audit;</text>
+  <text x="35" y="172" class="body">question → plan, program writing, repair, explanations, stories.</text>
+  <text x="35" y="197" class="body blue">Receives raw text, facets, questions or public aggregates.</text>
+  <text x="563" y="130" class="label">TypeSafe Jev</text>
+  <text x="563" y="152" class="body">Typed classification, friction, relevance.</text>
+  <text x="563" y="172" class="body blue">Raw text + facets; search receives</text>
+  <text x="563" y="197" class="body blue">query + public titles / descriptions.</text>
+  <text x="881" y="130" class="label">Fireworks · embeddings</text>
+  <text x="881" y="152" class="body">qwen3-embedding-8b</text>
+  <text x="881" y="172" class="body blue">Generalized facet sentences only.</text>
+  <text x="881" y="197" class="body muted">Vectors return to app-side discovery.</text>
+  <path d="M465 256 V236" fill="none" stroke="#65788b" stroke-width="1.6"/>
+  <path d="M465 236 H289 V218" class="wire"/>
+  <path d="M465 236 H709 V218" class="wire"/>
+  <path d="M709 236 H1020 V218" class="wire"/>
+  <text x="24" y="243" class="body muted">App VM ↔ providers: HTTPS</text>
+
+  <!-- Browser and the trusted app host. Caddy terminates public HTTPS on the app host. -->
+  <rect x="20" y="310" width="147" height="132" rx="10" fill="#f8fafc" stroke="#a9b6c5" class="boundary"/>
+  <text x="37" y="338" class="heading">Browser</text>
+  <text x="37" y="363" class="body">Question + scope</text>
+  <text x="37" y="387" class="body muted">Map · live answers</text>
+  <text x="37" y="408" class="body muted">Run status / code</text>
+  <text x="37" y="429" class="body muted">No dataset access</text>
+  <text x="161" y="315" class="body blue">HTTPS</text>
+  <path d="M210 431 H174 V460 H92 V443" class="return"/>
+  <text x="20" y="485" class="body green">Allowlisted aggregates</text>
+  <text x="20" y="505" class="body green">only, plus checked prose</text>
+  <text x="20" y="525" class="body green">and safe run metadata.</text>
+
+  <rect x="210" y="256" width="483" height="290" rx="10" fill="#f2f7fb" stroke="#6e96b3" class="boundary"/>
+  <text x="230" y="282" class="heading blue">App VM · trusted data and control</text>
+  <rect x="230" y="300" width="105" height="65" rx="7" fill="#ffffff" stroke="#b3c9da"/>
+  <text x="246" y="326" class="label">Caddy</text>
+  <text x="241" y="350" class="body muted">HTTPS + SPA</text>
+  <path d="M335 333 H357" class="wire"/>
+  <rect x="358" y="300" width="144" height="65" rx="7" fill="#ffffff" stroke="#b3c9da"/>
+  <text x="372" y="326" class="label">FastAPI API</text>
+  <text x="372" y="350" class="body muted">Run orchestration</text>
+  <path d="M502 333 H523" class="wire"/>
+  <rect x="525" y="300" width="150" height="65" rx="7" fill="#eaf5ef" stroke="#84b2a2"/>
+  <text x="541" y="326" class="label green">Egress gate</text>
+  <text x="537" y="350" class="body">Map + agreement</text>
+  <path d="M429 365 V377 H483 V393" class="wire"/>
+  <path d="M558 395 V384 H600 V366" class="return"/>
+  <rect x="230" y="395" width="203" height="110" rx="7" fill="#ffffff" stroke="#b3c9da"/>
+  <text x="245" y="419" class="label">Pipeline</text>
+  <text x="245" y="440" class="body blue">logless rebuild</text>
+  <text x="245" y="464" class="body">Trusted map aggregation</text>
+  <text x="245" y="486" class="body muted">Publish on this VM</text>
+  <path d="M433 451 H451" class="wire"/>
+  <rect x="452" y="395" width="223" height="110" rx="7" fill="#ffffff" stroke="#b3c9da"/>
+  <text x="466" y="419" class="label">SQLite</text>
+  <text x="466" y="440" class="body">private.db · text, facets, rows</text>
+  <text x="466" y="464" class="body">public.db · snapshots, runs</text>
+  <text x="466" y="486" class="body muted">Map feeds consistency checks</text>
+  <text x="230" y="529" class="body blue">Secrets: model keys · pseudonym salt · runner token</text>
+
+  <!-- Two directions across the VPC: minimally typed input; untrusted results back to the gate. -->
+  <text x="790" y="280" text-anchor="middle" class="label">Vultr VPC</text>
+  <text x="790" y="302" text-anchor="middle" class="body">10.20.0.0/24</text>
+  <text x="790" y="324" text-anchor="middle" class="body blue">HTTP · bearer token</text>
+  <text x="790" y="363" text-anchor="middle" class="body">Typed rows, no text</text>
+  <text x="790" y="383" text-anchor="middle" class="body muted">+ programs + plan</text>
+  <text x="790" y="427" text-anchor="middle" class="body">Untrusted results</text>
+  <text x="790" y="448" text-anchor="middle" class="body muted">+ receipts / diagnostics</text>
+  <path d="M887 405 H711 V377 H620 V366" class="return"/>
+  <text x="790" y="482" text-anchor="middle" class="body muted">Gate runs on app VM</text>
+  <text x="790" y="503" text-anchor="middle" class="body muted">No live reference answer</text>
+
+  <!-- Sandbox host and each container are distinct containment boundaries. -->
+  <rect x="887" y="256" width="293" height="290" rx="10" fill="#fbf7f0" stroke="#b69b72" class="boundary"/>
+  <text x="907" y="282" class="heading">Sandbox VM</text>
+  <rect x="909" y="300" width="249" height="93" rx="7" fill="#ffffff" stroke="#d4c2a8"/>
+  <text x="925" y="325" class="label">Runner · VPC :8787</text>
+  <text x="925" y="349" class="body">Holds runner auth token only</text>
+  <text x="925" y="378" class="body">No API keys or cloud credentials</text>
+  <path d="M1033 394 V398" fill="none" stroke="#65788b" stroke-width="1.6"/>
+  <path d="M1033 398 H966 V405" class="wire"/>
+  <path d="M1033 398 H1100 V405" class="wire"/>
+  <rect x="909" y="406" width="116" height="54" rx="7" fill="#ffffff" stroke="#b69b72" class="boundary"/>
+  <rect x="1041" y="406" width="117" height="54" rx="7" fill="#ffffff" stroke="#b69b72" class="boundary"/>
+  <text x="921" y="428" class="label">gVisor A</text>
+  <text x="921" y="449" class="body">pandas</text>
+  <text x="1053" y="428" class="label">gVisor B</text>
+  <text x="1053" y="449" class="body">stdlib only</text>
+  <text x="907" y="481" class="body">Each: --network=none · read-only</text>
+  <text x="907" y="502" class="body">1 vCPU / 512 MiB / 64 pids / 10 s</text>
+  <text x="907" y="529" class="body">Host egress locked to VPC*</text>
+
+  <!-- Numbered flow sequences. Letters order the steps within each flow. -->
+  <text x="24" y="571" class="label blue">1 · OFFLINE PIPELINE</text>
+  <text x="218" y="571" class="body muted">App VM computes map metrics after privacy checks; no sandbox aggregation.</text>
+  <rect x="20" y="581" width="1160" height="42" rx="7" fill="#f2f7fb"/>
+  <text x="32" y="607" class="body">a. Conversations</text>
+  <text x="156" y="607" class="body muted">→</text>
+  <text x="179" y="607" class="body">b. Facets + friction</text>
+  <text x="317" y="607" class="body muted">→</text>
+  <text x="340" y="607" class="body">c. Embed + discover</text>
+  <text x="492" y="607" class="body muted">→</text>
+  <text x="515" y="607" class="body">d. Classify</text>
+  <text x="599" y="607" class="body muted">→</text>
+  <text x="622" y="607" class="body">e. Describe</text>
+  <text x="710" y="607" class="body muted">→</text>
+  <text x="733" y="607" class="body">f. Privacy gate</text>
+  <text x="847" y="607" class="body muted">→</text>
+  <text x="870" y="607" class="body">g. Stats + publish snapshot</text>
+
+  <text x="24" y="648" class="label green">2 · LIVE QUESTION</text>
+  <text x="218" y="648" class="body muted">One repair round: fixed check names only; no values or stderr. Otherwise fail.</text>
+  <rect x="20" y="658" width="1160" height="42" rx="7" fill="#edf6f1"/>
+  <text x="32" y="684" class="body">a. Question</text>
+  <text x="119" y="684" class="body muted">→</text>
+  <text x="141" y="684" class="body">b. Plan (GLM)</text>
+  <text x="246" y="684" class="body muted">→</text>
+  <text x="268" y="684" class="body">c. A + B (GLM)</text>
+  <text x="378" y="684" class="body muted">→</text>
+  <text x="400" y="684" class="body">d. Two gVisors</text>
+  <text x="510" y="684" class="body muted">→</text>
+  <text x="532" y="684" class="body">e. Gate + map consistency + agreement</text>
+  <text x="820" y="684" class="body muted">→</text>
+  <text x="842" y="684" class="body">f. Explanation</text>
+  <text x="947" y="684" class="body muted">→</text>
+  <text x="969" y="684" class="body">g. Browser</text>
+  <text x="24" y="716" font-size="13" class="muted">*Host networking also permits required metadata / DHCP and control traffic; containers have no network. Snapshot cross-checks apply only where derivable.</text>
+  <!-- Crossing connectors are painted last so VM fills do not hide their endpoints. -->
+  <path d="M167 326 H229" class="wire"/>
+  <path d="M675 340 H908" class="wire"/>
+</svg>

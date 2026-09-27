@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Snapshot } from "@/lib/types"
 import realJson from "./real-snapshot.json"
-import { interpretQuestion, questionResult } from "./results"
+import { consistencyChecks, interpretQuestion, questionResult } from "./results"
 
 const s = realJson as unknown as Snapshot
 
@@ -31,5 +31,26 @@ describe("mock question interpreter + result (§8b shape)", () => {
       expect(row.share).toBeCloseTo(row.count / row.base, 4)
     }
     expect(r.total_count).toBeLessThanOrEqual(r.total_base)
+  })
+
+  it("maps 'What's not working?' to a friction plan", () => {
+    const p = interpretQuestion("What's not working?", s)
+    expect("plan" in p && p.plan).toMatchObject({ group_by: "leaf", measure: "conversations", signal: "any_friction" })
+  })
+
+  it("cross-checks results against the published map only where derivable (§0)", () => {
+    const friction = questionResult(s, { group_by: "leaf", scope_category_id: null, measure: "conversations", signal: "any_friction", rank_by: "count", limit: 5 })
+    const c1 = consistencyChecks(s, friction)
+    expect(c1.map((c) => c.name)).toEqual([
+      "Consistent with the published map · bases = published workflow conversations",
+      "Consistent with the published map · counts = published friction conversations",
+    ])
+    expect(c1.every((c) => c.passed)).toBe(true)
+    const plain = questionResult(s, { group_by: "category", scope_category_id: null, measure: "conversations", signal: null, rank_by: "count", limit: 3 })
+    expect(consistencyChecks(s, plain).every((c) => c.passed)).toBe(true)
+    const tampered = { ...plain, total_base: plain.total_base + 1 }
+    expect(consistencyChecks(s, tampered).some((c) => !c.passed)).toBe(true)
+    const peopleSignal = questionResult(s, { group_by: "leaf", scope_category_id: null, measure: "people", signal: "complaint", rank_by: "count", limit: 5 })
+    expect(consistencyChecks(s, peopleSignal)).toEqual([])
   })
 })

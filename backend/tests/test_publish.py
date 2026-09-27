@@ -11,7 +11,7 @@ SIG = ("correction", "repeat_request", "assistant_limit", "complaint")
 
 
 def _fake_build(tmp_data, monkeypatch):
-    monkeypatch.setattr(stats, "_sandbox", lambda: None)
+    monkeypatch.setattr(stats, "save_cluster_map", lambda *a, **k: None)
     monkeypatch.setattr("logless.eval.summary.write_summary", lambda *a, **k: None)
     con = db.private()
     convs = []
@@ -67,7 +67,7 @@ def test_snapshot_builder_invariants(tmp_data, monkeypatch):
     assert leaves["cl_111111"]["friction"]["signals"]["correction"] == 1
     assert cats["cat_aaaaaa"]["friction"]["conversations"] == 2
     assert leaves["cl_333333"]["friction"]["unclear"] == 1
-    assert snap["provenance"]["stats_source"] == "local-reference"
+    assert "stats_source" not in snap["provenance"]
     assert snap["clusters"][-1]["id"] == "cl_other"
     assert all(sum(x["conversations"] for x in n["languages"]) == n["conversations"] for n in snap["clusters"])
     assert "c_" not in json.dumps(snap["clusters"]) and "u0" not in json.dumps(snap["clusters"])
@@ -127,15 +127,3 @@ def test_scan_counts_tokens_in_payload():
     snap = {"clusters": [{"id": "cl_1", "title": "Write letters", "description": "Contact quillan.marrowby@fenwarp.net"}]}
     sc = publish.scan(snap, TokenScanner(["quillan.marrowby@fenwarp.net"]))
     assert sc["fixture_tokens"] == 1 and sc["contact"] >= 1
-
-
-def test_production_refuses_local_reference_stats(tmp_data, monkeypatch):
-    b = _fake_build(tmp_data, monkeypatch)
-    stats.run(b)
-    publish.run(b)  # local development: the fallback may publish
-    first = db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current = 1").fetchone()[0]
-    monkeypatch.setenv("LOGLESS_ENV", "production")
-    stats.run(b)
-    with pytest.raises(publish.PublishError):
-        publish.run(b)
-    assert [r[0] for r in db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current = 1")] == [first]

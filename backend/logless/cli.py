@@ -18,8 +18,17 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("rebuild", help="run the pipeline and publish a snapshot atomically")
     r.add_argument("--limit", type=int, default=None, help="only use the first N sampled conversations (pilot)")
     r.add_argument("--from-stage", default=None)
+    r.add_argument("--no-cache", action="store_true", help="fresh model/embedding calls (ignore cached responses)")
 
     sub.add_parser("eval", help="compute the evaluation report for the current snapshot")
+
+    it = sub.add_parser("intake", help="live intake batch (docs/CONTRACTS.md §11)")
+    itsub = it.add_subparsers(dest="intake_cmd", required=True)
+    ip = itsub.add_parser("prepare", help="pick N new shard conversations and extract their facets now")
+    ip.add_argument("--n", type=int, default=300)
+    ip.add_argument("--seed", type=int, default=None)
+    itsub.add_parser("status", help="show the prepared batch")
+    itsub.add_parser("reset", help="re-publish the base snapshot and clear the batch's decisions")
 
     sv = sub.add_parser("serve", help="run the API server")
     sv.add_argument("--host", default="127.0.0.1")
@@ -41,7 +50,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.cmd == "rebuild":
         from .pipeline import run as pipeline_run
-        return pipeline_run.main(limit=args.limit, from_stage=args.from_stage)
+        return pipeline_run.main(limit=args.limit, from_stage=args.from_stage, no_cache=args.no_cache)
+    if args.cmd == "intake":
+        import json as _json
+        from . import intake
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        if args.intake_cmd == "prepare":
+            out = intake.prepare(args.n, args.seed)
+            out.pop("usage", None)
+        elif args.intake_cmd == "status":
+            out = {**intake.status(), "batch": intake.current_batch()}
+        else:
+            out = intake.reset()
+        print(_json.dumps(out, indent=1))
+        return 0
     if args.cmd == "eval":
         from .eval import report
         return report.main()

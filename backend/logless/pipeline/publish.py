@@ -80,11 +80,15 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
             node["is_other"] = True
         clusters.append(node)
     con = db.private()
-    scope_rows = util.load_rows(build.conv_ids, "SELECT conv_id, ts, is_fixture, language, user_id FROM conversations WHERE conv_id IN ({})")
+    from ..intake import ensure_schema
+    ensure_schema()
+    scope_rows = util.load_rows(build.conv_ids, "SELECT conv_id, ts, is_fixture, language, user_id, intake_batch "
+                                                "FROM conversations WHERE conv_id IN ({})")
     real_ts = sorted(r["ts"][:10] for r in scope_rows.values() if not r["is_fixture"] and r["ts"])
     kinds = Counter(r["kind"] for r in con.execute(
         "SELECT kind FROM eval_fixtures WHERE conv_id IN (SELECT conv_id FROM conversations WHERE is_fixture = 1)"))
-    n_real = sum(1 for r in scope_rows.values() if not r["is_fixture"])
+    n_real = sum(1 for r in scope_rows.values() if not r["is_fixture"] and not r["intake_batch"])
+    n_intake = sum(1 for r in scope_rows.values() if r["intake_batch"])
     fac_models = {r["model"] for r in con.execute("SELECT DISTINCT model FROM facets WHERE model IS NOT NULL")}
     facets_model = GLM_FLASH if fac_models <= {GLM_FLASH} else f"{GLM_FLASH} (rate-limit overflow: {GLM})"
     # roles the UI lists; analysis_code / explanation / story / relevance are the API's live features
@@ -103,7 +107,9 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
             "conversations": len(scope_rows), "users": len({r["user_id"] for r in scope_rows.values()}),
             "languages": len({r["language"] for r in scope_rows.values() if r["language"]}),
             "sample_note": SAMPLE_NOTE.format(real=n_real, shard_rows=SHARD_ROWS, canary=kinds.get("canary", 0),
-                                              injection=kinds.get("injection", 0)),
+                                              injection=kinds.get("injection", 0))
+                           + (f" Plus {n_intake:,} further conversations from the same shard, ingested by live intake."
+                              if n_intake else ""),
             "fixtures": {"canary_conversations": int(kinds.get("canary", 0)),
                          "injection_conversations": int(kinds.get("injection", 0))},
         },
@@ -118,7 +124,6 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
             "prompt_versions": {**PROMPT_VERSIONS, **QUESTION_VERSIONS},
             "discovery_rounds": int(build.info.get("discovery_rounds", 1)),
             "build_seconds": int(round(build_seconds)),
-            "stats_source": stats["source"],
             "stages": [{"stage": s["stage"], "started_at": s["started_at"], "finished_at": s["finished_at"],
                         "counts": public_counts(s["counts"]), "models": [str(m) for m in s["models"]]}
                        for s in stages],
@@ -162,7 +167,7 @@ K_NODE = K_MET | {"id", "level", "parent_id", "title", "short_title", "descripti
 K_NEED = {"id", "text"}
 K_PROB = {"id", "text", "signal", "support"}
 K_SUR = {"flag", "score"}
-K_PROV = {"pipeline_version", "dataset_hash", "models", "prompt_versions", "discovery_rounds", "build_seconds", "stats_source", "stages"}
+K_PROV = {"pipeline_version", "dataset_hash", "models", "prompt_versions", "discovery_rounds", "build_seconds", "stages"}
 K_STAGE = {"stage", "started_at", "finished_at", "counts", "models"}
 
 
@@ -285,12 +290,6 @@ def scan(snap: dict, scanner: TokenScanner) -> dict[str, int]:
 
 # ---------------------------------------------------------------- stage
 
-def production() -> bool:
-    """`LOGLESS_ENV=production` (app VM): stats must come from the sandbox; locally they may fall back."""
-    import os
-    return os.environ.get("LOGLESS_ENV", "").strip().lower() == "production"
-
-
 def api_self_check(snap: dict) -> list[str]:
     """Run the API's own allowlist serializer on the snapshot before it goes live, so a snapshot the API
     would refuse to serve (`Blocked`) is never published."""
@@ -321,9 +320,6 @@ def run(build: util.Build) -> dict:
     stats = build.load("stats")
     if stats["snapshot_id"] != build.info.get("snapshot_id"):
         raise PublishError("stats were computed for a different snapshot id; re-run the stats stage")
-    if production() and stats.get("source") != "sandbox":
-        raise PublishError("production publish refused: counts, people and friction metrics were not computed in the "
-                           "sandbox; previous snapshot stays live (re-run --from-stage stats once the runner answers)")
     started = utcnow()
     stages = list(build.stages) + [{"stage": "publish", "started_at": started, "finished_at": started,
                                     "counts": {}, "models": []}]

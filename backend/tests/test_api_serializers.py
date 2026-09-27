@@ -42,8 +42,12 @@ def snapshot():
                            "stages": [{"stage": "facets", "started_at": "a", "finished_at": "b", "counts": {"n": 1}, "models": ["glm"]}]}}
 
 
+PLAN_Q = {"group_by": "leaf", "scope_category_id": None, "measure": "conversations", "signal": "complaint",
+          "rank_by": "count", "limit": 3}
+
+
 def run_doc():
-    return {"run_id": "run_0123456789ab", "kind": "analysis", "intent": "usage", "snapshot_id": SNAP, "state": "completed",
+    return {"run_id": "run_0123456789ab", "kind": "analysis", "intent": "question", "snapshot_id": SNAP, "state": "completed",
             "created_at": "t0", "updated_at": "t1",
             "stages": [{"name": "planning", "status": "done", "started_at": "t0", "finished_at": "t1", "detail": "ok"}],
             "attempts": 1, "code": "print(1)\n",
@@ -53,9 +57,9 @@ def run_doc():
                         "limits": {"cpus": 1, "memory_mb": 512, "pids": 64, "timeout_s": 10, "network": "none", "read_only_root": True},
                         "started_at": "2026-09-27T01:00:00.000Z", "finished_at": "2026-09-27T01:00:00.010Z", "host": "logless-sandbox"},
             "verdict": {"passed": True, "checks": [{"name": "Schema matches exactly", "passed": True, "detail": "ok"}]},
-            "result": {"intent": "usage", "snapshot_id": SNAP, "total_conversations": 10,
-                       "rows": [{"cluster_id": "cl_1a2b3c", "conversations": 10, "users": 4, "share": 1.0}]},
-            "explanation": {"text": "{{rows.0.cluster_id}} leads.", "metric_refs": ["rows.0.cluster_id"]},
+            "result": {"intent": "question", "snapshot_id": SNAP, "plan": dict(PLAN_Q),
+                       "rows": [{"id": "cl_1a2b3c", "count": 4, "base": 10, "share": 0.4}], "total_count": 4, "total_base": 10},
+            "explanation": {"text": "{{rows.0.id}} leads.", "metric_refs": ["rows.0.id"]},
             "containment": None, "error": None}
 
 
@@ -95,8 +99,9 @@ def test_run_serializer_drops_private_fields():
     raw["receipt"]["output"] = '{"secret": 1}'
     out = serializers.serialize_run(raw)
     assert_clean(out)
-    assert out["explanation"] == {"text": "{{rows.0.cluster_id}} leads.", "metric_refs": ["rows.0.cluster_id"]}
-    assert "output" not in out["receipt"] and out["result"]["rows"][0] == {"cluster_id": "cl_1a2b3c", "conversations": 10, "users": 4, "share": 1.0}
+    assert out["explanation"] == {"text": "{{rows.0.id}} leads.", "metric_refs": ["rows.0.id"]}
+    assert "output" not in out["receipt"] and out["result"]["rows"][0] == {"id": "cl_1a2b3c", "count": 4, "base": 10, "share": 0.4}
+    assert out["result"]["plan"] == PLAN_Q
 
 
 def test_story_and_eval_serializers_drop_private_fields(tmp_data):

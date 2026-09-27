@@ -45,7 +45,7 @@ def embed_texts(texts: list[str]) -> np.ndarray:
     con.execute(EMB_SCHEMA)
     keys = [_key(t) for t in texts]
     have: dict[str, np.ndarray] = {}
-    for chunk in util.chunks(sorted(set(keys)), 900):
+    for chunk in ([] if util.no_cache() else util.chunks(sorted(set(keys)), 900)):
         for row in con.execute(f"SELECT key, vec FROM embedding_cache WHERE key IN ({','.join('?' * len(chunk))})", chunk):
             have[row["key"]] = np.frombuffer(row["vec"], dtype=np.float32)
     missing = sorted({k: t for k, t in zip(keys, texts) if k not in have}.items())

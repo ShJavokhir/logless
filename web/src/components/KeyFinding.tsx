@@ -1,5 +1,6 @@
 import { useMemo } from "react"
-import { ArrowRight, Flame } from "lucide-react"
+import { ArrowRight, Flame, MessageSquareText } from "lucide-react"
+import { EXAMPLE_QUESTIONS } from "@/lib/copy"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { FINDING_MIN_LEAF_CONVERSATIONS, keyFindings } from "@/lib/findings"
 import { proseName } from "@/lib/labels"
@@ -15,10 +16,12 @@ export function KeyFinding({
   index,
   onShow,
   onSelectLeaf,
+  onAsk,
 }: {
   index: SnapshotIndex
   onShow: (categoryId: string, leafId: string | null) => void
   onSelectLeaf: (id: string) => void
+  onAsk?: (question: string) => void
 }) {
   const { friction, concentration } = useMemo(() => keyFindings(index.snapshot), [index.snapshot])
   if (!friction) return null
@@ -82,6 +85,30 @@ export function KeyFinding({
           </span>
         </button>
       ) : null}
+
+      {onAsk ? (
+        <div className="mt-3 border-t border-heat/20 pt-2.5">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-foreground/70 uppercase">
+            <MessageSquareText aria-hidden className="size-3.5" />
+            Ask the agent
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {FINDING_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => onAsk(q)}
+                className="rounded-full border border-foreground/15 bg-card px-2.5 py-1 text-left text-[12px] leading-snug transition-colors hover:border-foreground/30 hover:bg-muted"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
+
+// Supported example questions that follow up on the finding.
+const FINDING_QUESTIONS = [EXAMPLE_QUESTIONS[0], EXAMPLE_QUESTIONS[1]]

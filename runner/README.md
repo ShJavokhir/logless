@@ -1,6 +1,6 @@
 # logless-runner
 
-The sandbox runner for logless (docs/CONTRACTS.md §9). It runs on the credential-free sandbox VM,
+The sandbox runner for logless (docs/CONTRACTS.md §9). It runs on the sandbox VM, which holds no API keys or cloud credentials (only this runner's auth token),
 listens only on the VPC address, and executes one program per job in a fresh, network-less gVisor
 container that is always destroyed afterwards. It holds **no API keys**: the only secret is
 `RUNNER_TOKEN`, a random bearer token shared with the app VM (not a cloud credential).

@@ -11,8 +11,8 @@ import { modelLabel } from "@/lib/snapshot"
 import { useRun } from "@/hooks/useRun"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ASK_LABEL, QUESTION, RUN_SUBTITLE } from "@/lib/copy"
-import type { Attempt } from "@/lib/types"
+import { ASK_LABEL, RUN_SUBTITLE } from "@/lib/copy"
+import { crossChecks, PROGRAM_KIND, PROGRAM_KIND_LONG, programTracks, type ProgramTrack } from "@/lib/programs"
 import { planShareNote, planToWords } from "@/lib/plan"
 import { proseName } from "@/lib/labels"
 
@@ -33,7 +33,7 @@ export function RunDetailsSheet({
         <SheetHeader className="border-b px-5 pt-4 pb-3.5">
           <div className="flex items-center gap-2 pr-8 text-[12px] text-muted-foreground">
             <span className="font-mono">{run?.run_id ?? "no run"}</span>
-            {run?.intent ? <span className="truncate">· {run.intent === "question" ? ASK_LABEL : QUESTION[run.intent]}</span> : null}
+            {run?.intent ? <span className="truncate">· {ASK_LABEL}</span> : null}
           </div>
           <SheetTitle className="text-[17px] font-semibold">Run details</SheetTitle>
           <SheetDescription className="text-[13px] leading-snug text-pretty">{RUN_SUBTITLE}</SheetDescription>
@@ -57,7 +57,10 @@ export function RunDetailsSheet({
                 {run.intent === "question" ? <QuestionSummary run={run} snapshot={snapshot} /> : null}
                 <Timeline stages={run.stages} />
                 {run.attempts_log && run.attempts_log.length ? (
-                  <AttemptHistory key={run.attempts_log.length} attempts={run.attempts_log} />
+                  <>
+                    <Programs key={run.attempts_log.length} tracks={programTracks(run)} />
+                    <CrossChecks run={run} />
+                  </>
                 ) : (
                   <>
                     {run.code ? <CodeBlock code={run.code} sha={run.receipt?.code_sha256 ?? null} /> : null}
@@ -100,40 +103,85 @@ function QuestionSummary({ run, snapshot }: { run: Run; snapshot: Snapshot }) {
   )
 }
 
-/** Every sandbox attempt, never overwritten: code, receipt and gate verdict. */
-function AttemptHistory({ attempts }: { attempts: Attempt[] }) {
-  const [sel, setSel] = useState(attempts.length - 1)
-  const idx = Math.min(sel, attempts.length - 1)
-  const a = attempts[idx]
+/**
+ * §0: both independent programs, each with every version it went through
+ * (never overwritten): code, receipt and its own gate checks.
+ */
+function Programs({ tracks }: { tracks: ProgramTrack[] }) {
+  const [sel, setSel] = useState(0)
+  const track = tracks[Math.min(sel, tracks.length - 1)]
+  const two = tracks.length > 1
   return (
-    <Section
-      title="Attempts"
-      id="rd-attempts"
-      aside={attempts.length > 1 ? "repaired after a gate rejection" : "first attempt passed"}
-    >
-      {attempts.length > 1 ? (
-        <div role="tablist" aria-label="Attempts" className="mb-3 inline-flex rounded-lg border p-0.5">
-          {attempts.map((att, i) => (
+    <Section title={two ? "Two independent programs" : "Program"} id="rd-programs" aside={two ? "written separately · separate containers" : undefined}>
+      {two ? (
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          {tracks.map((t, i) => {
+            const v = t.latest.verdict
+            return (
+              <button
+                key={t.program}
+                type="button"
+                onClick={() => setSel(i)}
+                aria-pressed={i === sel}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-left transition-colors",
+                  i === sel ? "border-foreground/30 bg-muted/70" : "hover:bg-muted/40",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold">
+                    Program {t.program} <span className="font-normal text-muted-foreground">· {PROGRAM_KIND[t.program]}</span>
+                  </span>
+                  {v.passed ? <CircleCheck aria-label="passed" className="size-4 text-ok" /> : <CircleX aria-label="rejected" className="size-4 text-destructive" />}
+                </div>
+                <div className="mt-1 font-mono text-[11px] leading-relaxed text-muted-foreground tabular-nums">
+                  <div>sha256 {t.latest.code_sha256.slice(0, 12)}</div>
+                  <div>
+                    {t.latest.receipt ? `${fmtMs(t.latest.receipt.elapsed_ms)} · exit ${t.latest.receipt.exit_code ?? "—"}` : "not executed"} · gate {v.checks.filter((c) => c.passed).length}/{v.checks.length}
+                  </div>
+                  <div>{t.attempts.length > 1 ? `${t.attempts.length} versions · repaired` : "1 version"}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+      <ProgramVersions key={track.program} track={track} />
+    </Section>
+  )
+}
+
+function ProgramVersions({ track }: { track: ProgramTrack }) {
+  const [sel, setSel] = useState(track.attempts.length - 1)
+  const a = track.attempts[Math.min(sel, track.attempts.length - 1)]
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[12px] text-muted-foreground">
+        Program {track.program} uses {PROGRAM_KIND_LONG[track.program]}.
+      </p>
+      {track.attempts.length > 1 ? (
+        <div role="tablist" aria-label={`Program ${track.program} versions`} className="inline-flex w-fit rounded-lg border p-0.5">
+          {track.attempts.map((att, i) => (
             <button
               key={att.attempt}
               type="button"
               role="tab"
-              aria-selected={i === idx}
+              aria-selected={att === a}
               onClick={() => setSel(i)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12.5px] transition-colors",
-                i === idx ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+                att === a ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {att.verdict.passed ? <CircleCheck aria-hidden className="size-3.5 text-ok" /> : <CircleX aria-hidden className="size-3.5 text-destructive" />}
-              Attempt {att.attempt} · {att.verdict.passed ? "passed" : att.receipt ? "rejected" : "pre-check"}
+              Version {att.attempt} · {att.verdict.passed ? "passed" : att.receipt ? "rejected" : "pre-check"}
             </button>
           ))}
         </div>
       ) : null}
       {a.repair_reason ? (
-        <p className="mb-3 rounded-lg border border-dashed px-3 py-2 text-[12.5px]">
-          Repaired for <span className="font-medium">“{a.repair_reason}”</span>. The repair prompt contained only failed check names, never sandbox output.
+        <p className="rounded-lg border border-dashed px-3 py-2 text-[12.5px]">
+          Did not pass: <span className="font-medium">{a.repair_reason}</span>. The repair prompt got only this fixed-vocabulary reason, never values or sandbox output.
         </p>
       ) : null}
       <div role="tabpanel" className="flex flex-col gap-5">
@@ -145,8 +193,40 @@ function AttemptHistory({ attempts }: { attempts: Attempt[] }) {
             Not executed: the static pre-check rejected this program before it reached the sandbox.
           </p>
         )}
-        <GateVerdict verdict={a.verdict} attempts={a.attempt} />
+        <GateVerdict verdict={a.verdict} attempts={a.attempt} title={`Gate · program ${track.program}`} />
       </div>
+    </div>
+  )
+}
+
+/** Run-level checks: consistency with the published map, and agreement. */
+function CrossChecks({ run }: { run: Run }) {
+  const x = crossChecks(run)
+  const checks = [...x.consistency, ...x.other, ...(x.agreement ? [x.agreement] : [])]
+  const two = programTracks(run).length > 1
+  if (!checks.length && !two) return null
+  return (
+    <Section title="Cross-checks" id="rd-cross" aside={x.agreement ? (x.agreement.passed ? "programs agree" : "programs disagree") : undefined}>
+      {checks.length ? (
+        <ul className="flex flex-col gap-1.5">
+          {checks.map((c) => (
+            <li key={c.name} className="grid grid-cols-[1rem_1fr] gap-x-2.5 text-[13px]">
+              {c.passed ? <CircleCheck aria-label="passed" className="mt-0.5 size-4 text-ok" /> : <CircleX aria-label="failed" className="mt-0.5 size-4 text-destructive" />}
+              <div>
+                <div className="font-medium">{c.name}</div>
+                <div className="font-mono text-[11.5px] text-muted-foreground">{c.detail}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {!x.consistency.length && run.state === "completed" ? (
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          This plan can't be derived from published numbers (for example, distinct people with a friction signal), so agreement between the two programs is the check.
+        </p>
+      ) : x.consistency.length ? (
+        <p className="mt-2 text-[12px] text-muted-foreground">The published map comes from the pipeline and the programs from the agent, so these are independent cross-checks.</p>
+      ) : null}
     </Section>
   )
 }
@@ -306,15 +386,15 @@ function ReceiptGrid({ receipt }: { receipt: Receipt }) {
   )
 }
 
-function GateVerdict({ verdict, attempts }: { verdict: NonNullable<Run["verdict"]>; attempts: number }) {
+function GateVerdict({ verdict, attempts, title = "Egress gate" }: { verdict: NonNullable<Run["verdict"]>; attempts: number; title?: string }) {
   const passed = verdict.checks.filter((c) => c.passed).length
   return (
     <Section
-      title="Egress gate"
+      title={title}
       id="rd-gate"
       aside={
         <span className={cn("font-medium", verdict.passed ? "text-ok" : "text-destructive")}>
-          {verdict.passed ? "Passed" : "Rejected"} · {passed}/{verdict.checks.length} · {attempts} {attempts === 1 ? "attempt" : "attempts"}
+          {verdict.passed ? "Passed" : "Rejected"} · {passed}/{verdict.checks.length}
         </span>
       }
     >
@@ -329,8 +409,8 @@ function GateVerdict({ verdict, attempts }: { verdict: NonNullable<Run["verdict"
           </li>
         ))}
       </ul>
-      {attempts >= 2 ? (
-        <p className="mt-2 text-[12px] text-muted-foreground">The first program was rejected; GLM repaired it from the gate's check names (never from data) and the second attempt passed.</p>
+      {attempts >= 2 && verdict.passed ? (
+        <p className="mt-2 text-[12px] text-muted-foreground">This version was regenerated from the previous version's failed check names (never from data) and passed.</p>
       ) : null}
     </Section>
   )
@@ -339,7 +419,7 @@ function GateVerdict({ verdict, attempts }: { verdict: NonNullable<Run["verdict"
 function Models({ snapshot }: { snapshot: Snapshot }) {
   const m = snapshot.provenance.models
   const rows: [string, string | undefined][] = [
-    ["Program & explanation", m.analysis_code ?? m.explanation],
+    ["Programs A/B & explanation", m.analysis_code ?? m.explanation],
     ["Cluster labels & friction", m.friction ?? m.classification],
     ["Search relevance", m.relevance],
   ]

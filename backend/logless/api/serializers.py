@@ -23,7 +23,7 @@ LEAF_ID = re.compile(r"^cl_(?:[0-9a-f]{6}|other)$")
 EVIDENCE_ID = re.compile(r"^[np][1-9]\d{0,2}$")
 RUN_ID = re.compile(r"^run_[0-9a-f]{12}$")
 MAP_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
-PLACEHOLDER_KEY = re.compile(r"^(?:total_conversations|rows\.\d{1,3}\.[a-z_]{1,30})$")
+PLACEHOLDER_KEY = re.compile(r"^(?:total_count|total_base|rows\.\d{1,2}\.(?:id|count|base|share))$")
 
 
 class Blocked(RuntimeError):
@@ -150,7 +150,6 @@ def serialize_snapshot(raw: dict) -> dict:
             "models": {k: _str(v, 80) for k, v in (prov.get("models") or {}).items() if MAP_KEY.match(str(k)) and isinstance(v, str)},
             "prompt_versions": {k: _str(v, 40) for k, v in (prov.get("prompt_versions") or {}).items() if MAP_KEY.match(str(k)) and isinstance(v, str)},
             "discovery_rounds": _int(prov.get("discovery_rounds", 0)), "build_seconds": _num(prov.get("build_seconds", 0)),
-            "stats_source": "sandbox" if prov.get("stats_source") == "sandbox" else "local-reference",
             "stages": [{
                 "stage": _str(s["stage"], 60), "started_at": _str(s["started_at"], 40), "finished_at": _str(s["finished_at"], 40),
                 "counts": {k: _int(v) for k, v in (s.get("counts") or {}).items()
@@ -209,29 +208,18 @@ def _verdict(v: dict | None) -> dict | None:
     if not v:
         return None
     return {"passed": bool(v["passed"]),
-            "checks": [{"name": _str(c["name"], 80), "passed": bool(c["passed"]), "detail": _str(c["detail"], 400)} for c in v["checks"]][:40]}
+            "checks": [{"name": _str(c["name"], 80), "passed": bool(c["passed"]), "detail": _str(c["detail"], 400)} for c in v["checks"]][:60]}
 
 
 def _result(res: dict | None) -> dict | None:
     if not res:
         return None
-    intent = res["intent"]
-    if intent == "usage":
-        rows = [{"cluster_id": _id(r["cluster_id"], LEAF_ID), "conversations": _int(r["conversations"]),
-                 "users": _int(r["users"]), "share": _share(r["share"])} for r in res["rows"]]
-    elif intent == "friction":
-        rows = [{"cluster_id": _id(r["cluster_id"], LEAF_ID), "conversations": _int(r["conversations"]),
-                 "friction_conversations": _int(r["friction_conversations"]), "friction_share": _share(r["friction_share"]),
-                 **{s: _int(r[s]) for s in SIGNALS}, "unclear": _int(r["unclear"])} for r in res["rows"]]
-    elif intent == "question":
-        return {"intent": "question", "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID), "plan": _plan(res["plan"]),
-                "rows": [{"id": _node_id(r["id"]), "count": _int(r["count"]), "base": _int(r["base"]),
-                          "share": _share(r["share"])} for r in res["rows"]][:10],
-                "total_count": _int(res["total_count"]), "total_base": _int(res["total_base"])}
-    else:
+    if res.get("intent") != "question":
         raise Blocked("bad result intent")
-    return {"intent": intent, "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID),
-            "total_conversations": _int(res["total_conversations"]), "rows": rows}
+    return {"intent": "question", "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID), "plan": _plan(res["plan"]),
+            "rows": [{"id": _node_id(r["id"]), "count": _int(r["count"]), "base": _int(r["base"]),
+                      "share": _share(r["share"])} for r in res["rows"]][:10],
+            "total_count": _int(res["total_count"]), "total_base": _int(res["total_base"])}
 
 
 PLAN_ENUMS = {"group_by": ("leaf", "category"), "measure": ("conversations", "people"),
@@ -257,8 +245,10 @@ def _plan(p: dict | None) -> dict | None:
 
 def _attempts_log(log_: list | None) -> list[dict]:
     out = []
-    for a in (log_ or [])[:2]:
-        out.append({"attempt": 2 if a.get("attempt") == 2 else 1, "code": _str(a["code"], 64 * 1024),
+    for a in (log_ or [])[:4]:   # at most A1, B1, A2, B2
+        if a.get("program") not in ("A", "B"):
+            raise Blocked("bad attempt program")
+        out.append({"attempt": 2 if a.get("attempt") == 2 else 1, "program": a["program"], "code": _str(a["code"], 64 * 1024),
                     "code_sha256": _id(a["code_sha256"], SHA256), "receipt": _receipt(a.get("receipt")),
                     "verdict": _verdict(a.get("verdict")) or {"passed": False, "checks": []},
                     "repair_reason": _opt_str(a.get("repair_reason"), 600)})

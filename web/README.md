@@ -25,17 +25,26 @@ VITE_MOCK=1 pnpm build    # demo bundle with the mock (loaded as a separate chun
 ```
 
 Mock-only URL switches: `?sandbox=down` (health degraded, questions return
-`sandbox_unreachable`), `?gate=fail` (analysis fails the egress gate twice),
+`sandbox_unreachable`), `?gate=fail` (program A still fails the gate after its repair),
 `?budget=out` (live features return `429 budget_exhausted`) and `?snapshot=real`
 (serve `src/mocks/real-snapshot.json`, a saved copy of the live snapshot:
 `curl -s https://…/api/snapshot > src/mocks/real-snapshot.json`).
 
 ## Live features
 
-- **Ask a question** (CONTRACTS §8b): the answer card shows the interpreted plan in words, the
-  agent loop (program sha, gVisor time, gate n/n, repairs) and the verified rows.
+- **Map lens** (Usage | Friction): recolours the map from the published snapshot; no run.
+- **Ask a question** (CONTRACTS §0/§8b) is the only live action. The answer card shows the
+  interpreted plan in words, the agent loop (two independent programs, A pandas and B plain
+  Python: shas, gVisor times, gate n/n, published-map cross-checks, agreement, repairs) and the
+  verified rows. Run details shows both programs with every version, receipt and gate verdict.
 - **Presenter capacity**: open the app once with `?presenter=<key>`; the key is moved to
   localStorage, stripped from the URL, and sent as `X-Logless-Presenter` on every API call.
+- **Live intake** (CONTRACTS §11, presenter-only): with a presenter key stored and a batch ready,
+  a "Live intake" control appears in the map header. Each Jev decision flies from an inbox into its
+  workflow circle; the panel shows stages, rates and a sampled feed of PII-checked one-line
+  summaries. When the batch is published the map glides to the new snapshot (stable order,
+  rotation and hues) and a toast lists the biggest changes. "Reset intake" re-publishes the base
+  snapshot for rehearsals. In mock mode try `?snapshot=real&presenter=demo`.
 
 ## Layout
 

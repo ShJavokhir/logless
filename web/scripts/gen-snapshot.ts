@@ -700,7 +700,6 @@ const snapshot: Snapshot = {
     prompt_versions: { facets: "fv3", discovery: "dv2", summaries: "sv2", friction: "FRICTION_QV4", stories: "st1" },
     discovery_rounds: 3,
     build_seconds: 1486,
-    stats_source: "sandbox",
     stages: [
       { stage: "sample", started_at: t(2, 49, 26), finished_at: t(2, 49, 51), counts: { conversations: 5000, canaries: 40, injection_bait: 10 }, models: [] },
       { stage: "facets", started_at: t(2, 49, 51), finished_at: t(2, 58, 4), counts: { conversations: 5050 }, models: ["glm-5.3"] },

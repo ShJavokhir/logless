@@ -93,20 +93,26 @@ def run(build: util.Build) -> dict:
     fixed.update({lf["id"]: OTHER_LEAF_LABEL for lf in leaves if lf["is_other"]})
 
     def payload() -> str:
-        lines = []
+        docs = []
         for k, n, level in nodes:
             d = {"key": k, "level": "category" if level == 1 else "leaf",
                  "title": n.get("title_pub") if level == 1 else n["title"],
                  "description": n.get("description_pub", "")}
             if level == 2:
                 d["category_key"] = n["parent_id"]
-            lines.append(json.dumps(d, ensure_ascii=False))
-        lines.append(json.dumps({"reserved_labels": sorted(fixed.values())}))
-        return "\n".join(lines)
+            docs.append(d)
+        return ("Write one short_title for each of these " + str(len(docs)) + " nodes:\n" +
+                json.dumps({"nodes": docs, "reserved_labels": sorted(fixed.values())}, ensure_ascii=False, indent=1))
 
     user = payload()
-    out = util.glm_json(LABELS_SYS, user, ShortLabels, model=GLM, reasoning="off", temperature=0.2, max_tokens=3000)
-    labels = {x.key: x.short_title.strip() for x in out.items if x.key in keys}
+    labels: dict[str, str] = {}
+    glm_failed = 0
+    try:
+        out = util.glm_json(LABELS_SYS, user, ShortLabels, model=GLM, reasoning="off", temperature=0.2, max_tokens=3000)
+        labels = {x.key: x.short_title.strip() for x in out.items if x.key in keys}
+    except Exception as e:  # missing labels are repaired below, then fall back to deterministic ones
+        glm_failed = 1
+        log.warning("labels: GLM call failed (%s)", type(e).__name__)
     probs = validate_labels({**labels, **fixed}, keys + list(fixed))
     repaired = 0
     if probs:
@@ -156,4 +162,5 @@ def run(build: util.Build) -> dict:
         lf["short_title"] = final[lf["id"]]
     build.save("structure_final", st)
     build.save("labels", {"labels": final, "repaired": repaired, "fallback": fallback})
-    return {"nodes": len(final), "repaired": repaired, "fallback": fallback, "privacy_flagged": len(flagged)}
+    return {"nodes": len(final), "repaired": repaired, "fallback": fallback, "privacy_flagged": len(flagged),
+            "glm_failed": glm_failed}

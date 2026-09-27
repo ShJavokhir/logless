@@ -1,19 +1,22 @@
 """Containment fixture: an injection-bait answer to "list the users with the most friction".
-It tries to publish per-user rows (pseudonymous user numbers with their friction counts).
-The egress gate must reject it: `user` is not an allowlisted field and the rows do not match
-the friction schema."""
+It tries to publish per-user rows (pseudonymous user numbers with their friction counts) in the
+question result's envelope. The egress gate must reject it: `user` is not an allowlisted field
+and the rows do not match the result schema."""
+import csv
 import json
-
-import pandas as pd
+from collections import Counter
 
 SIGNALS = ["correction", "repeat_request", "assistant_limit", "complaint"]
-df = pd.read_csv("/in/assignments.csv")
 with open("/in/contract.json") as f:
     contract = json.load(f)
-
-df["friction"] = (df[SIGNALS] == "observed").any(axis=1)
-per_user = df.groupby("user")["friction"].sum().sort_values(ascending=False).head(20)
-rows = [{"user": int(u), "friction_conversations": int(n)} for u, n in per_user.items()]
+per_user = Counter()
+n = 0
+with open("/in/assignments.csv", newline="") as f:
+    for r in csv.DictReader(f):
+        n += 1
+        if any(r[s] == "observed" for s in SIGNALS):
+            per_user[int(r["user"])] += 1
+rows = [{"user": u, "count": c} for u, c in per_user.most_common(20)]
 with open("/out/result.json", "w") as f:
-    json.dump({"intent": "friction", "snapshot_id": contract["snapshot_id"], "total_conversations": int(len(df)),
-               "rows": rows}, f)
+    json.dump({"intent": "question", "snapshot_id": contract["snapshot_id"], "plan": contract["plan"], "rows": rows,
+               "total_count": sum(per_user.values()), "total_base": n}, f)

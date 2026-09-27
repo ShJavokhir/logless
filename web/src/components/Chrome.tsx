@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react"
-import { CircleAlert, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, MessageSquareText, Rows3, Search, ShieldCheck, Users, X } from "lucide-react"
+import { CircleAlert, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, MessageSquareText, Rows3, Search, ShieldCheck, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { AnalysisIntent, Health, Intent, Snapshot } from "@/lib/types"
+import type { Health, Snapshot } from "@/lib/types"
 import { fmtDate, fmtDateRange, fmtInt } from "@/lib/format"
 import { uniqueModelLabels } from "@/lib/snapshot"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Hint } from "./common"
-import { AGGREGATE_ONLY_HINT, ASK_LABEL, QUESTION, SANDBOX_UNAVAILABLE, fixturesPhrase, statsSourcePhrase } from "@/lib/copy"
+import { ASK_LABEL, SANDBOX_UNAVAILABLE, conversationsPhrase, provenanceHint } from "@/lib/copy"
 
 export function Wordmark() {
   return (
@@ -23,7 +23,7 @@ export function Wordmark() {
   )
 }
 
-export function Header({ snapshot, mock }: { snapshot: Snapshot | null; mock: boolean }) {
+export function Header({ snapshot }: { snapshot: Snapshot | null }) {
   const d = snapshot?.dataset
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-card px-4 py-2.5 lg:h-12 lg:flex-nowrap lg:py-0">
@@ -34,22 +34,14 @@ export function Header({ snapshot, mock }: { snapshot: Snapshot | null; mock: bo
         {d ? (
           <>
             <span className="whitespace-nowrap text-muted-foreground">{fmtDateRange(d.period_start, d.period_end)}</span>
-            <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground tabular-nums">
-              {fmtInt(d.conversations)} conversations · {fmtInt(d.users)} people · {fmtInt(d.languages)} languages
+            <span className="text-[12.5px] text-muted-foreground tabular-nums lg:whitespace-nowrap">
+              {conversationsPhrase(d.conversations, d.fixtures)} · {fmtInt(d.users)} people · {fmtInt(d.languages)} languages
             </span>
           </>
         ) : null}
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <Hint
-          label={
-            <span>
-              {AGGREGATE_ONLY_HINT}
-              {fixturesPhrase(d?.fixtures) ? ` Totals include ${fixturesPhrase(d?.fixtures)} planted to test the privacy gate.` : ""}
-            </span>
-          }
-          side="bottom"
-        >
+        <Hint label={d ? provenanceHint(d.conversations, d.fixtures) : "No one can open a conversation here."} side="bottom">
           <button
             type="button"
             className="inline-flex h-6 items-center gap-1.5 rounded-full border border-ok/25 bg-ok-soft px-2.5 text-[12px] font-medium whitespace-nowrap text-ok"
@@ -64,9 +56,9 @@ export function Header({ snapshot, mock }: { snapshot: Snapshot | null; mock: bo
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-6 items-center gap-1 rounded-full border px-2.5 text-[12px] whitespace-nowrap text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={`${mock ? "WildChat dataset" : "Real data"}, ${d.license} licence (opens the dataset page)`}
+            aria-label={`WildChat data, ${d.license} licence (opens the dataset page)`}
           >
-            {mock ? "WildChat · ODC-BY" : "Real data · ODC-BY"}
+            WildChat data · ODC-BY
             <ExternalLink aria-hidden className="size-3" />
           </a>
         ) : null}
@@ -84,9 +76,8 @@ export function Toolbar({
   searching,
   searchError,
   matchInfo,
-  activeIntent,
-  running,
-  onAsk,
+  askOpen,
+  asking,
   onOpenAsk,
   view,
   onView,
@@ -99,9 +90,10 @@ export function Toolbar({
   searching: boolean
   searchError: string | null
   matchInfo: { active: boolean; empty: boolean; count: number; partial: number }
-  activeIntent: AnalysisIntent | null
-  running: Record<AnalysisIntent, boolean>
-  onAsk: (intent: Intent) => void
+  /** the ask card is open */
+  askOpen: boolean
+  /** a question run is in flight */
+  asking: boolean
   /** open the answer card in "ask a question" mode */
   onOpenAsk: () => void
   view: View
@@ -183,32 +175,8 @@ export function Toolbar({
 
       <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
         {notice}
-        {(["usage", "friction"] as const).map((intent) => {
-          const active = activeIntent === intent
-          const Icon = intent === "usage" ? Users : CircleAlert
-          return (
-            <Button
-              key={intent}
-              variant={active ? "default" : "outline"}
-              size="default"
-              onClick={() => onAsk(intent)}
-              aria-pressed={active}
-              disabled={disabled}
-              className="h-8 px-3"
-            >
-              {running[intent] ? <LoaderCircle className="animate-spin" /> : <Icon />}
-              {QUESTION[intent]}
-            </Button>
-          )
-        })}
-        <Button
-          variant={activeIntent === "question" ? "default" : "outline"}
-          onClick={onOpenAsk}
-          aria-pressed={activeIntent === "question"}
-          disabled={disabled}
-          className="h-8 px-3"
-        >
-          {running.question ? <LoaderCircle className="animate-spin" /> : <MessageSquareText />}
+        <Button onClick={onOpenAsk} aria-pressed={askOpen} aria-haspopup="dialog" disabled={disabled} className="h-8 px-3.5">
+          {asking ? <LoaderCircle className="animate-spin" /> : <MessageSquareText />}
           {ASK_LABEL}
         </Button>
         <Separator orientation="vertical" className="mx-1 hidden h-5! sm:block" />
@@ -265,10 +233,7 @@ export function Footer({ snapshot, mock, onEval }: { snapshot: Snapshot | null; 
       <span className="min-w-0 lg:truncate">
         {snapshot ? (
           <>
-            <span className="font-mono">Snapshot {snapshot.snapshot_id}</span> · built {fmtDate(snapshot.created_at)}
-            {statsSourcePhrase(snapshot.provenance.stats_source) ? (
-              <span className={snapshot.provenance.stats_source === "local-reference" ? "text-warn" : undefined}> · {statsSourcePhrase(snapshot.provenance.stats_source)}</span>
-            ) : null}{" "}
+            <span className="font-mono">Snapshot {snapshot.snapshot_id}</span> · map built by the logless pipeline {fmtDate(snapshot.created_at)}{" "}
             · models: {models.join(", ")}
           </>
         ) : (

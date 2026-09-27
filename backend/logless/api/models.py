@@ -113,7 +113,6 @@ class Provenance(_Out):
     prompt_versions: dict[str, str]
     discovery_rounds: int
     build_seconds: float
-    stats_source: Literal["sandbox", "local-reference"] = "local-reference"
     stages: list[ProvenanceStage]
 
 
@@ -175,39 +174,6 @@ class Verdict(_Out):
     checks: list[Check]
 
 
-class UsageRow(_Out):
-    cluster_id: str
-    conversations: int
-    users: int
-    share: float
-
-
-class FrictionRow(_Out):
-    cluster_id: str
-    conversations: int
-    friction_conversations: int
-    friction_share: float
-    correction: int
-    repeat_request: int
-    assistant_limit: int
-    complaint: int
-    unclear: int
-
-
-class UsageResult(_Out):
-    intent: Literal["usage"]
-    snapshot_id: str
-    total_conversations: int
-    rows: list[UsageRow]
-
-
-class FrictionResult(_Out):
-    intent: Literal["friction"]
-    snapshot_id: str
-    total_conversations: int
-    rows: list[FrictionRow]
-
-
 class Plan(_Out):
     group_by: Literal["leaf", "category"]
     scope_category_id: str | None
@@ -235,6 +201,7 @@ class QuestionResult(_Out):
 
 class Attempt(_Out):
     attempt: Literal[1, 2]
+    program: Literal["A", "B"]
     code: str
     code_sha256: str
     receipt: Receipt | None          # null only when the static pre-check rejected the program (not executed)
@@ -266,7 +233,7 @@ class Error(_Out):
 class Run(_Out):
     run_id: str
     kind: Literal["analysis", "story", "containment"]
-    intent: Literal["usage", "friction", "question"] | None
+    intent: Literal["question"] | None
     snapshot_id: str
     state: Literal["queued", "planning", "executing", "validating", "repairing", "explaining", "completed", "failed"]
     created_at: str
@@ -276,7 +243,7 @@ class Run(_Out):
     code: str | None
     receipt: Receipt | None
     verdict: Verdict | None
-    result: UsageResult | FrictionResult | QuestionResult | None
+    result: QuestionResult | None
     explanation: Explanation | None
     containment: Containment | None
     error: Error | None
@@ -323,9 +290,9 @@ class SearchIn(_In):
 
 
 class AnalysisIn(_In):
-    intent: Literal["usage", "friction", "question"]
+    intent: Literal["question"]          # usage/friction were retired (docs/CONTRACTS.md §0) → 422
     snapshot_id: str = Field(max_length=40)
-    question: str | None = Field(default=None, min_length=1, max_length=200)
+    question: str = Field(min_length=1, max_length=200)
 
 
 class StoryIn(_In):

@@ -32,6 +32,8 @@ log = logging.getLogger("logless.pipeline.gate")
 
 MAX_REWRITES = 2
 IDENT_MAX = 2.0
+MISSING_MAX_SHARE = 0.2    # more missing Jev scores / GLM verdicts than this → the provider is down: stop the stage
+ROLLUP_MAX_SHARE = 0.25    # more roll-ups than this is a malfunction, not a privacy outcome: stop the stage
 GENERIC_PROBLEM = {
     "correction": "Answers sometimes had to be corrected before they were usable",
     "repeat_request": "People sometimes had to ask again to get what they wanted",
@@ -197,6 +199,16 @@ def run(build: util.Build) -> dict:
         # (e) the GLM audit is one rewriting pass over everything; rewritten text is then re-checked by the
         # deterministic checks and Jev (a re-audit loop would let an ever-unsatisfied auditor force roll-ups)
         audit = glm_audit(pending, ev_facets, dominated) if attempt == 0 else {}
+        # A missing score/verdict fails its text closed; but when many are missing the provider is down, and
+        # failing everything closed would roll the whole map up. Stop the stage instead (resume later).
+        scored = [it for it in pending if it["role"] != "static"]
+        missing_ident = sum(1 for it in scored if it["key"] not in ident)
+        missing_audit = sum(1 for it in scored if it["key"] not in audit) if attempt == 0 else 0
+        limit = max(3, int(MISSING_MAX_SHARE * len(scored)))
+        if missing_ident > limit:
+            raise util.ProviderUnavailable("jev", f"identifiability scores missing for {missing_ident} of {len(scored)} texts")
+        if missing_audit > limit:
+            raise util.ProviderUnavailable("glm", f"audit verdicts missing for {missing_audit} of {len(scored)} texts")
         failing, reasons = [], {}
         for it in pending:
             r = list(det[it["key"]])
@@ -330,6 +342,9 @@ def rollup(build: util.Build, st: dict, leaf_ids: list[str]) -> list[dict]:
     sibling, into cl_other. Metrics are computed later (stats stage) from the merged theme ids."""
     if not leaf_ids:
         return []
+    real = [lf for lf in st["leaves"] if not lf["is_other"]]
+    if len(leaf_ids) > max(2, ROLLUP_MAX_SHARE * len(real)):
+        raise RuntimeError(f"gate would roll up {len(leaf_ids)} of {len(real)} leaves; refusing (check the model providers)")
     members = leaf_members(build, st["leaves"])
     cents = leaf_centroids(build, members)
     out = []
@@ -347,10 +362,20 @@ def rollup(build: util.Build, st: dict, leaf_ids: list[str]) -> list[dict]:
         target["theme_ids"] = target["theme_ids"] + lf["theme_ids"]
         st["leaves"] = [x for x in st["leaves"] if x["id"] != lid]
         out.append({"leaf": lid, "into": target["id"]})
+    # a leaf may have been rolled into a leaf that was itself rolled up later: follow the chain
+    into = {r["leaf"]: r["into"] for r in out}
+    for r in out:
+        seen = set()
+        while r["into"] in into and r["into"] not in seen:
+            seen.add(r["into"])
+            r["into"] = into[r["into"]]
+    alive = {x["id"]: x for x in st["leaves"]}
     con = db.private()
     with db.write(con):
         for r in out:
-            tgt = next(x for x in st["leaves"] if x["id"] == r["into"])
+            tgt = alive.get(r["into"])
+            if tgt is None:
+                continue
             for tid in tgt["theme_ids"]:
                 con.execute("UPDATE themes SET category_id = ? WHERE build_id = ? AND theme_id = ?",
                             (tgt["parent_id"], build.build_id, tid))

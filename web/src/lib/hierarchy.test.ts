@@ -57,3 +57,35 @@ describe("packLayout", () => {
     expect(zoomTransform(null, 900, 700)).toEqual({ k: 1, tx: 0, ty: 0 })
   })
 })
+
+describe("stable layout across snapshot updates", () => {
+  it("keeps order and rotation when sizes change", async () => {
+    const { layoutOrderOf } = await import("./hierarchy")
+    const base = packLayout(snapshot, 900, 700)
+    const order = layoutOrderOf(snapshot)
+    const grown = structuredClone(snapshot)
+    // make the smallest leaf the biggest: without a pinned order it would move to the front
+    const small = [...grown.clusters].sort((a, b) => a.conversations - b.conversations)[0]
+    small.conversations += 600
+    const pinned = packLayout(grown, 900, 700, { order, angle: base.angle })
+    expect(pinned.angle).toBe(base.angle)
+    expect(pinned.categories.map((c) => c.id)).toEqual(base.categories.map((c) => c.id))
+    const moved = pinned.categories.map((c) => Math.hypot(c.x - base.byId.get(c.id)!.x, c.y - base.byId.get(c.id)!.y))
+    expect(Math.max(...moved)).toBeLessThan(250)
+  })
+})
+
+describe("lerpLayout", () => {
+  it("interpolates circles by id between two layouts", async () => {
+    const { lerpLayout } = await import("./hierarchy")
+    const a = packLayout(snapshot, 900, 700)
+    const grown = structuredClone(snapshot)
+    grown.clusters[0].conversations += 200
+    const b = packLayout(grown, 900, 700)
+    const mid = lerpLayout(a, b, 0.5)
+    const id = b.leaves[0].id
+    expect(mid.byId.get(id)!.r).toBeCloseTo((a.byId.get(id)!.r + b.byId.get(id)!.r) / 2, 6)
+    expect(lerpLayout(a, b, 1).byId.get(id)!.x).toBeCloseTo(b.byId.get(id)!.x, 6)
+    expect(lerpLayout(a, b, 0).byId.get(id)!.x).toBeCloseTo(a.byId.get(id)!.x, 6)
+  })
+})

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 import type { Node, Snapshot } from "@/lib/types"
 import { SIGNALS } from "@/lib/types"
 import snapshotJson from "./snapshot.json"
-import { frictionResult, usageResult } from "./results"
 import { mockStory } from "./stories"
 
 const s = snapshotJson as unknown as Snapshot
@@ -76,24 +75,6 @@ describe("mock snapshot invariants (CONTRACTS §5)", () => {
   it("carries no private identifiers", () => {
     const text = JSON.stringify(s)
     expect(text).not.toMatch(/"(c|u|b)_[0-9a-f]{6,}/)
-  })
-
-  it("mock results follow the ordering rules and reconcile with the snapshot", () => {
-    const u = usageResult(s)
-    expect(u.rows).toHaveLength(s.clusters.length)
-    // §8: Other is always the last row, the rest follow the ordering rule
-    expect(u.rows.at(-1)?.cluster_id).toBe("cl_other")
-    for (let i = 1; i < u.rows.length - 1; i++) {
-      const [a, b] = [u.rows[i - 1], u.rows[i]]
-      expect(a.conversations > b.conversations || (a.conversations === b.conversations && a.cluster_id < b.cluster_id)).toBe(true)
-    }
-    const f = frictionResult(s)
-    expect(f.rows.at(-1)?.cluster_id).toBe("cl_other")
-    for (let i = 1; i < f.rows.length - 1; i++) {
-      const [a, b] = [f.rows[i - 1], f.rows[i]]
-      expect(a.friction_conversations > b.friction_conversations || (a.friction_conversations === b.friction_conversations && a.cluster_id < b.cluster_id)).toBe(true)
-    }
-    expect(u.rows.reduce((a, r) => a + r.conversations, 0)).toBe(u.total_conversations)
   })
 
   it("mock stories are 90–140 words and cite real evidence ids", () => {

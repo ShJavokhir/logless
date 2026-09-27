@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import random
 import threading
 import time
@@ -22,12 +23,22 @@ log = logging.getLogger("logless.providers")
 _client: httpx.Client | None = None
 _client_lock = threading.Lock()
 RETRY_STATUS = {408, 409, 425, 429, 500, 502, 503, 504, 529}
+# Account-level failures: retrying (or trying the next item) cannot succeed until an operator acts.
+FATAL_STATUS = {401: "auth_error", 402: "billing_error", 403: "forbidden"}
 
 
 class ProviderError(RuntimeError):
     def __init__(self, provider: str, status: int | None, code: str):
         super().__init__(f"{provider} error status={status} code={code}")
         self.provider, self.status, self.code = provider, status, code
+
+    @property
+    def fatal(self) -> bool:
+        """True for account-level failures (auth, billing, forbidden) that no retry can fix."""
+        return self.status in FATAL_STATUS or self.code in FATAL_STATUS.values() or self.code == "missing_api_key"
+
+    def describe(self) -> str:
+        return f"{self.provider} unavailable: {self.code}"
 
 
 def client() -> httpx.Client:
@@ -58,7 +69,8 @@ def post_json(provider: str, url: str, key: str, body: dict, *, attempts: int = 
             if r.status_code < 400:
                 log.debug("%s ok status=%s %.2fs", provider, r.status_code, dt)
                 return r.json()
-            last = ProviderError(provider, r.status_code, _error_code(r))
+            code = FATAL_STATUS.get(r.status_code) or _error_code(r)
+            last = ProviderError(provider, r.status_code, code)
             log.warning("%s status=%s code=%s %.2fs attempt=%d", provider, r.status_code, last.code, dt, attempt + 1)
             if r.status_code not in RETRY_STATUS:
                 raise last
@@ -85,6 +97,10 @@ def cache_key(provider: str, body: dict) -> str:
 
 
 def cache_get(key: str) -> Any | None:
+    # LOGLESS_NO_CACHE=1 (e.g. `logless rebuild --no-cache`): every model call is made fresh; results are
+    # still written so a resumed stage can reuse them.
+    if os.environ.get("LOGLESS_NO_CACHE", "").strip().lower() in ("1", "true", "yes"):
+        return None
     row = db.private().execute("SELECT response FROM llm_cache WHERE key=?", (key,)).fetchone()
     return json.loads(row["response"]) if row else None
 

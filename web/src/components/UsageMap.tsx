@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useElementSize } from "@/hooks/useElementSize"
-import { packLayout, zoomTransform, type PackedCircle } from "@/lib/hierarchy"
+import { layoutOrderOf, packLayout, zoomTransform, type PackedCircle } from "@/lib/hierarchy"
+import type { Snapshot } from "@/lib/types"
+import type { IntakeVisual } from "@/hooks/useIntake"
+import { useLayoutTween } from "@/hooks/useLayoutTween"
+import { IntakeOverlay } from "./IntakeOverlay"
 import { arcLabelFits, canvasMeasure, ellipsizeLabel, fitCircleLabel, labelText, resetMeasureCache, type CircleLabel } from "@/lib/labels"
 import { categoryEmphasis, leafEmphasis, type Emphasis, type HighlightState } from "@/lib/search"
 import type { SnapshotIndex } from "@/lib/snapshot"
@@ -20,7 +24,18 @@ type Props = {
   peekId?: string | null
   onSelectLeaf: (id: string | null) => void
   onFocusCategory: (id: string | null) => void
+  onLens: (lens: Lens) => void
+  /** snapshot whose packing order and rotation later snapshots keep (stable updates) */
+  layoutBase?: Snapshot | null
+  /** conversations filed live but not yet in the snapshot (intake), per leaf */
+  liveDelta?: Map<string, number>
+  /** live intake stream to animate over the map */
+  intake?: { visual: IntakeVisual; decided: number; total: number } | null
+  /** extra control in the map header (presenter-only live intake) */
+  headerControl?: ReactNode
 }
+
+const PACK = { categoryPadding: 14, leafPadding: 3, categoryBand: 16, margin: 6 }
 
 const CAT_FONT = 10.5
 const CAT_TRACKING = 0.9
@@ -34,19 +49,56 @@ type CategoryLabel =
 
 const OPACITY: Record<Emphasis, number> = { none: 1, match: 1, partial: 0.62, dim: 0.14 }
 
-export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, onSelectLeaf, onFocusCategory }: Props) {
+export function UsageMap({
+  index,
+  lens,
+  highlight,
+  selectedId,
+  focusId,
+  peekId,
+  onSelectLeaf,
+  onFocusCategory,
+  onLens,
+  layoutBase,
+  liveDelta,
+  intake,
+  headerControl,
+}: Props) {
   const boxRef = useRef<HTMLDivElement>(null)
   const { width, height } = useElementSize(boxRef)
   const [hover, setHover] = useState<string | null>(null)
 
-  // Layout depends only on the snapshot and the container size.
-  const layout = useMemo(
-    () => (width > 40 && height > 40 ? packLayout(index.snapshot, width, height, { categoryPadding: 14, leafPadding: 3, categoryBand: CAT_BAND, margin: 6 }) : null),
-    [index.snapshot, width, height],
+  // Layout depends only on the snapshot and the container size. Updates keep
+  // the base snapshot's packing order and rotation so circles grow in place.
+  const base = layoutBase ?? index.snapshot
+  const order = useMemo(() => layoutOrderOf(base), [base])
+  const baseAngle = useMemo(() => (width > 40 && height > 40 ? packLayout(base, width, height, PACK).angle : 0), [base, width, height])
+  const target = useMemo(
+    () => (width > 40 && height > 40 ? packLayout(index.snapshot, width, height, { ...PACK, order, angle: baseAngle }) : null),
+    [index.snapshot, width, height, order, baseAngle],
   )
+  const [reduceMotion] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+  const layout = useLayoutTween(target, 600, reduceMotion)
 
   const focus = focusId && layout ? layout.byId.get(focusId) ?? null : null
   const { k, tx, ty } = zoomTransform(focus, width, height, 0.92)
+
+  // Intake overlay geometry: final (untweened) circle positions in screen space.
+  const targetOf = useCallback(
+    (leafId: string) => {
+      const c = target?.byId.get(leafId)
+      return c ? { x: c.x * k + tx, y: c.y * k + ty, r: c.r * k } : null
+    },
+    [target, k, tx, ty],
+  )
+  const obstacles = useMemo(() => (target ? target.categories.map((c) => ({ x: c.x * k + tx, y: c.y * k + ty, r: c.r * k })) : []), [target, k, tx, ty])
+  const colorOf = useCallback(
+    (leafId: string) => {
+      const pal = index.paletteOf(leafId)
+      return { dot: pal.dot, ring: pal.label }
+    },
+    [index],
+  )
 
   // Re-measure labels once the web font has loaded (canvas widths change).
   const [fontsReady, setFontsReady] = useState(0)
@@ -166,7 +218,7 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
         }
       }}
     >
-      <MapBar index={index} focusNode={focusNode ?? null} onFocusCategory={onFocusCategory} lens={lens} />
+      <MapBar index={index} focusNode={focusNode ?? null} onFocusCategory={onFocusCategory} lens={lens} onLens={onLens} extra={headerControl} />
       <div ref={boxRef} className="relative aspect-square min-h-0 w-full overflow-hidden lg:aspect-auto lg:flex-1">
       {layout ? (
         <svg
@@ -261,6 +313,7 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
               const textColor = friction ? frictionLabelColor(share) : "oklch(0.24 0.01 285)"
               const subColor = friction ? textColor : "oklch(0.44 0.01 285)"
               const lab = labels?.leaf.get(l.id) ?? null
+              const liveConv = node.conversations + (liveDelta?.get(l.id) ?? 0)
               const lines = lab?.lines ?? null
               const showSub = !!lab?.sub
               const fontPx = lab?.fontSize ?? 11
@@ -334,7 +387,7 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
                           fontWeight={friction ? 600 : 450}
                           fill={subColor}
                         >
-                          {friction ? fmtPct(share) : fmtInt(node.conversations)}
+                          {friction ? fmtPct(share) : fmtInt(liveConv)}
                         </tspan>
                       ) : null}
                     </text>
@@ -379,6 +432,18 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
       ) : null}
 
       {/* tooltip */}
+      {intake && width > 0 ? (
+        <IntakeOverlay
+          visual={intake.visual}
+          width={width}
+          height={height}
+          targetOf={targetOf}
+          colorOf={colorOf}
+          decided={intake.decided}
+          total={intake.total}
+          obstacles={obstacles}
+        />
+      ) : null}
       {hovered && layout ? <MapTooltip circle={hovered} k={k} tx={tx} ty={ty} width={width} height={height} total={total} lens={lens} /> : null}
       </div>
       {width > 0 && width < KEY_BELOW_WIDTH ? <CategoryKey index={index} focusId={focusId} onFocusCategory={onFocusCategory} /> : null}
@@ -424,14 +489,18 @@ export function MapBar({
   focusNode,
   onFocusCategory,
   lens,
+  onLens,
+  extra,
 }: {
   index: SnapshotIndex
   focusNode: SnapshotIndex["categories"][number] | null
   onFocusCategory: (id: string | null) => void
   lens: Lens
+  onLens: (lens: Lens) => void
+  extra?: ReactNode
 }) {
   return (
-    <div className="flex h-10 shrink-0 items-center justify-between gap-3 px-3">
+    <div className="flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-1.5">
       <nav aria-label="Map focus" className="flex min-w-0 items-center gap-1 text-[12.5px]">
         <button
           type="button"
@@ -453,16 +522,35 @@ export function MapBar({
           </>
         ) : null}
       </nav>
-      <span className="shrink-0 text-[11.5px] text-muted-foreground">
-        {lens === "friction" ? (
-          <span className="font-medium text-heat">Friction lens</span>
-        ) : (
-          <>
-            {index.leaves.length} workflows · {index.categories.length} categories
-          </>
-        )}
-        {focusNode ? <span className="text-subtle"> · Esc to step back</span> : null}
-      </span>
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="hidden text-[11.5px] text-muted-foreground sm:inline">
+          {index.leaves.length} workflows · {index.categories.length} categories
+          {focusNode ? <span className="text-subtle"> · Esc to step back</span> : null}
+        </span>
+        {extra}
+        {/* A view of published data: recolours instantly, no run and no network. */}
+        <div role="radiogroup" aria-label="Map lens" className="inline-flex rounded-lg border p-0.5 text-[12px]">
+          {(["usage", "friction"] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              role="radio"
+              aria-checked={lens === l}
+              onClick={() => onLens(l)}
+              className={cn(
+                "rounded-md px-2.5 py-0.5 transition-colors",
+                lens === l
+                  ? l === "friction"
+                    ? "bg-heat-soft font-medium text-heat"
+                    : "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {l === "usage" ? "Usage" : "Friction"}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

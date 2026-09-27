@@ -1,40 +1,44 @@
 """The egress gate: the only path from sandbox output to anything the product stores or serves.
 
-It runs on the app VM, outside the sandbox. A result passes only if it is one strictly parsed
-JSON document ≤ 1 MiB, uses only allowlisted field names and string values, matches the exact
-schema for its intent, names the current snapshot and only its clusters, covers every leaf once,
-equals the trusted reference (integers exactly, shares within 1e-4) and follows the ordering
-rule. On pass the caller stores the REFERENCE values (rounded), never the sandbox bytes.
+It runs on the app VM, outside the sandbox, and never computes the answer itself (docs/CONTRACTS.md
+§0). For each program's output it checks, in order:
 
-Check names and details come from a fixed vocabulary. Details never echo output values: field
-names are only named when they belong to our own schema or input columns, and positions are
-given as structural paths (e.g. "rows[3].users")."""
+  1. per-program: one strictly parsed JSON document ≤ 1 MiB within structural limits; only
+     allowlisted field names and string values; the exact schema with the plan echoed exactly;
+     ids within the plan's scope (never Other); integers ≥ 0, count ≤ base, share = count ÷ base
+     (±1e-4); totals consistent with the rows; ordering by rank_by desc then id; length =
+     min(limit, groups in scope);
+  2. consistency with the PUBLISHED snapshot wherever the plan makes it derivable (the snapshot
+     comes from the pipeline, the programs from the agent, so these are genuine cross-checks);
+  3. agreement: two independently written programs must produce identical canonical results.
+
+What is served is the sandbox output itself, canonicalized (shares recomputed from the program's
+own integers and rounded to 4 decimals). Check names and details come from a fixed vocabulary
+and never echo output values."""
 from __future__ import annotations
 
 import json
 import math
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from .export import SIGNALS
-from .reference import rounded
+from .plan import PLAN_KEYS, PLAN_STRINGS, Plan, question_scope
 
 MAX_BYTES = 1024 * 1024
 MAX_ROWS = 1000
 # Structural limits, checked iteratively right after parsing and before anything walks the
 # document, so a crafted < 1 MiB output cannot amplify into huge diagnostics or deep recursion.
-MAX_DEPTH = 6          # aggregate: root > nodes > node > friction > signals > value
-MAX_VALUES = 40_000    # containers + scalars
+MAX_DEPTH = 4          # root > rows > row > value
+MAX_VALUES = 20_000    # containers + scalars
 MAX_KEYS = 32
-MAX_STR = 64           # every allowlisted string (ids, intents) is far shorter
+MAX_STR = 64           # every allowlisted string (ids, plan words) is far shorter
 MAX_DIAGNOSTICS = 20   # per check; the rest are only counted
-DEFAULT_OTHER = frozenset({"cl_other"})
 SHARE_TOL = 1e-4
-INTENTS = ("usage", "friction", "aggregate")
 
-# Check names shown in the UI's Run details.
+# Check names shown in the UI's Run details (fixed vocabulary).
 C_OUTPUT = "Result file received"
 C_SIZE = "Size within 1 MiB"
 C_PARSE = "Strict JSON parse"
@@ -44,108 +48,50 @@ C_STRINGS = "Only allowlisted string values"
 C_SCHEMA = "Schema matches exactly"
 C_INTENT = "Intent matches the request"
 C_SNAPSHOT = "Snapshot id is the current snapshot"
-C_IDS = "Cluster ids belong to this snapshot"
-C_NONNEG = "Counts are non-negative integers"
-C_COVERAGE = "Every leaf exactly once"
-C_COVERAGE_AGG = "Every category and leaf exactly once"
-C_TOTAL = "Total matches the trusted reference"
-C_COUNTS = "Counts match the trusted reference"
-C_SHARES = "Shares within 1e-4 of the reference"
 C_PLAN = "Plan echoed exactly"
 C_SCOPE = "Ids are within the question's scope (no Other)"
+C_NONNEG = "Counts are non-negative integers"
+C_ARITH = "count ≤ base and share = count ÷ base"
+C_TOTALS = "Totals consistent with the rows"
+C_ORDER = "Ranked as the plan says (rank desc, then id)"
 C_LENGTH = "Row count is min(limit, groups in scope)"
-C_QORDER = "Top rows ranked as the plan says (rank desc, then id)"
-C_ORDER = {
-    "usage": "Ordered by conversations, then cluster id (Other last)",
-    "friction": "Ordered by friction conversations, then cluster id (Other last)",
-    "aggregate": "Ordered categories, then leaves, by id",
-}
-
-SCHEMA_FIELDS = {
-    "intent", "snapshot_id", "total_conversations", "rows", "cluster_id", "conversations", "users", "share",
-    "friction_conversations", "friction_share", "unclear", "totals", "nodes", "id", "friction", "signals", *SIGNALS,
-}
-# Names we may quote in a detail even though they are not allowed: our own input columns and the
-# obvious per-record identifiers. Anything else is reported as "an unknown field".
-QUESTION_FIELDS = frozenset({"intent", "snapshot_id", "plan", "rows", "id", "count", "base", "share", "total_count",
-                             "total_base", "group_by", "scope_category_id", "measure", "signal", "rank_by", "limit"})
-QUOTABLE = SCHEMA_FIELDS | QUESTION_FIELDS | {"row", "user", "leaf_id", "category_id", "user_id", "conv_id", "conversation_id",
-                            "text", "name", "email", "content", "message", "level", "parent_id", "is_other"}
+MAP = "Consistent with the published map"
+C_MAP_SUMMARY = "Matches the published map"    # per-program summary in attempt verdicts
+SIGNAL_NAMES = {"any_friction": "friction", "correction": "correction", "repeat_request": "repeat-request",
+                "assistant_limit": "assistant-limit", "complaint": "complaint"}
 
 
-# ---------------------------------------------------------------- result schemas (strict)
+def map_check_name(what: str) -> str:
+    return f"{MAP} · {what}"
+C_AGREE = "Two independent programs agree"
+
+FIELDS = frozenset({"intent", "snapshot_id", "plan", "rows", "id", "count", "base", "share", "total_count",
+                    "total_base", *PLAN_KEYS})
+# Names we may quote in a detail even though they are not allowed: our own schema, the input
+# columns and obvious per-record identifiers. Anything else is reported as "an unknown field".
+QUOTABLE = FIELDS | {"row", "user", "leaf_id", "category_id", "user_id", "conv_id", "conversation_id", "text", "name",
+                     "email", "content", "message", "level", "parent_id", "is_other", "correction", "repeat_request",
+                     "assistant_limit", "complaint", "users", "conversations", "cluster_id"}
+
 
 class _Strict(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
 
-class UsageRow(_Strict):
-    cluster_id: str
-    conversations: int
-    users: int
-    share: float
-
-
-class UsageResult(_Strict):
-    intent: str
-    snapshot_id: str
-    total_conversations: int
-    rows: list[UsageRow]
-
-
-class FrictionRow(_Strict):
-    cluster_id: str
-    conversations: int
-    friction_conversations: int
-    friction_share: float
-    correction: int
-    repeat_request: int
-    assistant_limit: int
-    complaint: int
-    unclear: int
-
-
-class FrictionResult(_Strict):
-    intent: str
-    snapshot_id: str
-    total_conversations: int
-    rows: list[FrictionRow]
-
-
-class Signals(_Strict):
-    correction: int
-    repeat_request: int
-    assistant_limit: int
-    complaint: int
-
-
-class NodeFriction(_Strict):
-    conversations: int
-    share: float | None
-    unclear: int
-    signals: Signals
-
-
-class NodeMetrics(_Strict):
-    conversations: int
-    users: int
-    share: float
-    friction: NodeFriction
-
-
-class AggNode(NodeMetrics):
+class QuestionRow(_Strict):
     id: str
+    count: int
+    base: int
+    share: float
 
 
-class AggregateResult(_Strict):
+class QuestionResult(_Strict):
     intent: str
     snapshot_id: str
-    total_conversations: int
-    totals: NodeMetrics
-    nodes: list[AggNode]
-
-
-MODELS: dict[str, type[_Strict]] = {"usage": UsageResult, "friction": FrictionResult, "aggregate": AggregateResult}
+    plan: dict
+    rows: list[QuestionRow]
+    total_count: int
+    total_base: int
 
 
 # ---------------------------------------------------------------- verdict
@@ -161,7 +107,7 @@ class Check:
 class Verdict:
     passed: bool
     checks: list[Check] = field(default_factory=list)
-    canonical: dict | None = None     # reference values (rounded) — set only when passed
+    canonical: dict | None = None     # the program's own result, canonicalized — set only when passed
 
     def public(self) -> dict:
         return {"passed": self.passed, "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in self.checks]}
@@ -255,32 +201,30 @@ def shape_problem(doc: Any) -> str | None:
     return None
 
 
-def _walk(doc: Any, allowed_strings: set[str], bad_fields: _Diag, bad_strings: _Diag, parent: str = "",
-          fields: set[str] | frozenset[str] = frozenset()) -> None:
+def _walk(doc: Any, allowed_strings: set[str], bad_fields: _Diag, bad_strings: _Diag, parent: str = "") -> None:
     # Only called after shape_problem() passed: depth <= MAX_DEPTH, so paths stay short.
-    fields = fields or SCHEMA_FIELDS
     if isinstance(doc, dict):
         for k, v in doc.items():
-            if k not in fields:
+            if k not in FIELDS:
                 bad_fields.add(f"unknown field '{k}' in {_where(parent)}" if k in QUOTABLE else f"unknown field in {_where(parent)}")
-            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, k), fields)
+            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, k))
     elif isinstance(doc, list):
         for i, v in enumerate(doc):
-            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, i), fields)
+            _walk(v, allowed_strings, bad_fields, bad_strings, _path(parent, i))
     elif isinstance(doc, str):
         if doc not in allowed_strings:
             bad_strings.add(f"string value at {_where(parent)} is not allowlisted")
 
 
-def _summarize(items: list[str], limit: int = 3, total: int | None = None) -> str:
+def _summarize(items: list[str], limit: int = 3) -> str:
     if not items:
         return "ok"
-    total = getattr(items, "total", None) or total or len(items)
+    total = getattr(items, "total", None) or len(items)
     more = f" (+{total - limit} more)" if total > limit else ""
     return "; ".join(items[:limit]) + more
 
 
-def _schema_errors(e: ValidationError) -> list[str]:
+def _schema_errors(e: ValidationError) -> _Diag:
     out = _Diag()
     for err in e.errors()[:MAX_DIAGNOSTICS]:
         path = ""
@@ -315,158 +259,30 @@ def _ints(doc: Any, parent: str = "") -> list[tuple[str, int]]:
     return []
 
 
-def _compare(prog: Any, ref: Any, path: str, count_bad: list[str], share_bad: list[str]) -> None:
-    """Walk two structurally identical docs; ints must be equal, floats within tolerance."""
-    if isinstance(ref, dict):
-        for k in ref:
-            _compare(prog.get(k), ref[k], _path(path, k), count_bad, share_bad)
-    elif isinstance(ref, list):
-        for i, (p, r) in enumerate(zip(prog, ref)):
-            _compare(p, r, _path(path, i), count_bad, share_bad)
-    elif isinstance(ref, bool) or isinstance(ref, str):
-        return
-    elif isinstance(ref, int):
-        if prog != ref:
-            count_bad.append(f"{path} differs from the reference")
-    elif ref is None:
-        if prog is not None:
-            share_bad.append(f"{path} should be null (no conversations)")
-    elif isinstance(ref, float):
-        if prog is None or abs(float(prog) - ref) > SHARE_TOL:
-            share_bad.append(f"{path} is off by more than 1e-4")
+def sort_key(rank_by: str):
+    """rank_by desc, then id asc. Shares compare as exact fractions of the program's own integers,
+    so float rounding can never reorder near-ties."""
+    if rank_by == "count":
+        return lambda r: (-r["count"], r["id"])
+    return lambda r: (-(Fraction(r["count"], r["base"]) if r["base"] else Fraction(0)), r["id"])
 
 
-def _order_key(intent: str, cat_ids: set[str], other_ids: frozenset[str] = DEFAULT_OTHER):
-    """The ordering rule. usage/friction: metric desc, then cluster_id asc — except the catch-all
-    leaf (cl_other / is_other), which is always last."""
-    if intent == "usage":
-        return lambda r: (r["cluster_id"] in other_ids, -r["conversations"], r["cluster_id"])
-    if intent == "friction":
-        return lambda r: (r["cluster_id"] in other_ids, -r["friction_conversations"], r["cluster_id"])
-    return lambda n: (0 if n["id"] in cat_ids else 1, n["id"])
+def canonicalize(doc: dict) -> dict:
+    """The served form of a program's result: keys in contract order, shares recomputed from the
+    program's own integers and rounded to 4 decimals."""
+    return {
+        "intent": "question", "snapshot_id": doc["snapshot_id"], "plan": {k: doc["plan"][k] for k in PLAN_KEYS},
+        "rows": [{"id": r["id"], "count": r["count"], "base": r["base"],
+                  "share": round(r["count"] / r["base"], 4) if r["base"] else 0.0} for r in doc["rows"]],
+        "total_count": doc["total_count"], "total_base": doc["total_base"],
+    }
 
 
-def check(output: str | None, *, intent: str, snapshot_id: str, leaf_ids: list[str], category_ids: list[str],
-          reference: dict, other_ids: frozenset[str] | set[str] = DEFAULT_OTHER) -> Verdict:
-    """Validate one sandbox output against the contract and the trusted reference."""
-    v = Verdict(passed=False)
+# ---------------------------------------------------------------- 1. per-program checks
 
-    def add(name: str, ok: bool, detail: str) -> bool:
-        v.checks.append(Check(name, ok, detail))
-        return ok
-
-    if intent not in INTENTS:
-        raise ValueError("unknown intent")
-    if not add(C_OUTPUT, output is not None, "a result file was produced" if output is not None else "the job produced no result file"):
-        return v
-    size = len(output.encode("utf-8"))
-    if not add(C_SIZE, size <= MAX_BYTES, f"{size:,} bytes" if size <= MAX_BYTES else "result exceeds 1 MiB"):
-        return v
-    try:
-        doc = strict_loads(output)
-        ok = isinstance(doc, dict)
-        add(C_PARSE, ok, "one JSON object" if ok else "the document is not a JSON object")
-        if not ok:
-            return v
-    except _Reject as e:
-        add(C_PARSE, False, e.detail)
-        return v
-    problem = shape_problem(doc)
-    if not add(C_SHAPE, problem is None, problem or f"depth <= {MAX_DEPTH}, strings <= {MAX_STR} chars"):
-        return v
-
-    allowed_strings = {*INTENTS, snapshot_id, *leaf_ids, *category_ids}
-    bad_fields, bad_strings = _Diag(), _Diag()
-    _walk(doc, allowed_strings, bad_fields, bad_strings)
-    add(C_FIELDS, not bad_fields, _summarize(bad_fields) if bad_fields else "all field names are in the schema")
-    add(C_STRINGS, not bad_strings, _summarize(bad_strings) if bad_strings else "only intent, snapshot and cluster ids")
-
-    model = MODELS[intent]
-    rows_key = "nodes" if intent == "aggregate" else "rows"
-    try:
-        if isinstance(doc.get(rows_key), list) and len(doc[rows_key]) > MAX_ROWS:
-            raise _Reject(f"{rows_key} has more than {MAX_ROWS} entries")
-        parsed = model.model_validate(doc)
-        add(C_SCHEMA, True, f"{intent} result schema, no extra fields")
-    except _Reject as e:
-        add(C_SCHEMA, False, e.detail)
-        return v
-    except ValidationError as e:
-        add(C_SCHEMA, False, _summarize(_schema_errors(e)))
-        return v
-
-    prog = parsed.model_dump()
-    add(C_INTENT, prog["intent"] == intent, "matches" if prog["intent"] == intent else "the result names a different intent")
-    add(C_SNAPSHOT, prog["snapshot_id"] == snapshot_id,
-        "matches" if prog["snapshot_id"] == snapshot_id else "the result names a different snapshot")
-
-    items = prog[rows_key]
-    id_key = "id" if intent == "aggregate" else "cluster_id"
-    expected = set(leaf_ids) | (set(category_ids) if intent == "aggregate" else set())
-    ids = [r[id_key] for r in items]
-    foreign = [f"{rows_key}[{i}] is not a {'node' if intent == 'aggregate' else 'leaf'} of this snapshot"
-               for i, x in enumerate(ids) if x not in expected]
-    add(C_IDS, not foreign, _summarize(foreign) if foreign else f"{len(ids)} ids, all from this snapshot")
-
-    negative = [f"{p} is negative" for p, n in _ints(prog) if n < 0]
-    add(C_NONNEG, not negative, _summarize(negative) if negative else "ok")
-
-    missing = len(expected - set(ids))
-    dupes = len(ids) - len(set(ids))
-    cov_ok = missing == 0 and dupes == 0 and not foreign
-    cov_detail = f"{len(expected)} of {len(expected)} present once" if cov_ok else \
-        ", ".join(x for x in [f"{missing} missing" if missing else "", f"{dupes} duplicated" if dupes else "",
-                              "unknown ids present" if foreign else ""] if x)
-    add(C_COVERAGE_AGG if intent == "aggregate" else C_COVERAGE, cov_ok, cov_detail)
-
-    add(C_TOTAL, prog["total_conversations"] == reference["total_conversations"],
-        "matches" if prog["total_conversations"] == reference["total_conversations"] else "total_conversations differs from the reference")
-
-    if cov_ok:
-        ref_items = {r[id_key]: r for r in reference[rows_key]}
-        count_bad: list[str] = []
-        share_bad: list[str] = []
-        for i, r in enumerate(items):
-            _compare(r, ref_items[r[id_key]], f"{rows_key}[{i}]", count_bad, share_bad)
-        if intent == "aggregate":
-            _compare(prog["totals"], reference["totals"], "totals", count_bad, share_bad)
-        add(C_COUNTS, not count_bad, _summarize(count_bad) if count_bad else "every integer equals the reference")
-        add(C_SHARES, not share_bad, _summarize(share_bad) if share_bad else "every share within 1e-4")
-
-    key = _order_key(intent, set(category_ids), frozenset(other_ids))
-    ordered = [r[id_key] for r in sorted(items, key=key)] == ids
-    first_bad = next((i for i, (a, b) in enumerate(zip(ids, [r[id_key] for r in sorted(items, key=key)])) if a != b), None)
-    add(C_ORDER[intent], ordered, "ok" if ordered else f"{rows_key}[{first_bad}] is out of order")
-
-    v.passed = all(c.passed for c in v.checks)
-    if v.passed:
-        v.canonical = rounded(reference)
-    return v
-
-
-# ---------------------------------------------------------------- open questions (§8b)
-
-class QuestionRow(_Strict):
-    id: str
-    count: int
-    base: int
-    share: float
-
-
-class QuestionResult(_Strict):
-    intent: str
-    snapshot_id: str
-    plan: dict
-    rows: list[QuestionRow]
-    total_count: int
-    total_base: int
-
-
-def check_question(output: str | None, *, snapshot_id: str, plan: dict, leaf_ids: list[str], category_ids: list[str],
-                   reference: dict) -> Verdict:
-    """Validate a `question` result against the validated plan and the trusted reference for it.
-    `reference` is reference.question(...) (its `_all` holds every in-scope group)."""
-    from .plan import PLAN_KEYS, PLAN_STRINGS, Plan
+def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters: list[dict],
+                  leaf_ids: list[str], category_ids: list[str]) -> Verdict:
+    """Validate one program's output against the validated plan. No reference answer is used."""
     v = Verdict(passed=False)
 
     def add(name: str, ok: bool, detail: str) -> bool:
@@ -493,7 +309,7 @@ def check_question(output: str | None, *, snapshot_id: str, plan: dict, leaf_ids
 
     allowed = {"question", snapshot_id, *leaf_ids, *category_ids, *PLAN_STRINGS}
     bad_fields, bad_strings = _Diag(), _Diag()
-    _walk(doc, allowed, bad_fields, bad_strings, fields=QUESTION_FIELDS)
+    _walk(doc, allowed, bad_fields, bad_strings)
     add(C_FIELDS, not bad_fields, _summarize(bad_fields) if bad_fields else "all field names are in the schema")
     add(C_STRINGS, not bad_strings, _summarize(bad_strings) if bad_strings else "only plan words, snapshot and node ids")
 
@@ -512,36 +328,147 @@ def check_question(output: str | None, *, snapshot_id: str, plan: dict, leaf_ids
     same_plan = set(parsed.plan) == set(PLAN_KEYS) and echoed.model_dump() == Plan.model_validate(plan).model_dump()
     add(C_PLAN, same_plan, "identical to the validated plan" if same_plan else "the echoed plan differs from the validated plan")
 
-    all_rows = {r["id"]: r for r in reference["_all"]}
-    ids = [r["id"] for r in prog["rows"]]
-    outside = [f"rows[{i}] is not a group in the question's scope" for i, x in enumerate(ids) if x not in all_rows]
+    groups, _ = question_scope(clusters, plan)
+    rows = prog["rows"]
+    ids = [r["id"] for r in rows]
+    outside = _Diag()
+    for i, x in enumerate(ids):
+        if x not in groups:
+            outside.add(f"rows[{i}] is not a group in the question's scope")
+    if len(set(ids)) != len(ids):
+        outside.add("an id appears more than once")
     add(C_SCOPE, not outside, _summarize(outside) if outside else f"{len(ids)} ids, all in scope")
-    negative = [f"{p} is negative" for p, n in _ints(prog) if n < 0]
+
+    negative = _Diag()
+    for p, n in _ints(prog):
+        if n < 0:
+            negative.add(f"{p} is negative")
     add(C_NONNEG, not negative, _summarize(negative) if negative else "ok")
-    want = min(plan["limit"], len(all_rows))
-    add(C_LENGTH, len(ids) == want and len(set(ids)) == len(ids),
-        f"{want} rows" if len(ids) == want and len(set(ids)) == len(ids)
-        else ("duplicate ids" if len(set(ids)) != len(ids) else f"expected {want} rows"))
-    tot_ok = prog["total_count"] == reference["total_count"] and prog["total_base"] == reference["total_base"]
-    add(C_TOTAL, tot_ok, "matches" if tot_ok else "total_count or total_base differs from the reference")
-    if not outside:
-        count_bad, share_bad = _Diag(), _Diag()
-        for i, r in enumerate(prog["rows"]):
-            ref = all_rows[r["id"]]
-            for f in ("count", "base"):
-                if r[f] != ref[f]:
-                    count_bad.add(f"rows[{i}].{f} differs from the reference")
-            if abs(r["share"] - ref["share"]) > SHARE_TOL:
-                share_bad.add(f"rows[{i}].share is off by more than 1e-4")
-        add(C_COUNTS, not count_bad, _summarize(count_bad) if count_bad else "every integer equals the reference")
-        add(C_SHARES, not share_bad, _summarize(share_bad) if share_bad else "every share within 1e-4")
-    ref_ids = [r["id"] for r in reference["rows"]]
-    first_bad = next((i for i, (a, b) in enumerate(zip(ids, ref_ids)) if a != b), None)
-    top_ok = ids == ref_ids
-    add(C_QORDER, top_ok, "matches the reference top rows" if top_ok else
-        (f"rows[{first_bad}] is not the reference's row at that rank" if first_bad is not None else "different rows than the reference"))
+
+    arith = _Diag()
+    for i, r in enumerate(rows):
+        if r["count"] > r["base"]:
+            arith.add(f"rows[{i}].count exceeds its base")
+        want = r["count"] / r["base"] if r["base"] else 0.0
+        if abs(r["share"] - want) > SHARE_TOL:
+            arith.add(f"rows[{i}].share is not count ÷ base")
+    add(C_ARITH, not arith, _summarize(arith) if arith else "every row")
+
+    tot = _Diag()
+    if prog["total_count"] > prog["total_base"]:
+        tot.add("total_count exceeds total_base")
+    if rows:
+        if prog["total_base"] < max(r["base"] for r in rows) or prog["total_count"] < max(r["count"] for r in rows):
+            tot.add("a total is smaller than one of its rows")
+        additive = plan["measure"] == "conversations"   # conversations partition across groups; people don't
+        if additive and len(rows) == len(groups):
+            if prog["total_base"] != sum(r["base"] for r in rows) or prog["total_count"] != sum(r["count"] for r in rows):
+                tot.add("totals differ from the sum of all groups")
+        elif additive and (prog["total_base"] < sum(r["base"] for r in rows) or prog["total_count"] < sum(r["count"] for r in rows)):
+            tot.add("totals are smaller than the sum of the listed groups")
+    add(C_TOTALS, not tot, _summarize(tot) if tot else "ok")
+
+    ordered = [r["id"] for r in sorted(rows, key=sort_key(plan["rank_by"]))] == ids
+    first_bad = next((i for i, (a, b) in enumerate(zip(ids, [r["id"] for r in sorted(rows, key=sort_key(plan["rank_by"]))])) if a != b), None)
+    add(C_ORDER, ordered, "ok" if ordered else f"rows[{first_bad}] is out of order")
+
+    want_len = min(plan["limit"], len(groups))
+    add(C_LENGTH, len(rows) == want_len, f"{want_len} rows" if len(rows) == want_len else f"expected {want_len} rows")
 
     v.passed = all(c.passed for c in v.checks)
     if v.passed:
-        v.canonical = rounded({k: val for k, val in reference.items() if k != "_all"})
+        v.canonical = canonicalize(prog)
     return v
+
+
+# ---------------------------------------------------------------- 2. consistency with the published snapshot
+
+def check_snapshot(result: dict, *, plan: dict, clusters: list[dict], nodes: dict[str, dict]) -> list[Check]:
+    """Cross-checks against the published snapshot's node metrics (computed by the pipeline's own
+    code), only where the plan makes them derivable. `nodes` maps published ids to snapshot nodes."""
+    groups, leaves = question_scope(clusters, plan)
+    children: dict[str, list[str]] = {}
+    for c in clusters:
+        if int(c["level"]) == 2:
+            children.setdefault(c["parent_id"], []).append(c["id"])
+
+    def derivable_node(gid: str) -> bool:
+        if gid not in nodes:
+            return False
+        if plan["group_by"] == "leaf":
+            return True
+        return all(x in leaves for x in children.get(gid, []))   # category = exactly its in-scope leaves
+
+    checks: list[Check] = []
+    rows = result["rows"]
+    measure, signal = plan["measure"], plan["signal"]
+
+    # base = the measure with no signal filter, per group: conversations or people (users)
+    field = "conversations" if measure == "conversations" else "users"
+    bad = _Diag()
+    checked = 0
+    for i, r in enumerate(rows):
+        if derivable_node(r["id"]):
+            checked += 1
+            if r["base"] != nodes[r["id"]][field]:
+                bad.add(f"rows[{i}].base differs from the published {field}")
+    if checked:
+        what = "base = published conversations" if field == "conversations" else "base = published people"
+        checks.append(Check(map_check_name(what), not bad, _summarize(bad) if bad else f"{checked} rows match"))
+
+    # count with a signal filter, conversations only (people counts per signal aren't published)
+    if measure == "conversations" and signal is not None:
+        bad, checked = _Diag(), 0
+        for i, r in enumerate(rows):
+            if derivable_node(r["id"]):
+                checked += 1
+                f = nodes[r["id"]]["friction"]
+                want = f["conversations"] if signal == "any_friction" else f["signals"][signal]
+                if r["count"] != want:
+                    bad.add(f"rows[{i}].count differs from the published friction numbers")
+        if checked:
+            checks.append(Check(map_check_name(f"count = published {SIGNAL_NAMES[signal]} conversations"), not bad,
+                                _summarize(bad) if bad else f"{checked} rows match"))
+
+    # totals: conversations partition across leaves, so the scope total is a sum of published leaves;
+    # distinct people are only derivable when the scope is exactly one published category.
+    tot = _Diag()
+    derivable = False
+    if measure == "conversations" and all(x in nodes for x in leaves):
+        derivable = True
+        if result["total_base"] != sum(nodes[x]["conversations"] for x in leaves):
+            tot.add("total_base differs from the published conversations in scope")
+        if signal is not None:
+            key = (lambda f: f["conversations"]) if signal == "any_friction" else (lambda f: f["signals"][signal])
+            if result["total_count"] != sum(key(nodes[x]["friction"]) for x in leaves):
+                tot.add("total_count differs from the published friction numbers in scope")
+        elif result["total_count"] != result["total_base"]:
+            tot.add("with no signal filter, total_count must equal total_base")
+    elif measure == "people" and plan.get("scope_category_id") and plan["scope_category_id"] in nodes \
+            and all(x in leaves for x in children.get(plan["scope_category_id"], [])):
+        derivable = True
+        if result["total_base"] != nodes[plan["scope_category_id"]]["users"]:
+            tot.add("total_base differs from the category's published people")
+    if derivable:
+        checks.append(Check(map_check_name("totals = published scope totals"), not tot, _summarize(tot) if tot else "matches"))
+    return checks
+
+
+# ---------------------------------------------------------------- 3. agreement
+
+def check_agreement(a: dict, b: dict) -> Check:
+    """Canonical equality of two independently written programs' results. Details name positions
+    and fields only, never values."""
+    if a == b:
+        return Check(C_AGREE, True, "identical canonical results")
+    diffs = _Diag()
+    if len(a["rows"]) != len(b["rows"]):
+        diffs.add("Programs disagree on the number of rows")
+    for i, (ra, rb) in enumerate(zip(a["rows"], b["rows"])):
+        for f in ("id", "count", "base", "share"):
+            if ra[f] != rb[f]:
+                diffs.add(f"Programs disagree on row {i} · {f}")
+    for f in ("total_count", "total_base"):
+        if a[f] != b[f]:
+            diffs.add(f"Programs disagree on {f}")
+    return Check(C_AGREE, False, _summarize(diffs) if diffs else "Programs disagree")

@@ -290,9 +290,9 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     settings()  # loads .env
     logging.getLogger("httpx").setLevel(logging.WARNING)  # quiet logs: no per-request URL lines
-    from ..sandbox.aggregate import TASKS_DIR
-    if not (TASKS_DIR / "usage.py").exists():
-        log.error("sandbox task programs not found at %s: containment and stage-5 aggregation will fail "
+    from ..sandbox.containment import TASKS_DIR
+    if not (TASKS_DIR / "followup.py").exists():
+        log.error("sandbox task programs not found at %s: the containment check will fail "
                   "(run the API from the repo tree)", TASKS_DIR)
     app = FastAPI(title="logless", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
@@ -385,37 +385,28 @@ def create_app() -> FastAPI:
 
     @app.post("/api/analyses")
     def api_analyses(body: models.AnalysisIn, request: Request):
+        """Open questions only (usage/friction were retired; the model rejects them with 422)."""
         snap = _require_snapshot(body.snapshot_id)
         presenter = request.state.presenter
         titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
+        nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
         sid = snap["snapshot_id"]
-        if body.intent == "question":
-            if not body.question or not body.question.strip():
-                raise ApiError(422, "invalid_request", "Invalid field: question")
-            raw_q = body.question.strip()
-            key = (sid, normalize_question(raw_q))
-            with _start_lock:
-                rid = _question_inflight.get(key)
-                if rid:
-                    existing = runstore.load(rid)
-                    if existing and existing["state"] not in runstore.TERMINAL:
-                        return {"run_id": rid}
-                _capacity(presenter)
-                _spend("analysis", presenter)
-                run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
-                _question_inflight[key] = run.id
-                _submit(lambda: run_analysis(run, intent="question", snapshot_id=sid, titles=titles, runner=runner(),
-                                             question=raw_q),
-                        on_done=_release_later(_question_inflight, key, run.id))
-            return {"run_id": run.id}
+        raw_q = body.question.strip()
+        if not raw_q:
+            raise ApiError(422, "invalid_request", "Invalid field: question")
+        key = (sid, normalize_question(raw_q))
         with _start_lock:
-            existing = runstore.find_inflight("analysis", body.intent, sid)
-            if existing:
-                return {"run_id": existing}
+            rid = _question_inflight.get(key)
+            if rid:
+                existing = runstore.load(rid)
+                if existing and existing["state"] not in runstore.TERMINAL:
+                    return {"run_id": rid}
             _capacity(presenter)
             _spend("analysis", presenter)
-            run = runstore.Run.create("analysis", body.intent, sid)
-            _submit(lambda: run_analysis(run, intent=body.intent, snapshot_id=sid, titles=titles, runner=runner()))
+            run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
+            _question_inflight[key] = run.id
+            _submit(lambda: run_analysis(run, snapshot_id=sid, titles=titles, nodes=nodes, question=raw_q, runner=runner()),
+                    on_done=_release_later(_question_inflight, key, run.id))
         return {"run_id": run.id}
 
     @app.get("/api/runs/{run_id}")
@@ -425,6 +416,8 @@ def create_app() -> FastAPI:
         raw = runstore.load(run_id)
         if raw is None:
             raise ApiError(404, "not_found", "Unknown run.")
+        if raw["kind"] == "analysis" and raw.get("intent") != "question":
+            raise ApiError(410, "run_retired", "This run used a retired analysis type.")
         return serializers.serialize_run(raw)
 
     @app.post("/api/clusters/{cluster_id}/story")
@@ -465,7 +458,8 @@ def create_app() -> FastAPI:
             _capacity(request.state.presenter)
             _spend("containment", request.state.presenter)
             run = runstore.Run.create("containment", None, snap["snapshot_id"])
-            _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"],
+            nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
+            _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"], nodes=nodes,
                                             health=lambda: health_status(fresh=True)["status"], runner=runner()))
         return {"run_id": run.id}
 
@@ -481,6 +475,7 @@ def create_app() -> FastAPI:
                        snapshot_id=snap_id, generated_at=None, checks=[])
         return serializers.serialize_eval(json.loads(row["json"]))
 
+    from .intake import router as intake_router; app.include_router(intake_router)  # noqa: E702 — §11 live intake
     return BodyLimit(app)  # type: ignore[return-value]
 
 

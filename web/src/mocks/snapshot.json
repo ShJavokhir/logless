@@ -2439,7 +2439,6 @@
     },
     "discovery_rounds": 3,
     "build_seconds": 1486,
-    "stats_source": "sandbox",
     "stages": [
       {
         "stage": "sample",

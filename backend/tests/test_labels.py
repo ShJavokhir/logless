@@ -23,3 +23,13 @@ def test_fallback_label_is_short_and_distinct():
     lab = _fallback("Write and debug systems-level code", used)
     assert lab.casefold() not in used and len(lab) <= 22 and len(lab.split()) <= 3
     assert label_problems(_fallback("Answers to 3 homework problems", set())) == []
+
+
+def test_no_cache_env_bypasses_llm_cache_reads(tmp_data, monkeypatch):
+    from logless.providers.http import cache_get, cache_put
+    cache_put("k1", "glm", "m", {"content": "x"})
+    assert cache_get("k1") == {"content": "x"}
+    monkeypatch.setenv("LOGLESS_NO_CACHE", "1")
+    assert cache_get("k1") is None
+    from logless.pipeline import util
+    assert util.no_cache()

@@ -15,7 +15,11 @@ export type SnapshotIndex = {
 
 const desc = (a: SnapshotNode, b: SnapshotNode) => b.conversations - a.conversations || a.id.localeCompare(b.id)
 
-export function indexSnapshot(snapshot: Snapshot): SnapshotIndex {
+/**
+ * `hueOrder` pins category hues to an earlier snapshot's ranking, so colours
+ * don't swap when an update changes category sizes.
+ */
+export function indexSnapshot(snapshot: Snapshot, hueOrder?: Map<string, number>): SnapshotIndex {
   const byId = new Map<string, SnapshotNode>()
   for (const n of snapshot.categories) byId.set(n.id, n)
   for (const n of snapshot.clusters) byId.set(n.id, n)
@@ -23,7 +27,8 @@ export function indexSnapshot(snapshot: Snapshot): SnapshotIndex {
   const leaves = [...snapshot.clusters].sort(desc)
   const palette = new Map<string, CategoryPalette>()
   let hueIdx = 0
-  for (const c of categories) palette.set(c.id, categoryPalette(c.is_other ? 0 : hueIdx++, !!c.is_other))
+  const hueSorted = hueOrder ? [...categories].sort((a, b) => (hueOrder.get(a.id) ?? 1e9) - (hueOrder.get(b.id) ?? 1e9)) : categories
+  for (const c of hueSorted) palette.set(c.id, categoryPalette(c.is_other ? 0 : hueIdx++, !!c.is_other))
   const grouped = new Map<string, SnapshotNode[]>()
   for (const l of leaves) {
     if (!l.parent_id) continue

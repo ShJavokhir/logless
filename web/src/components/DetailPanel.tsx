@@ -14,7 +14,7 @@ import { Bar, Dot, EvidenceTag, Hint, SectionLabel, SignalIcon, Stat } from "./c
 import { StoryPanel } from "./StoryPanel"
 import { KeyFinding } from "./KeyFinding"
 
-import { PEOPLE_HINT, fixturesShort } from "@/lib/copy"
+import { PEOPLE_HINT, fixtureCount, fixturesShort } from "@/lib/copy"
 const FRICTION_HINT = "Conversations where at least one friction signal was observed, out of all conversations in this cluster."
 const UNCLEAR_HINT = "No signal observed, but at least one signal decision was below the confidence cut-off, so it is counted as unclear rather than guessed."
 
@@ -26,9 +26,11 @@ type Props = {
   onFocusCategory: (id: string | null) => void
   /** zoom into a category and open its workflow where friction concentrates */
   onShowFinding?: (categoryId: string, leafId: string | null) => void
+  /** ask the agent a question (example chips on the first screen) */
+  onAsk?: (question: string) => void
 }
 
-export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusCategory, onShowFinding }: Props) {
+export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusCategory, onShowFinding, onAsk }: Props) {
   const leaf = selectedId ? index.byId.get(selectedId) : undefined
   if (leaf && leaf.level === 2) {
     return <LeafDetail key={leaf.id} index={index} leaf={leaf} onClose={() => onSelectLeaf(null)} onFocusCategory={onFocusCategory} />
@@ -41,6 +43,7 @@ export function DetailPanel({ index, selectedId, focusId, onSelectLeaf, onFocusC
       onSelectLeaf={onSelectLeaf}
       onFocusCategory={onFocusCategory}
       onShowFinding={onShowFinding}
+      onAsk={onAsk}
     />
   )
 }
@@ -255,12 +258,14 @@ function Overview({
   onSelectLeaf,
   onFocusCategory,
   onShowFinding,
+  onAsk,
 }: {
   index: SnapshotIndex
   category?: SnapshotNode
   onSelectLeaf: (id: string | null) => void
   onFocusCategory: (id: string | null) => void
   onShowFinding?: (categoryId: string, leafId: string | null) => void
+  onAsk?: (question: string) => void
 }) {
   const s = index.snapshot
   const node = category ?? { ...s.totals, title: "All conversations", description: s.workspace.description }
@@ -271,7 +276,7 @@ function Overview({
 
   return (
     <article aria-labelledby="overview-title" className="flex flex-col gap-5">
-      {!category && onShowFinding ? <KeyFinding index={index} onShow={onShowFinding} onSelectLeaf={(id) => onSelectLeaf(id)} /> : null}
+      {!category && onShowFinding ? <KeyFinding index={index} onShow={onShowFinding} onSelectLeaf={(id) => onSelectLeaf(id)} onAsk={onAsk} /> : null}
       <header className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
           {category ? (
@@ -299,7 +304,11 @@ function Overview({
             ) : (
               <>
                 {fmtInt(s.dataset.languages)} languages
-                {fixturesShort(s.dataset.fixtures) ? <span className="block text-[11.5px] text-subtle">incl. {fixturesShort(s.dataset.fixtures)}</span> : null}
+                {fixtureCount(s.dataset.fixtures) ? (
+                  <span className="block text-[11.5px] text-subtle">
+                    {fmtInt(node.conversations - fixtureCount(s.dataset.fixtures))} WildChat + {fixturesShort(s.dataset.fixtures)}
+                  </span>
+                ) : null}
               </>
             )
           }

@@ -2,20 +2,23 @@
 // machines (no timers to clean up); an in-flight analysis for the same
 // intent + snapshot is reused, as the contract requires.
 //
+// §0: the only live intent is "question"; each plan is answered by two
+// independently written programs (A: pandas, B: plain Python) whose outputs are
+// gated, cross-checked against the published map, and compared.
+//
 // URL switches for exercising UI states (mock mode only):
 //   ?sandbox=down   health degraded, analyses/containment → 503 sandbox_unreachable
-//   ?gate=fail      analyses fail the gate twice and end in state "failed"
+//   ?gate=fail      program A keeps failing the gate after its repair; the run fails
 //   ?budget=out     live features → 429 budget_exhausted
 //   ?snapshot=real  serve src/mocks/real-snapshot.json (a saved copy of the live snapshot)
 
 import { ApiError, type Api } from "@/lib/api"
 import type {
-  AnalysisIntent,
+  Attempt,
   EvalReport,
   GateCheck,
   Plan,
   QuestionResult,
-  FrictionResult,
   Health,
   Receipt,
   Run,
@@ -25,13 +28,14 @@ import type {
   StageStatus,
   Story,
   StoryResponse,
-  UsageResult,
   Verdict,
 } from "@/lib/types"
 import snapshotJson from "./snapshot.json"
-import { CONTAINMENT_PROGRAM, FRICTION_PROGRAM, FRICTION_PROGRAM_ATTEMPT_1, USAGE_PROGRAM, questionProgram } from "./programs"
-import { frictionExplanation, frictionResult, interpretQuestion, questionExplanation, questionResult, usageExplanation, usageResult } from "./results"
+import { CONTAINMENT_PROGRAM, questionProgram, questionProgramB } from "./programs"
+import { consistencyChecks, interpretQuestion, questionExplanation, questionResult } from "./results"
 import { mockStory } from "./stories"
+import { createIntakeMock } from "./intake"
+import { presenterKey } from "@/lib/presenter"
 
 let SNAPSHOT = snapshotJson as unknown as Snapshot
 export const STORY_LABEL = "Fictional user story · Illustrates an aggregate pattern; not a real customer or additional evidence."
@@ -66,24 +70,29 @@ type Phase = {
   detail: string
   doneDetail?: string
   outcome?: StageStatus // status once finished (default "done")
-  execution?: number // 1-based sandbox execution index
+  execution?: number // sandbox executions started by this phase
 }
+
+/** A program version, shown in attempts_log once `afterPhase` has finished. */
+type LoggedAttempt = { entry: Attempt; afterPhase: number }
 
 type MockRun = {
   id: string
   kind: Run["kind"]
-  intent: AnalysisIntent | null
+  intent: "question" | null
   question?: string
   plan?: Plan | null
-  repairReason?: string | null
   createdAt: number
   phases: Phase[]
   finalState: "completed" | "failed"
-  codes: string[] // program per execution
+  // question runs (§0): per-program attempt log + combined verdict per validation
+  log?: LoggedAttempt[]
+  // containment / story runs: single program history
+  codes: string[]
   shas: string[]
-  receipts: Receipt[] // per execution
-  verdicts: Verdict[] // per validation
-  result: UsageResult | FrictionResult | QuestionResult | null
+  receipts: Receipt[]
+  verdicts: Verdict[] // combined verdict per validating phase (index = validation count - 1)
+  result: QuestionResult | null
   explanation: Run["explanation"]
   containment: Run["containment"]
   error: Run["error"]
@@ -93,9 +102,7 @@ type MockRun = {
 const LIMITS: Receipt["limits"] = { cpus: 1, memory_mb: 512, pids: 64, timeout_s: 10, network: "none", read_only_root: true }
 const HOST = "logless-sandbox-ewr"
 
-function receiptFor(createdAt: number, phase: Phase, sha: string, outputBytes: number, over: Partial<Receipt> = {}): Receipt {
-  const started = createdAt + phase.start + 120
-  const elapsed = over.elapsed_ms ?? Math.round(phase.end - phase.start - 180)
+function receipt(startedAt: number, sha: string, elapsed: number, outputBytes: number, over: Partial<Receipt> = {}): Receipt {
   return {
     job_id: uuid(),
     runtime: "runsc",
@@ -107,49 +114,41 @@ function receiptFor(createdAt: number, phase: Phase, sha: string, outputBytes: n
     output_bytes: outputBytes,
     container_removed: true,
     limits: LIMITS,
-    started_at: iso(started),
-    finished_at: iso(started + elapsed),
+    started_at: iso(startedAt),
+    finished_at: iso(startedAt + elapsed),
     host: HOST,
     ...over,
   }
 }
 
-// Fixed gate vocabulary (CONTRACTS §8 / §8b); details never echo output values.
-function passedChecks(intent: AnalysisIntent, rows: number, bytes: number, plan?: Plan | null): Verdict {
-  const q = intent === "question"
-  const order = q
-    ? `Ordered by ${plan?.rank_by === "share" ? "share" : "count"}, then id`
-    : intent === "usage"
-      ? "Ordered by conversations, then cluster id (Other last)"
-      : "Ordered by friction conversations, then cluster id (Other last)"
-  const checks: GateCheck[] = [
+// Per-program gate checks (CONTRACTS §0 / §8b fixed vocabulary); details never echo values.
+function programChecks(rows: number, bytes: number, plan: Plan): GateCheck[] {
+  return [
     { name: "Result file received", passed: true, detail: "a result file was produced" },
     { name: "Size within 1 MiB", passed: true, detail: `${bytes.toLocaleString("en-US")} bytes` },
     { name: "Strict JSON parse", passed: true, detail: "one JSON object" },
     { name: "Document within structural limits", passed: true, detail: "depth <= 6, strings <= 64 chars" },
     { name: "Only allowlisted field names", passed: true, detail: "all field names are in the schema" },
-    { name: "Only allowlisted string values", passed: true, detail: q ? "only intent, snapshot, plan and node ids" : "only intent, snapshot and cluster ids" },
-    { name: "Schema matches exactly", passed: true, detail: `${intent} result schema, no extra fields` },
+    { name: "Only allowlisted string values", passed: true, detail: "only intent, snapshot, plan and node ids" },
+    { name: "Schema matches exactly", passed: true, detail: "question result schema, no extra fields" },
+    { name: "Plan echoed exactly", passed: true, detail: "all six keys match" },
     { name: "Intent matches the request", passed: true, detail: "matches" },
     { name: "Snapshot id is the current snapshot", passed: true, detail: "matches" },
-    ...(q ? [{ name: "Plan matches the validated plan", passed: true, detail: "echoed exactly" }] : []),
-    { name: q ? "Ids are within the plan's scope" : "Cluster ids belong to this snapshot", passed: true, detail: `${rows} ids, all allowed` },
+    { name: "Ids are within the question's scope (no Other)", passed: true, detail: `${rows} ids, all in scope` },
     { name: "Counts are non-negative integers", passed: true, detail: "ok" },
-    { name: q ? "Row count equals min(limit, groups in scope)" : "Every leaf exactly once", passed: true, detail: q ? `${rows} rows` : `${rows} of ${rows} present once` },
-    { name: "Total matches the trusted reference", passed: true, detail: "matches" },
-    { name: "Counts match the trusted reference", passed: true, detail: "every integer equals the reference" },
-    { name: "Shares within 1e-4 of the reference", passed: true, detail: "every share within 1e-4" },
-    { name: order, passed: true, detail: "ok" },
+    { name: "Count never exceeds base", passed: true, detail: "ok" },
+    { name: "Shares equal count ÷ base within 1e-4", passed: true, detail: "ok" },
+    { name: "Row count is min(limit, groups in scope)", passed: true, detail: `${rows} rows` },
+    { name: `Top rows ranked as the plan says (${plan.rank_by} desc, then id)`, passed: true, detail: "ok" },
   ]
-  return { passed: true, checks }
 }
 
-function withFailed(v: Verdict, failName: string, detail: string): Verdict {
-  return {
-    passed: false,
-    checks: v.checks.map((c) => (c.name === failName ? { ...c, passed: false, detail } : c)),
-  }
+function failCheck(checks: GateCheck[], name: string, detail: string): GateCheck[] {
+  return checks.map((c) => (c.name === name ? { ...c, passed: false, detail } : c))
 }
+
+const verdictOf = (checks: GateCheck[]): Verdict => ({ passed: checks.every((c) => c.passed), checks })
+const prefixed = (p: "A" | "B", checks: GateCheck[]) => checks.map((c) => ({ ...c, name: `${p} · ${c.name}` }))
 
 // ---------------------------------------------------------------- mock api
 
@@ -163,12 +162,20 @@ export async function createMockApi(): Promise<Api> {
     }
   }
   const runs = new Map<string, MockRun>()
-  const inflight = new Map<string, string>() // `${intent}:${snapshot}` -> run id
+  const inflight = new Map<string, string>() // normalized question + snapshot -> run id
   const storyRuns = new Map<string, string>() // cluster id -> story run id
   const sandboxDown = param("sandbox") === "down"
   const gateFails = param("gate") === "fail"
   const budgetOut = param("budget") === "out"
   const budget = () => new ApiError(429, "budget_exhausted", "Global spend cap reached.")
+  const intake = createIntakeMock({
+    get: () => SNAPSHOT,
+    set: (s) => {
+      SNAPSHOT = s
+    },
+    presenter: () => !!presenterKey(),
+    newId: () => `run_${hex(12)}`,
+  })
 
   function isFinished(r: MockRun, now = Date.now()) {
     const last = r.phases[r.phases.length - 1]
@@ -190,155 +197,170 @@ export async function createMockApi(): Promise<Api> {
     })
     const running = r.phases.find((p) => t >= p.start && t < p.end)
     const finished = isFinished(r, now)
-    const state: RunState = finished ? r.finalState : running ? running.state : t < r.phases[0].start ? "queued" : r.phases.filter((p) => t >= p.end).at(-1)?.state ?? "queued"
+    // live backend reports "planning" while the interpreting stage runs
+    const state: RunState = finished
+      ? r.finalState
+      : running
+        ? running.state
+        : t < r.phases[0].start
+          ? "queued"
+          : (r.phases.filter((p) => t >= p.end).at(-1)?.state ?? "queued")
+    const executions = r.phases.filter((p) => p.execution && t >= p.start).reduce((a, p) => a + (p.execution ?? 0), 0)
+    const validations = r.phases.filter((p) => p.name === "validating" && t >= p.end).length
+    const verdict = validations ? (r.verdicts[validations - 1] ?? null) : null
+    const explained = r.phases.find((p) => p.name === "explaining")
 
-    const execs = r.phases.filter((p) => p.execution && t >= p.start)
-    const doneExecs = r.phases.filter((p) => p.execution && t >= p.end)
-    const planned = r.phases.find((p) => p.state === "planning")
-    const codeVisible = !planned || t >= planned.end
-    const codeIdx = Math.max(0, execs.length - 1)
-    const validations = r.phases.filter((p) => p.state === "validating" && p.name === "validating" && t >= p.end)
-    const lastVerdict = validations.length ? r.verdicts[validations.length - 1] ?? null : null
-    const gatePassed = !!lastVerdict?.passed
-    const explained = r.phases.find((p) => p.state === "explaining" && r.kind === "analysis")
+    if (r.kind === "analysis") {
+      const log = (r.log ?? []).filter((l) => t >= r.phases[l.afterPhase].end).map((l) => l.entry)
+      const latest = log.at(-1)
+      return {
+        run_id: r.id,
+        kind: r.kind,
+        intent: r.intent,
+        snapshot_id: SNAPSHOT.snapshot_id,
+        state,
+        created_at: iso(r.createdAt),
+        updated_at: iso(Math.min(now, r.createdAt + r.phases[r.phases.length - 1].end)),
+        stages,
+        attempts: executions,
+        code: latest?.code ?? null,
+        receipt: latest?.receipt ?? null,
+        verdict,
+        result: finished || (explained && t >= explained.start) ? (verdict?.passed ? r.result : null) : null,
+        explanation: explained && t >= explained.end ? r.explanation : null,
+        containment: null,
+        error: finished ? r.error : null,
+        question: r.question ?? null,
+        plan: (() => {
+          const interp = r.phases.find((p) => p.name === "interpreting")
+          return r.plan && (!interp || t >= interp.end) ? r.plan : null
+        })(),
+        attempts_log: log,
+      }
+    }
 
     return {
       run_id: r.id,
       kind: r.kind,
-      intent: r.intent,
+      intent: null,
       snapshot_id: SNAPSHOT.snapshot_id,
       state,
       created_at: iso(r.createdAt),
       updated_at: iso(Math.min(now, r.createdAt + r.phases[r.phases.length - 1].end)),
       stages,
-      attempts: execs.length,
-      code: r.codes.length && codeVisible ? r.codes[Math.min(codeIdx, r.codes.length - 1)] : null,
-      receipt: doneExecs.length ? r.receipts[doneExecs.length - 1] ?? null : null,
-      verdict: r.kind === "containment" ? (finished ? (r.verdicts[0] ?? null) : null) : lastVerdict,
-      result: gatePassed ? r.result : null,
-      explanation: explained && t >= explained.end ? r.explanation : null,
+      attempts: executions,
+      code: null,
+      receipt: r.receipts.length && t >= r.phases[0].end ? r.receipts[0] : null,
+      verdict: r.kind === "containment" && finished ? (r.verdicts[0] ?? null) : null,
+      result: null,
+      explanation: null,
       containment: finished ? r.containment : null,
       error: finished ? r.error : null,
-      ...(r.kind === "analysis"
-        ? {
-            question: r.question ?? null,
-            plan: (() => {
-              const interp = r.phases.find((p) => p.name === "interpreting")
-              return r.plan && (!interp || t >= interp.end) ? r.plan : null
-            })(),
-            // an attempt is logged once its gate verdict exists
-            attempts_log: validations.map((_, i) => ({
-              attempt: (i + 1) as 1 | 2,
-              code: r.codes[i],
-              code_sha256: r.shas[i],
-              receipt: r.receipts[i],
-              verdict: r.verdicts[i],
-              repair_reason: i === 1 ? (r.repairReason ?? null) : null,
-            })),
-          }
-        : {}),
+      question: null,
+      plan: null,
+      attempts_log: [],
     }
   }
 
-  // Example question that takes the repair path (attempt 1 rejected on shares).
+  // Example question that takes the repair path: program A's first version
+  // divides by the whole scope, the gate rejects its shares, A is regenerated.
   const REPAIR_QUESTION = /assistant limits most often, as a share/i
 
-  async function newAnalysis(intent: AnalysisIntent, question?: string): Promise<MockRun> {
+  async function newQuestionRun(question: string): Promise<MockRun> {
     const createdAt = Date.now()
     const id = `run_${hex(12)}`
-    const q = intent === "question"
-    const interp = q ? interpretQuestion(question ?? "", SNAPSHOT) : null
-    const T0 = q ? 1350 : 150 // interpreting takes the first ~1.2 s of a question run
+    const interp = interpretQuestion(question, SNAPSHOT)
+    const interpreting: Phase = {
+      name: "interpreting",
+      state: "planning",
+      start: 150,
+      end: 1350,
+      detail: "GLM is mapping the question to a closed-vocabulary plan (it sees titles, not data)",
+      doneDetail: "plan" in interp ? "Plan validated against the schema" : "Question can't be expressed as a plan",
+      outcome: "plan" in interp ? "done" : "failed",
+    }
+    const base = { id, kind: "analysis" as const, intent: "question" as const, question, createdAt, codes: [], shas: [], receipts: [], containment: null }
 
-    const interpreting: Phase[] = q
-      ? [
-          {
-            name: "interpreting",
-            state: "interpreting",
-            start: 150,
-            end: T0,
-            detail: "GLM is mapping the question to a closed-vocabulary plan (it sees titles, not data)",
-            doneDetail: interp && "plan" in interp ? "Plan validated against the schema" : "Question can't be expressed as a plan",
-            outcome: interp && "plan" in interp ? "done" : "failed",
-          },
-        ]
-      : []
-
-    // Unsupported question: the run ends after interpreting.
-    if (interp && "unsupported" in interp) {
+    if ("unsupported" in interp) {
+      const skipped = ["planning", "executing", "validating", "explaining"].map(
+        (name, i): Phase => ({ name, state: "planning", start: 1350 + i, end: 1351 + i, detail: "", outcome: "skipped" }),
+      )
       return {
-        id, kind: "analysis", intent, question, plan: null, createdAt, phases: interpreting, finalState: "failed",
-        codes: [], shas: [], receipts: [], verdicts: [], result: null, explanation: null, containment: null,
+        ...base, plan: null, phases: [interpreting, ...skipped], finalState: "failed", log: [], verdicts: [], result: null, explanation: null,
         error: { code: "unsupported_question", message: interp.unsupported },
       }
     }
 
-    const plan = interp && "plan" in interp ? interp.plan : null
-    const result = q ? questionResult(SNAPSHOT, plan!) : intent === "usage" ? usageResult(SNAPSHOT) : frictionResult(SNAPSHOT)
+    const plan = interp.plan
+    const result = questionResult(SNAPSHOT, plan)
     const bytes = JSON.stringify(result).length
-    const ok = passedChecks(intent, result.rows.length, bytes, plan)
-    const explanation =
-      result.intent === "question" ? questionExplanation(result) : result.intent === "usage" ? usageExplanation(result) : frictionExplanation(result)
-    const repair = intent === "friction" || gateFails || (q && REPAIR_QUESTION.test(question ?? ""))
-    const good = q ? questionProgram(plan!) : intent === "usage" ? USAGE_PROGRAM : FRICTION_PROGRAM
-    const planningPhase: Phase = {
-      name: "planning",
-      state: "planning",
-      start: T0,
-      end: T0 + 1450,
-      detail: "GLM is writing a program from the plan and file schema (it sees no data)",
-      doneDetail: q ? "Program written for the validated plan" : `Program written from the ${intent} contract and file schema`,
-    }
+    const okChecks = programChecks(result.rows.length, bytes, plan)
+    const consistency = consistencyChecks(SNAPSHOT, result)
+    const agree: GateCheck = { name: "Two independent programs agree", passed: true, detail: "identical after canonicalization (shares to 4 dp)" }
+    const codeA = questionProgram(plan)
+    const codeB = questionProgramB(plan)
+    const [shaA, shaB] = await Promise.all([sha256(codeA), sha256(codeB)])
+    const repair = gateFails || REPAIR_QUESTION.test(question)
+    const T = 1350
+
+    const phases: Phase[] = [
+      interpreting,
+      { name: "planning", state: "planning", start: T, end: T + 1700, detail: "GLM is writing two programs in parallel: A with pandas, B with plain Python (neither sees data)", doneDetail: "Programs A (pandas) and B (plain Python) written independently · static checks passed" },
+    ]
+    const log: LoggedAttempt[] = []
+    const verdicts: Verdict[] = []
+    const eA1 = Math.round(jitter(2300, 2700))
+    const eB1 = Math.round(jitter(1900, 2500))
 
     if (!repair) {
-      const phases: Phase[] = [
-        ...interpreting,
-        planningPhase,
-        { name: "executing", state: "executing", start: T0 + 1450, end: T0 + 2500, detail: "Running in the gVisor sandbox · no network · read-only root", doneDetail: "Exit 0 · result.json written", execution: 1 },
-        { name: "validating", state: "validating", start: T0 + 2500, end: T0 + 2950, detail: "Egress gate checking every value against the trusted reference", doneDetail: `passed ${ok.checks.length}/${ok.checks.length} checks` },
-        { name: "explaining", state: "explaining", start: T0 + 2950, end: T0 + 4900, detail: "GLM is describing the validated result with placeholders only", doneDetail: "model text validated (placeholders only, no digits)" },
-      ]
-      const sha = await sha256(good)
-      return {
-        id, kind: "analysis", intent, question, plan, createdAt, phases, finalState: "completed",
-        codes: [good], shas: [sha],
-        receipts: [receiptFor(createdAt, phases[interpreting.length + 1], sha, bytes, { elapsed_ms: Math.round(jitter(2300, 2700)) })],
-        verdicts: [ok], result, explanation, containment: null, error: null,
-      }
+      phases.push(
+        { name: "executing", state: "executing", start: T + 1700, end: T + 1700 + Math.max(eA1, eB1) + 250, detail: "Running A and B in separate gVisor containers · no network · read-only root", doneDetail: `A exit 0 in ${eA1.toLocaleString("en-US")} ms · B exit 0 in ${eB1.toLocaleString("en-US")} ms · containers removed`, execution: 2 },
+      )
+      const e = phases.at(-1)!
+      phases.push({ name: "validating", state: "validating", start: e.end, end: e.end + 450, detail: "Gate checks each output, then the published map, then agreement", doneDetail: `A ${okChecks.length}/${okChecks.length} · B ${okChecks.length}/${okChecks.length} · published map ${consistency.length ? `${consistency.length}/${consistency.length}` : "not derivable"} · programs agree` })
+      const v = phases.length - 1
+      log.push(
+        { entry: { attempt: 1, program: "A", code: codeA, code_sha256: shaA, receipt: receipt(createdAt + e.start + 100, shaA, eA1, bytes), verdict: verdictOf(okChecks), repair_reason: null }, afterPhase: v },
+        { entry: { attempt: 1, program: "B", code: codeB, code_sha256: shaB, receipt: receipt(createdAt + e.start + 120, shaB, eB1, bytes), verdict: verdictOf(okChecks), repair_reason: null }, afterPhase: v },
+      )
+      verdicts.push(verdictOf([...prefixed("A", okChecks), ...prefixed("B", okChecks), ...consistency, agree]))
+    } else {
+      // attempt 1: A's shares are wrong (whole-scope denominator); B passes
+      const badA = questionProgram(plan, true)
+      const shaBadA = await sha256(badA)
+      const failName = "Shares equal count ÷ base within 1e-4"
+      const aFail = failCheck(okChecks, failName, "rows[0].share (+4 more)")
+      phases.push({ name: "executing", state: "executing", start: T + 1700, end: T + 1700 + Math.max(eA1, eB1) + 250, detail: "Running A and B in separate gVisor containers · no network · read-only root", doneDetail: `A exit 0 in ${eA1.toLocaleString("en-US")} ms · B exit 0 in ${eB1.toLocaleString("en-US")} ms`, execution: 2 })
+      let e = phases.at(-1)!
+      phases.push({ name: "validating", state: "validating", start: e.end, end: e.end + 450, detail: "Gate checks each output, then the published map, then agreement", doneDetail: `A rejected: ${failName} · B passed ${okChecks.length}/${okChecks.length}`, outcome: "failed" })
+      const v1 = phases.length - 1
+      log.push(
+        { entry: { attempt: 1, program: "A", code: badA, code_sha256: shaBadA, receipt: receipt(createdAt + e.start + 100, shaBadA, eA1, bytes), verdict: verdictOf(aFail), repair_reason: `Gate check failed: ${failName}` }, afterPhase: v1 },
+        { entry: { attempt: 1, program: "B", code: codeB, code_sha256: shaB, receipt: receipt(createdAt + e.start + 120, shaB, eB1, bytes), verdict: verdictOf(okChecks), repair_reason: null }, afterPhase: v1 },
+      )
+      verdicts.push(verdictOf([...prefixed("A", aFail), ...prefixed("B", okChecks)]))
+      const vEnd = phases[v1].end
+      phases.push({ name: "repairing", state: "repairing", start: vEnd, end: vEnd + 1500, detail: "GLM is regenerating program A from the failed check name only (B is kept)", doneDetail: `Program A regenerated for: ${failName}` })
+      const eA2 = Math.round(jitter(2300, 2700))
+      const rEnd = phases.at(-1)!.end
+      phases.push({ name: "executing", state: "executing", start: rEnd, end: rEnd + eA2 + 250, detail: "Re-running program A in a fresh gVisor container", doneDetail: `A exit 0 in ${eA2.toLocaleString("en-US")} ms · container removed`, execution: 1 })
+      e = phases.at(-1)!
+      phases.push({ name: "validating", state: "validating", start: e.end, end: e.end + 450, detail: "Gate checks A, then the published map, then agreement", doneDetail: gateFails ? `A rejected again: ${failName} · run stopped` : `A ${okChecks.length}/${okChecks.length} · published map ${consistency.length ? `${consistency.length}/${consistency.length}` : "not derivable"} · programs agree`, outcome: gateFails ? "failed" : "done" })
+      const v2 = phases.length - 1
+      const a2 = gateFails ? badA : codeA
+      const sha2 = gateFails ? shaBadA : shaA
+      log.push({ entry: { attempt: 2, program: "A", code: a2, code_sha256: sha2, receipt: receipt(createdAt + e.start + 100, sha2, eA2, bytes), verdict: verdictOf(gateFails ? aFail : okChecks), repair_reason: gateFails ? `Gate check failed: ${failName}` : null }, afterPhase: v2 })
+      verdicts.push(verdictOf(gateFails ? [...prefixed("A", aFail), ...prefixed("B", okChecks)] : [...prefixed("A", okChecks), ...prefixed("B", okChecks), ...consistency, agree]))
     }
-
-    // Repair variant: attempt 1 is rejected by one gate check, GLM repairs it.
-    const bad = q ? questionProgram(plan!, true) : intent === "friction" ? FRICTION_PROGRAM_ATTEMPT_1 : USAGE_PROGRAM
-    const [sha1, sha2] = await Promise.all([sha256(bad), sha256(good)])
-    const failName = q ? "Shares within 1e-4 of the reference" : ok.checks[ok.checks.length - 1].name
-    const failDetail = q ? "rows[0].share differs from the reference (+4 more)" : "rows[1] is out of order (+12 more)"
-    const rejected = withFailed(ok, failName, failDetail)
-    const phases: Phase[] = [
-      ...interpreting,
-      planningPhase,
-      { name: "executing", state: "executing", start: T0 + 1450, end: T0 + 2450, detail: "Attempt 1 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 1 · exit 0 · result.json written", execution: 1 },
-      { name: "validating", state: "validating", start: T0 + 2450, end: T0 + 2900, detail: "Egress gate checking attempt 1", doneDetail: `Rejected: ${failName} · nothing released`, outcome: "failed" },
-      { name: "repairing", state: "repairing", start: T0 + 2900, end: T0 + 4300, detail: "GLM is fixing the program from the failed check names only (no data)", doneDetail: `Repaired for: ${failName}` },
-      { name: "executing", state: "executing", start: T0 + 4300, end: T0 + 5300, detail: "Attempt 2 · gVisor sandbox · no network · read-only root", doneDetail: "Attempt 2 · exit 0 · result.json written", execution: 2 },
-      { name: "validating", state: "validating", start: T0 + 5300, end: T0 + 5750, detail: "Egress gate checking attempt 2", doneDetail: gateFails ? "Rejected again · run stopped after 2 attempts" : `passed ${ok.checks.length}/${ok.checks.length} checks`, outcome: gateFails ? "failed" : "done" },
-    ]
     if (!gateFails) {
-      phases.push({ name: "explaining", state: "explaining", start: T0 + 5750, end: T0 + 7700, detail: "GLM is describing the validated result with placeholders only", doneDetail: "model text validated (placeholders only, no digits)" })
+      const last = phases.at(-1)!.end
+      phases.push({ name: "explaining", state: "explaining", start: last, end: last + 1900, detail: "GLM is describing the verified result with placeholders only", doneDetail: "model text validated (placeholders only, no digits)" })
     }
-    const execIdx = phases.findIndex((p) => p.execution === 1)
-    const execIdx2 = phases.findIndex((p) => p.execution === 2)
     return {
-      id, kind: "analysis", intent, question, plan, createdAt, phases, finalState: gateFails ? "failed" : "completed",
-      codes: [bad, good], shas: [sha1, sha2], repairReason: failName,
-      receipts: [
-        receiptFor(createdAt, phases[execIdx], sha1, bytes, { elapsed_ms: Math.round(jitter(2250, 2650)) }),
-        receiptFor(createdAt, phases[execIdx2], sha2, bytes, { elapsed_ms: Math.round(jitter(2250, 2650)) }),
-      ],
-      verdicts: [rejected, gateFails ? rejected : ok],
+      ...base, plan, phases, finalState: gateFails ? "failed" : "completed", log, verdicts,
       result: gateFails ? null : result,
-      explanation: gateFails ? null : explanation,
-      containment: null,
-      error: gateFails ? { code: "gate_rejected", message: "The program's output failed the egress gate on both attempts, so nothing was released." } : null,
+      explanation: gateFails ? null : questionExplanation(result),
+      error: gateFails ? { code: "gate_rejected", message: "Program A's output failed the gate after one repair, so nothing was released." } : null,
     }
   }
 
@@ -349,7 +371,7 @@ export async function createMockApi(): Promise<Api> {
       { name: "runaway", state: "executing", start: 150, end: 150 + elapsed + 60, detail: "Busy-loop program running · deadline 2,000 ms", doneDetail: `Deadline reached · killed at ${elapsed.toLocaleString("en-US")} ms`, outcome: "failed", execution: 1 },
       { name: "cleanup", state: "executing", start: 150 + elapsed + 60, end: 150 + elapsed + 420, detail: "Supervisor removing the container", doneDetail: "Container removed · no orphans with the job label" },
       { name: "health", state: "validating", start: 150 + elapsed + 420, end: 150 + elapsed + 700, detail: "Checking app and runner health", doneDetail: "App health ok · runner accepting jobs" },
-      { name: "followup", state: "validating", start: 150 + elapsed + 700, end: 150 + elapsed + 1850, detail: "Running a normal usage analysis in a fresh sandbox", doneDetail: "exit 0 · gate passed 17/17 checks" },
+      { name: "followup", state: "validating", start: 150 + elapsed + 700, end: 150 + elapsed + 1850, detail: "Running a normal job in a fresh sandbox", doneDetail: "exit 0 · gate passed 16/16 checks" },
       { name: "leak_attempt", state: "validating", start: 150 + elapsed + 1850, end: 150 + elapsed + 2900, detail: "A program tries to export one row per person", doneDetail: "gate rejected the per-user rows: Only allowlisted field names, Schema matches exactly", outcome: "done" },
     ]
     const sha = await sha256(CONTAINMENT_PROGRAM)
@@ -366,11 +388,15 @@ export async function createMockApi(): Promise<Api> {
         },
       ],
       verdicts: [
-        withFailed(
-          withFailed(passedChecks("usage", 5050, 999), "Only allowlisted field names", "unknown field 'user' in rows[0]; unknown field 'user' in rows[1] (+18 more)"),
-          "Schema matches exactly",
-          "missing field at rows[0].share; missing field at rows[0].users (+97 more)",
-        ),
+        verdictOf([
+          { name: "Result file received", passed: true, detail: "a result file was produced" },
+          { name: "Size within 1 MiB", passed: true, detail: "999 bytes" },
+          { name: "Strict JSON parse", passed: true, detail: "one JSON object" },
+          { name: "Document within structural limits", passed: true, detail: "depth <= 6, strings <= 64 chars" },
+          { name: "Only allowlisted field names", passed: false, detail: "unknown field 'user' in rows[0]; unknown field 'user' in rows[1] (+18 more)" },
+          { name: "Only allowlisted string values", passed: true, detail: "only intent, snapshot and cluster ids" },
+          { name: "Schema matches exactly", passed: false, detail: "missing field at rows[0].share; missing field at rows[0].users (+97 more)" },
+        ]),
       ],
       result: null, explanation: null,
       containment: {
@@ -414,20 +440,19 @@ export async function createMockApi(): Promise<Api> {
 
     async startAnalysis({ intent, snapshot_id, question }) {
       await sleep(jitter(60, 140))
-      if (intent === "question" && (!question || !question.trim() || question.length > 200)) {
-        throw new ApiError(422, "invalid_request", "question must be 1–200 characters")
-      }
+      // §0: question is the only live intent
+      if ((intent as string) !== "question") throw new ApiError(422, "invalid_request", 'intent must be "question"')
+      if (!question || !question.trim() || question.length > 200) throw new ApiError(422, "invalid_request", "question must be 1–200 characters")
       if (budgetOut) throw budget()
       if (sandboxDown) throw unreachable()
       if (snapshot_id !== SNAPSHOT.snapshot_id) throw new ApiError(409, "stale_snapshot", "This snapshot is no longer current. Reload to see the latest one.")
-      const norm = (question ?? "").trim().toLowerCase().replace(/\s+/g, " ")
-      const key = intent === "question" ? `question:${norm}:${snapshot_id}` : `${intent}:${snapshot_id}`
+      const key = `${question.trim().toLowerCase().replace(/\s+/g, " ")}:${snapshot_id}`
       const existing = inflight.get(key)
       if (existing) {
         const r = runs.get(existing)
         if (r && !isFinished(r)) return { run_id: existing }
       }
-      const run = await newAnalysis(intent, question?.trim())
+      const run = await newQuestionRun(question.trim().replace(/\s+/g, " "))
       runs.set(run.id, run)
       inflight.set(key, run.id)
       return { run_id: run.id }
@@ -435,6 +460,8 @@ export async function createMockApi(): Promise<Api> {
 
     async getRun(runId) {
       await sleep(jitter(30, 80))
+      const ir = intake.run(runId)
+      if (ir) return ir
       const r = runs.get(runId)
       if (!r) throw new ApiError(404, "not_found", "Run not found.")
       return toRun(r)
@@ -480,6 +507,32 @@ export async function createMockApi(): Promise<Api> {
     async getEval() {
       await sleep(jitter(150, 260))
       return evalReport()
+    },
+
+    async getIntakeStatus() {
+      await sleep(jitter(40, 90))
+      return intake.status()
+    },
+
+    async startIntake() {
+      await sleep(jitter(60, 120))
+      const res = intake.start()
+      if ("error" in res) throw new ApiError(...res.error)
+      return res
+    },
+
+    async getIntakeEvents(runId, after) {
+      await sleep(jitter(20, 60))
+      const res = intake.events(runId, after)
+      if (!res) throw new ApiError(404, "not_found", "Run not found.")
+      return res
+    },
+
+    async resetIntake() {
+      await sleep(jitter(80, 160))
+      const res = intake.reset()
+      if ("error" in res) throw new ApiError(...res.error)
+      return res
     },
 
     async getHealth(): Promise<Health> {

@@ -13,52 +13,23 @@ from fastapi.testclient import TestClient
 from logless.api import app as appmod
 from logless.api import leakcheck
 from logless.providers import glm, jev
-from logless.sandbox import reference
-from logless.sandbox.client import JobResult
-
+from programs import PANDAS_PROGRAM, STDLIB_PROGRAM, LocalRunner
 from sandbox_helpers import tmp_data  # noqa: F401
 
 REPO = Path(__file__).resolve().parents[2]
 PRIVATE_MARKERS = ("conv_id", "user_id", "stderr", "dev fixture: no text", "Zyxquor")
 
 
-class FakeRunner:
-    """Runs the reference computation instead of a container (the sandbox itself is tested in runner/)."""
-
-    def __init__(self):
-        self.calls = []
+class FakeRunner(LocalRunner):
+    """Executes the submitted programs locally (the sandbox itself is tested in runner/)."""
 
     def health(self, timeout=1.5):
         return {"status": "ok"}
 
-    def run(self, *, kind, code, files, timeout_s, memory_mb=512):
-        self.calls.append(kind)
-        import uuid
-        base = {"job_id": str(uuid.uuid4()), "kind": kind, "exit_code": 0, "started_at": "2026-09-27T01:00:00.000Z",
-                "finished_at": "2026-09-27T01:00:00.900Z",
-                "elapsed_ms": 900, "timed_out": False, "container_removed": True, "runtime": "runsc", "image": "img@sha256:x",
-                "output_bytes": 10, "stderr_tail": "", "error": None, "host": "sandbox", "code_sha256": "0" * 64,
-                "limits": {"cpus": 1, "memory_mb": 512, "pids": 64, "timeout_s": timeout_s, "network": "none", "read_only_root": True}}
-        if "while True" in code:
-            return JobResult({**base, "state": "timed_out", "timed_out": True, "elapsed_ms": 2050, "exit_code": 137, "output": None})
-        import io
 
-        import pandas as pd
-        df = pd.read_csv(io.StringIO(files["assignments.csv"]))
-        contract = json.loads(files["contract.json"])
-        leaves = sorted(c["id"] for c in json.loads(files["clusters.json"]) if c["level"] == 2)
-        if "per_user" in code:
-            out = {"intent": "friction", "snapshot_id": contract["snapshot_id"], "total_conversations": len(df),
-                   "rows": [{"user": 1, "friction_conversations": 3}]}
-        elif contract["intent"] == "question":
-            clusters = json.loads(files["clusters.json"])
-            ref = reference.question(df, clusters, contract["plan"], contract["snapshot_id"])
-            out = reference.rounded({k: v for k, v in ref.items() if k != "_all"})
-        elif contract["intent"] == "usage":
-            out = reference.rounded(reference.usage(df, leaves, contract["snapshot_id"]))
-        else:
-            out = reference.rounded(reference.friction(df, leaves, contract["snapshot_id"]))
-        return JobResult({**base, "state": "succeeded", "output": json.dumps(out)})
+def fake_code(messages, **kw):
+    """GLM stand-in for code: program A (pandas) or B (stdlib) by system prompt."""
+    return f"```python\n{PANDAS_PROGRAM if 'Use pandas' in messages[0]['content'] else STDLIB_PROGRAM}\n```", {"model": "glm-5.3"}
 
 
 @pytest.fixture()
@@ -72,7 +43,7 @@ def client(tmp_data, monkeypatch):
     monkeypatch.setattr(appmod, "_health_cache", (0.0, "unreachable"))
     monkeypatch.setattr(appmod, "store", appmod.SnapshotStore())
     monkeypatch.setattr(appmod, "limiter", appmod.RateLimiter())
-    monkeypatch.setattr(glm, "chat", lambda messages, **kw: ("```python\nimport pandas as pd\nprint(1)\n```", {"model": "glm-5.3"}))
+    monkeypatch.setattr(glm, "chat", fake_code)
     monkeypatch.setattr(glm, "chat_json", fake_chat_json)
     with TestClient(appmod.create_app()) as c:
         c.fake_runner = fake
@@ -99,7 +70,7 @@ def fake_chat_json(system, user, schema, **kw):
         return schema.model_validate({"plan": Q_PLAN}), {"model": "glm-5.3"}
     if schema.__name__ == "_StoryOut":
         return schema(first_name="Maya", text=STORY, citations=["n1", "n2", "p1", "p2"]), {"model": "glm-5.3"}
-    return schema(text="{{rows.0.cluster_id}} leads with {{rows.0.conversations}} conversations."), {"model": "glm-5.3"}
+    return schema(text="{{rows.0.id}} leads with {{rows.0.count}} of {{rows.0.base}}."), {"model": "glm-5.3"}
 
 
 def wait(c, run_id, timeout=20):
@@ -132,16 +103,15 @@ def test_snapshot_health_eval(client):
     assert r.headers["cache-control"] == "no-store"
 
 
-def test_analysis_flow_and_dedupe(client):
+def test_usage_and_friction_are_retired(client):
     sid = client.get("/api/health").json()["snapshot_id"]
-    r1 = client.post("/api/analyses", json={"intent": "friction", "snapshot_id": sid}).json()
-    r2 = client.post("/api/analyses", json={"intent": "friction", "snapshot_id": sid}).json()
-    assert r1 == r2 or wait(client, r1["run_id"])["state"] == "completed"
-    d = wait(client, r1["run_id"])
-    assert d["state"] == "completed", d["error"]
-    assert d["result"]["intent"] == "friction" and d["verdict"]["passed"]
-    assert d["explanation"]["metric_refs"] == ["rows.0.cluster_id", "rows.0.conversations"]
-    no_private(json.dumps(d))
+    for intent in ("usage", "friction"):
+        r = client.post("/api/analyses", json={"intent": intent, "snapshot_id": sid})
+        assert r.status_code == 422 and r.json()["code"] == "invalid_request"
+    from logless.sandbox.runs import Run
+    old = Run.create("analysis", "usage", sid)
+    r = client.get(f"/api/runs/{old.id}")
+    assert r.status_code == 410 and r.json()["code"] == "run_retired"
 
 
 def test_containment_endpoint(client):
@@ -192,7 +162,7 @@ def test_errors_are_code_message_only(client):
     sid = client.get("/api/health").json()["snapshot_id"]
     cases = [
         client.post("/api/analyses", json={"intent": "drop tables", "snapshot_id": sid}),
-        client.post("/api/analyses", json={"intent": "usage", "snapshot_id": "snap_20200101T000000_ffff"}),
+        client.post("/api/analyses", json={"intent": "question", "question": "q", "snapshot_id": "snap_20200101T000000_ffff"}),
         client.get("/api/runs/run_000000000000"),
         client.get("/api/runs/../../etc/passwd"),
         client.post("/api/search", content=b"{" * 9000, headers={"Content-Type": "application/json"}),
@@ -248,9 +218,9 @@ def test_budget_exhausted(client, monkeypatch):
     r = client.post("/api/search", json={"query": "travel", "snapshot_id": sid})
     assert r.status_code == 429 and r.json()["code"] == "budget_exhausted" and int(r.headers["retry-after"]) > 0
     assert "hourly budget for searches" in r.json()["message"] and counter["n"] == 1
-    rid = client.post("/api/analyses", json={"intent": "usage", "snapshot_id": sid}).json()["run_id"]
+    rid = client.post("/api/analyses", json={"intent": "question", "question": "a", "snapshot_id": sid}).json()["run_id"]
     wait(client, rid)
-    r = client.post("/api/analyses", json={"intent": "usage", "snapshot_id": sid})
+    r = client.post("/api/analyses", json={"intent": "question", "question": "b", "snapshot_id": sid})
     assert r.status_code == 429 and r.json()["code"] == "budget_exhausted"
 
 
@@ -324,7 +294,10 @@ def test_question_via_api(client, monkeypatch):
     assert d["intent"] == "question" and d["plan"] == Q_PLAN and d["question"] == body["question"]
     assert d["result"]["plan"] == Q_PLAN and len(d["result"]["rows"]) == 3
     assert all(r["id"].startswith("cat_") for r in d["result"]["rows"])
-    assert d["attempts_log"][0]["attempt"] == 1 and d["attempts_log"][0]["receipt"]["runtime"] == "runsc"
+    assert [(a["attempt"], a["program"]) for a in d["attempts_log"]] == [(1, "A"), (1, "B")]
+    assert d["attempts_log"][0]["receipt"]["runtime"] == "runsc" and d["verdict"]["checks"][-1]["name"] == "Two independent programs agree"
+    assert "Consistent with the published map · base = published people" in [c["name"] for c in d["verdict"]["checks"]]
+    no_private(json.dumps(d))
     assert d["stages"][0]["name"] == "interpreting"
     other = client.post("/api/analyses", json={**body, "question": "Show me the conversations about divorce"}).json()
     assert other["run_id"] != r1["run_id"]
@@ -332,9 +305,6 @@ def test_question_via_api(client, monkeypatch):
     assert d2["state"] == "failed" and d2["error"]["code"] == "unsupported_question" and d2["attempts_log"] == []
     assert client.post("/api/analyses", json={"intent": "question", "snapshot_id": sid}).status_code == 422
     assert client.post("/api/analyses", json={**body, "question": "x" * 201}).status_code == 422
-    # usage/friction runs carry the new fields too
-    u = wait(client, client.post("/api/analyses", json={"intent": "usage", "snapshot_id": sid}).json()["run_id"])
-    assert u["question"] is None and u["plan"] is None and len(u["attempts_log"]) == 1
 
 
 def test_presenter_capacity(client, monkeypatch):

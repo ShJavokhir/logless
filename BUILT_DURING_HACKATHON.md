@@ -1,6 +1,8 @@
 # Built during the hackathon
 
-Everything in this repository was written during the Vultr Agent Arena, from Sat 2026-09-26 to Sun 2026-09-27 PDT. The git history and the run timestamps in each snapshot's provenance record when it happened.
+All code in this repository was written during the Vultr Agent Arena, which ran from Sat 2026-09-26 11:30 to Sun 2026-09-27 12:00 PDT. The git history and each snapshot's provenance timestamps record when.
+
+**Before the start:** the notes in `research/` were written on the morning of Sep 26, 10:06–10:24 PDT, before hacking began at 11:30. They cover the rules, the platform, and sandbox options. They contain no code, and they aren't part of the product. The product spec (`docs/SPEC_SNAPSHOT_2026-09-26.md`) was written during the event, before coding began.
 
 ## New code (written this weekend)
 
@@ -16,7 +18,6 @@ Everything in this repository was written during the Vultr Agent Arena, from Sat
 | Infrastructure: provisioning, VM setup, lockdown, deploy | `infra/` |
 | Contracts and spec | `docs/` |
 
-The research notes in `research/` were written on the morning of the event, before the build started.
 
 ## Reused libraries (unmodified, installed from package registries)
 
@@ -28,7 +29,7 @@ The research notes in `research/` were written on the morning of the event, befo
 
 - **Input:** [allenai/WildChat-1M](https://huggingface.co/datasets/allenai/WildChat-1M), revision `7d6490e`, shard 0. A seeded sample of 5,000 conversations. ODC-BY 1.0; de-identified by the dataset authors. Not redistributed here: `logless seed` downloads it.
 - **Evaluation fixtures:** 40 canary and 10 injection-bait conversations, synthetic and written for this project (`backend/logless/data/fixtures.py`).
-- **Reference labels:** friction labels for 200 sampled conversations, made this weekend by two independent model labellers (`backend/logless/eval/gold/`). External labels joined from Microsoft WildFeedback, WildChat-AQA and sh0416/wildchat-1m-tagged (`backend/logless/eval/external/`).
+- **Reference labels:** friction labels for 200 sampled conversations, made this weekend by two independent model labellers (`backend/logless/eval/gold/`). External labels joined from Microsoft WildFeedback (ODC-By) and sh0416/wildchat-1m-tagged (ODC-By) (`backend/logless/eval/external/`).
 
 ## Hosted services used
 

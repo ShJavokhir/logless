@@ -19,6 +19,7 @@ from .. import db
 from ..config import EMBEDDING_MODEL, GLM, GLM_FLASH, JEV
 from ..ids import build_id as new_build_id
 from ..ids import utcnow
+from ..providers.http import ProviderError
 from . import util
 
 log = logging.getLogger("logless.pipeline")
@@ -43,12 +44,15 @@ STAGE_NAMES = [s[0] for s in STAGES]
 
 
 def scope(limit: int | None) -> list[str]:
+    """The build's conversations: the sample (+ fixtures), never live-intake batches."""
+    from ..intake import ensure_schema
+    ensure_schema()
     con = db.private()
     if limit:
-        rows = con.execute("SELECT conv_id FROM conversations WHERE is_fixture = 1 OR sample_rank < ? ORDER BY conv_id",
-                           (limit,)).fetchall()
+        rows = con.execute("SELECT conv_id FROM conversations WHERE intake_batch IS NULL AND (is_fixture = 1 OR sample_rank < ?)"
+                           " ORDER BY conv_id", (limit,)).fetchall()
     else:
-        rows = con.execute("SELECT conv_id FROM conversations ORDER BY conv_id").fetchall()
+        rows = con.execute("SELECT conv_id FROM conversations WHERE intake_batch IS NULL ORDER BY conv_id").fetchall()
     return [r["conv_id"] for r in rows]
 
 
@@ -71,16 +75,24 @@ def build_usage(b: util.Build) -> list[dict]:
 
 
 def load_build(build_id: str | None = None) -> util.Build:
-    """A given build; else the build behind the current public snapshot; else the latest build."""
+    """A given build; else the latest build if it is unfinished (running or failed: resume it); else the
+    build behind the current public snapshot; else the latest build."""
     con = db.private()
     row = None
     if build_id:
         row = con.execute("SELECT * FROM builds WHERE build_id = ?", (build_id,)).fetchone()
     else:
+        latest = con.execute("SELECT * FROM builds WHERE status IS NULL OR status NOT IN ('abandoned')"
+                             " ORDER BY build_id DESC LIMIT 1").fetchone()
+        if latest is not None and (latest["status"] or "").split(":")[0] in ("running", "failed", "ok", ""):
+            row = latest
+    if row is None and not build_id:
         cur = db.public().execute("SELECT snapshot_id FROM snapshots WHERE is_current = 1").fetchone()
         if cur is not None:
-            row = con.execute("SELECT * FROM builds WHERE snapshot_id = ? ORDER BY build_id DESC LIMIT 1",
-                              (cur["snapshot_id"],)).fetchone()
+            from ..intake import build_of_snapshot  # an intake snapshot resolves to its base build
+            bid = build_of_snapshot(cur["snapshot_id"])
+            if bid:
+                row = con.execute("SELECT * FROM builds WHERE build_id = ?", (bid,)).fetchone()
         if row is None:
             row = con.execute("SELECT * FROM builds ORDER BY build_id DESC LIMIT 1").fetchone()
     if row is None:
@@ -103,6 +115,8 @@ def run_stage(b: util.Build, name: str) -> None:
     t0 = time.monotonic()
     log.info("stage %s: start (build %s, %d conversations)", name, b.build_id, len(b.conv_ids))
     counts = mod.run(b) or {}
+    if util.no_cache():
+        counts["fresh_model_calls"] = 1  # llm/embedding cache reads were disabled for this stage
     rec = {"stage": name, "started_at": started, "finished_at": utcnow(),
            "counts": {k: int(v) for k, v in counts.items() if isinstance(v, (int, float, bool))},
            "models": list(b.info.pop("_stage_models", None) or models)}
@@ -112,8 +126,14 @@ def run_stage(b: util.Build, name: str) -> None:
     log.info("stage %s: done in %.1fs %s", name, time.monotonic() - t0, rec["counts"])
 
 
-def main(limit: int | None = None, from_stage: str | None = None, until: str | None = None) -> int:
+def main(limit: int | None = None, from_stage: str | None = None, until: str | None = None,
+         no_cache: bool = False) -> int:
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    if no_cache:
+        import os
+        os.environ["LOGLESS_NO_CACHE"] = "1"
+    if util.no_cache():
+        log.info("no-cache mode: fresh model and embedding calls; facets and friction are recomputed")
     if from_stage:
         if from_stage not in STAGE_NAMES:
             raise SystemExit(f"unknown stage {from_stage}; stages: {', '.join(STAGE_NAMES)}")
@@ -133,6 +153,12 @@ def main(limit: int | None = None, from_stage: str | None = None, until: str | N
     try:
         for name in todo:
             run_stage(b, name)
+    except (util.ProviderUnavailable, ProviderError) as e:
+        msg = e.describe() if isinstance(e, ProviderError) else str(e)
+        log.error("build %s failed in stage %s: %s", b.build_id, util.USAGE.stage, msg)
+        _save_build(b, f"failed:{util.USAGE.stage}", finished=True)
+        raise SystemExit(f"stage {util.USAGE.stage} failed: {msg}. Resume with: logless rebuild "
+                         f"--from-stage {util.USAGE.stage} (build {b.build_id})")
     except Exception as e:
         log.error("build %s failed in stage %s: %s", b.build_id, util.USAGE.stage, type(e).__name__)
         log.debug("%s", traceback.format_exc())

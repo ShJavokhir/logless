@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { RotateCcw } from "lucide-react"
+import { Radio, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
 import { api, describeError, isPause } from "@/lib/api"
-import type { AnalysisIntent, Health, Intent, Snapshot } from "@/lib/types"
+import type { Health, Snapshot } from "@/lib/types"
 import { highlightFromRows, NO_HIGHLIGHT } from "@/lib/search"
 import { indexSnapshot } from "@/lib/snapshot"
+import { layoutOrderOf } from "@/lib/hierarchy"
+import { formatDelta, pickToastDeltas } from "@/lib/intake"
+import { proseName } from "@/lib/labels"
+import { fmtInt } from "@/lib/format"
+import { useIntake } from "@/hooks/useIntake"
+import { IntakePanel } from "@/components/IntakePanel"
 import { isRunActive } from "@/lib/runs"
 import { useRun } from "@/hooks/useRun"
 import { useSearch } from "@/hooks/useSearch"
@@ -49,7 +56,34 @@ export default function App() {
   }, [reloadKey])
 
   const snapshot = load.status === "ready" ? load.snapshot : null
-  const index = useMemo(() => (snapshot ? indexSnapshot(snapshot) : null), [snapshot])
+
+  // The first snapshot of a build pins packing order, rotation and category
+  // hues, so later snapshots (live intake) grow in place instead of reshuffling.
+  const [layoutBase, setLayoutBase] = useState<Snapshot | null>(null)
+  const sameBuild = (a: Snapshot, b: Snapshot) =>
+    a.clusters.length === b.clusters.length && a.clusters.every((c) => b.clusters.some((d) => d.id === c.id))
+  if (snapshot && (!layoutBase || !sameBuild(layoutBase, snapshot))) setLayoutBase(snapshot)
+  const hueOrder = useMemo(() => (layoutBase ? layoutOrderOf(layoutBase) : undefined), [layoutBase])
+  const index = useMemo(() => (snapshot ? indexSnapshot(snapshot, hueOrder) : null), [snapshot, hueOrder])
+
+  const refreshHealth = useCallback(() => {
+    api.getHealth().then(
+      (h) => {
+        setHealth(h)
+        setHealthError(null)
+      },
+      (err) => setHealthError(describeError(err)),
+    )
+  }, [])
+  const onPublished = useCallback(
+    (s: Snapshot) => {
+      setLoad({ status: "ready", snapshot: s })
+      refreshHealth()
+    },
+    [refreshHealth],
+  )
+  const intake = useIntake(snapshot, onPublished)
+  const intakeActive = intake.phase !== "idle"
 
   // selection & navigation
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -83,60 +117,28 @@ export default function App() {
     partial: search.highlight.clusters.size - search.highlight.matchCount,
   }
 
-  // analysis runs: the two fixed questions + open questions (§8b)
-  const [runIds, setRunIds] = useState<Record<AnalysisIntent, string | null>>({ usage: null, friction: null, question: null })
-  const [startError, setStartError] = useState<Record<AnalysisIntent, { message: string; paused: boolean } | null>>({
-    usage: null,
-    friction: null,
-    question: null,
-  })
-  const [activeIntent, setActiveIntent] = useState<AnalysisIntent | null>(null)
+  // §0: the map lens is a view of published data (no run); asking is the one live action.
+  const [lens, setLens] = useState<Lens>("usage")
+  const [askOpen, setAskOpen] = useState(false)
+  const [runId, setRunId] = useState<string | null>(null)
+  const [startError, setStartError] = useState<{ message: string; paused: boolean } | null>(null)
   const [asking, setAsking] = useState(false)
-  const usage = useRun(runIds.usage)
-  const friction = useRun(runIds.friction)
-  const question = useRun(runIds.question)
-  const runs = { usage, friction, question }
+  const question = useRun(runId)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [evalOpen, setEvalOpen] = useState(false)
-
-  const start = useCallback(
-    async (intent: Intent) => {
-      if (!snapshot) return
-      setActiveIntent(intent)
-      setStartError((e) => ({ ...e, [intent]: null }))
-      setRunIds((r) => ({ ...r, [intent]: null }))
-      try {
-        const { run_id } = await api.startAnalysis({ intent, snapshot_id: snapshot.snapshot_id })
-        setRunIds((r) => ({ ...r, [intent]: run_id }))
-      } catch (err) {
-        setStartError((e) => ({ ...e, [intent]: { message: describeError(err, "The analysis could not start."), paused: isPause(err) } }))
-      }
-    },
-    [snapshot],
-  )
-
-  const ask = (intent: Intent) => {
-    const current = runs[intent].run
-    // A run in flight or already answered is simply shown again.
-    if (runIds[intent] && (!current || isRunActive(current) || current.state === "completed")) {
-      setActiveIntent(intent)
-      return
-    }
-    void start(intent)
-  }
 
   const askQuestion = useCallback(
     async (text: string) => {
       if (!snapshot) return
-      setActiveIntent("question")
+      setAskOpen(true)
       setAsking(true)
-      setStartError((e) => ({ ...e, question: null }))
-      setRunIds((r) => ({ ...r, question: null }))
+      setStartError(null)
+      setRunId(null)
       try {
         const { run_id } = await api.startAnalysis({ intent: "question", question: text.slice(0, 200), snapshot_id: snapshot.snapshot_id })
-        setRunIds((r) => ({ ...r, question: run_id }))
+        setRunId(run_id)
       } catch (err) {
-        setStartError((e) => ({ ...e, question: { message: describeError(err, "The question could not be sent."), paused: isPause(err) } }))
+        setStartError({ message: describeError(err, "The question could not be sent."), paused: isPause(err) })
       } finally {
         setAsking(false)
       }
@@ -145,21 +147,68 @@ export default function App() {
   )
 
   const askAnother = () => {
-    setRunIds((r) => ({ ...r, question: null }))
-    setStartError((e) => ({ ...e, question: null }))
+    setRunId(null)
+    setStartError(null)
   }
 
-  const activeRun = activeIntent ? runs[activeIntent].run : null
-  const lens: Lens = activeIntent === "friction" && friction.run?.state === "completed" ? "friction" : "usage"
+  const activeRun = askOpen ? question.run : null
 
   // A verified question result lights up its rows' nodes (search wins while active).
   const questionRows =
-    activeIntent === "question" && question.run?.state === "completed" && question.run.result?.intent === "question" ? question.run.result.rows : null
+    askOpen && question.run?.state === "completed" && question.run.result?.intent === "question" ? question.run.result.rows : null
   const questionHighlight = useMemo(
     () => (questionRows && snapshot ? highlightFromRows(questionRows.map((r) => r.id), snapshot.clusters) : NO_HIGHLIGHT),
     [questionRows, snapshot],
   )
   const highlight = search.highlight.active ? search.highlight : questionHighlight
+
+  // Live intake (presenter-only): start clears the stage so the stream reads cleanly.
+  const startIntake = () => {
+    setAskOpen(false)
+    setFocusId(null)
+    setSelectedId(null)
+    setPeekId(null)
+    setView("map")
+    void intake.start()
+  }
+
+  // Completion toast, once per run, after the map has swapped to the new snapshot.
+  const toastedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!intake.published || !intake.summary || !index || toastedRef.current === intake.runId) return
+    toastedRef.current = intake.runId
+    const nameOf = (id: string) => {
+      const n = index.byId.get(id)
+      return n ? proseName(n) : undefined
+    }
+    toast.success(`Map updated · +${fmtInt(intake.summary.decided)} conversations`, {
+      description: (
+        <div className="mt-0.5 flex flex-col gap-0.5">
+          {pickToastDeltas(intake.summary.deltas, 3).map((d) => (
+            <span key={d.id}>{formatDelta(d, nameOf)}</span>
+          ))}
+        </div>
+      ),
+      duration: 9000,
+    })
+  }, [intake.published, intake.summary, intake.runId, index])
+
+  const intakeControl = !intake.presenter ? null : intake.phase !== "idle" ? (
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand-soft px-2 py-0.5 text-[12px] font-medium text-brand">
+      <Radio aria-hidden className="size-3.5" />
+      {intake.phase === "running" || intake.phase === "starting" ? "Live intake running" : "Live intake"}
+    </span>
+  ) : intake.status?.ready ? (
+    <Button size="sm" variant="outline" className="h-7 border-brand/40 text-brand hover:bg-brand-soft" onClick={startIntake}>
+      <Radio />
+      Live intake
+    </Button>
+  ) : intake.status ? (
+    <Button size="sm" variant="ghost" className="h-7 text-muted-foreground" onClick={() => void intake.reset()}>
+      <RotateCcw />
+      Reset intake
+    </Button>
+  ) : null
 
   if (load.status === "error") {
     return (
@@ -187,14 +236,13 @@ export default function App() {
         searching={search.loading}
         searchError={search.error}
         matchInfo={matchInfo}
-        activeIntent={activeIntent}
-        running={{ usage: isRunActive(usage.run), friction: isRunActive(friction.run), question: asking || isRunActive(question.run) }}
-        onAsk={ask}
-        onOpenAsk={() => setActiveIntent("question")}
+        askOpen={askOpen}
+        asking={asking || isRunActive(question.run)}
+        onOpenAsk={() => setAskOpen(true)}
         view={view}
         onView={setView}
         disabled={!index}
-        notice={<HealthNotice health={health} error={healthError} snapshotId={snapshot?.snapshot_id} />}
+        notice={<HealthNotice health={health} error={healthError} snapshotId={intakeActive ? undefined : snapshot?.snapshot_id} />}
       />
 
       <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-3 lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)]">
@@ -214,10 +262,22 @@ export default function App() {
               peekId={peekId}
               onSelectLeaf={selectLeaf}
               onFocusCategory={focusCategory}
+              onLens={setLens}
+              layoutBase={layoutBase}
+              liveDelta={intake.liveDelta}
+              intake={intake.streaming ? { visual: intake.visual, decided: intake.counters?.decided ?? 0, total: intake.counters?.total ?? intake.status?.batch_size ?? 0 } : null}
+              headerControl={intakeControl}
             />
           ) : (
             <div className="flex h-full min-h-[440px] flex-col">
-              <MapBar index={index} focusNode={focusId ? (index.byId.get(focusId) ?? null) : null} onFocusCategory={focusCategory} lens={lens} />
+              <MapBar
+                index={index}
+                focusNode={focusId ? (index.byId.get(focusId) ?? null) : null}
+                onFocusCategory={focusCategory}
+                lens={lens}
+                onLens={setLens}
+                extra={intakeControl}
+              />
               <div className="min-h-0 flex-1">
                 <ClusterList index={index} lens={lens} highlight={highlight} selectedId={selectedId} focusId={focusId} onSelectLeaf={selectLeaf} />
               </div>
@@ -233,13 +293,11 @@ export default function App() {
         </section>
 
         <aside aria-label="Details" className="flex min-h-0 flex-col gap-3">
-          {index && activeIntent ? (
+          {index && askOpen && !intakeActive ? (
             <AnswerCard
-              key={activeIntent}
-              intent={activeIntent}
               run={activeRun}
-              error={startError[activeIntent]?.message ?? runs[activeIntent].error}
-              paused={!!startError[activeIntent]?.paused}
+              error={startError?.message ?? question.error}
+              paused={!!startError?.paused}
               index={index}
               selectedId={selectedId}
               onSelectCluster={(id) => {
@@ -252,12 +310,11 @@ export default function App() {
               }}
               onPeek={setPeekId}
               onOpenDetails={() => setSheetOpen(true)}
-              onRunAgain={() => (activeIntent === "question" ? askAnother() : void start(activeIntent))}
               onAsk={(q) => void askQuestion(q)}
               onAskAnother={askAnother}
-              asking={activeIntent === "question" && asking}
+              asking={asking}
               onClose={() => {
-                setActiveIntent(null)
+                setAskOpen(false)
                 setPeekId(null)
               }}
             />
@@ -266,7 +323,9 @@ export default function App() {
             ref={detailRef}
             className="min-h-[240px] flex-1 scroll-mt-3 rounded-xl border bg-card px-5 py-4 lg:overflow-y-auto"
           >
-            {index ? (
+            {index && intakeActive ? (
+              <IntakePanel intake={intake} index={index} />
+            ) : index ? (
               <DetailPanel
                 index={index}
                 selectedId={selectedId}
@@ -277,6 +336,7 @@ export default function App() {
                   setFocusId(catId)
                   if (leafId) selectLeaf(leafId)
                 }}
+                onAsk={(q) => void askQuestion(q)}
               />
             ) : (
               <DetailSkeleton />
@@ -298,13 +358,13 @@ function Shell({ snapshot, onEval, children }: { snapshot: Snapshot | null; onEv
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2">
           Skip to content
         </a>
-        <Header snapshot={snapshot} mock={api.mode === "mock"} />
+        <Header snapshot={snapshot} />
         <div id="main" className="flex min-h-0 flex-1 flex-col">
           {children}
         </div>
         <Footer snapshot={snapshot} mock={api.mode === "mock"} onEval={onEval} />
       </div>
-      <Toaster position="bottom-right" />
+      <Toaster position="bottom-left" />
     </TooltipProvider>
   )
 }

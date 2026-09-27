@@ -30,6 +30,17 @@ CLUSTER_MAP_SCHEMA = (
 )
 
 
+# The typed rows exactly as they were when a snapshot was published (theme, pseudonym and the four
+# friction decisions per conversation), so live questions answer over the same data the published
+# numbers came from, even if the pipeline later re-labels friction or rebuilds.
+FROZEN_SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS sandbox_inputs ("
+    " snapshot_id TEXT NOT NULL, conv_id TEXT NOT NULL, user_id TEXT NOT NULL, theme_id TEXT NOT NULL,"
+    " correction TEXT NOT NULL, repeat_request TEXT NOT NULL, assistant_limit TEXT NOT NULL, complaint TEXT NOT NULL,"
+    " PRIMARY KEY (snapshot_id, conv_id))"
+)
+
+
 class ExportError(RuntimeError):
     pass
 
@@ -138,10 +149,23 @@ def _load_rows(build_id: str) -> pd.DataFrame:
     return a
 
 
-def export_inputs(build_id: str, clusters: list[dict]) -> SandboxInputs:
-    """Typed inputs for one sandbox job. `clusters`: [{id, parent_id, level, is_other, theme_ids}]."""
+def _load_frozen(snapshot_id: str) -> pd.DataFrame | None:
+    con = db.private()
+    con.execute(FROZEN_SCHEMA)
+    f = pd.read_sql_query("SELECT conv_id, user_id, theme_id, correction, repeat_request, assistant_limit, complaint "
+                          "FROM sandbox_inputs WHERE snapshot_id = ? ORDER BY conv_id", con, params=(snapshot_id,))
+    return None if f.empty else f
+
+
+def export_inputs(build_id: str, clusters: list[dict], snapshot_id: str | None = None) -> SandboxInputs:
+    """Typed inputs for one sandbox job. `clusters`: [{id, parent_id, level, is_other, theme_ids}].
+    With `snapshot_id`, the rows frozen when that snapshot was published are used (falling back to
+    the live tables for snapshots published before freezing existed)."""
     cats, leaves = _validate_structure(clusters)
-    df, mapping = frame_from_rows(_load_rows(build_id), clusters)
+    rows = _load_frozen(snapshot_id) if snapshot_id else None
+    if rows is None:
+        rows = _load_rows(build_id)
+    df, mapping = frame_from_rows(rows, clusters)
     structure = public_structure(clusters)
     return SandboxInputs(
         assignments_csv=df.to_csv(index=False, lineterminator="\n"),
@@ -154,16 +178,26 @@ def export_inputs(build_id: str, clusters: list[dict]) -> SandboxInputs:
 # ---------------------------------------------------------------- cluster map persistence
 
 def save_cluster_map(snapshot_id: str, build_id: str, clusters: list[dict]) -> None:
-    """Remember which private themes make up each published leaf, so live analyses on
-    `snapshot_id` can rebuild the same inputs. Private (private.db) only."""
+    """Remember which private themes make up each published leaf AND freeze the typed rows (theme,
+    pseudonym, friction decisions) as they are now, so live questions on `snapshot_id` answer over
+    exactly the data its published numbers came from. Private (private.db) only. Call it when the
+    snapshot's metrics are computed (the pipeline's stats stage does)."""
     _validate_structure(clusters)
     con = db.private()
     con.execute(CLUSTER_MAP_SCHEMA)
     slim = [{"id": c["id"], "parent_id": c.get("parent_id"), "level": int(c["level"]), "is_other": bool(c.get("is_other", False)),
              "theme_ids": [str(t) for t in (c.get("theme_ids") or [])]} for c in clusters]
+    rows = _load_rows(build_id)   # the typed rows as of publication, frozen below
+    con.execute(FROZEN_SCHEMA)
     with db.write(con):
         con.execute("INSERT OR REPLACE INTO sandbox_cluster_map(snapshot_id, build_id, clusters_json, created_at) VALUES (?,?,?,?)",
                     (snapshot_id, build_id, json.dumps(slim), utcnow()))
+        con.execute("DELETE FROM sandbox_inputs WHERE snapshot_id = ?", (snapshot_id,))
+        con.executemany(
+            "INSERT INTO sandbox_inputs(snapshot_id, conv_id, user_id, theme_id, correction, repeat_request, assistant_limit, complaint) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            [(snapshot_id, r.conv_id, r.user_id, str(r.theme_id), r.correction, r.repeat_request, r.assistant_limit, r.complaint)
+             for r in rows.itertuples(index=False)])
 
 
 def load_cluster_map(snapshot_id: str) -> tuple[str, list[dict]] | None:

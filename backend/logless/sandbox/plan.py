@@ -45,9 +45,26 @@ class Interpretation(BaseModel):
         return self
 
 
+def question_scope(clusters: list[dict], plan: dict) -> tuple[list[str], set[str]]:
+    """(group ids in scope, leaf ids whose rows are in scope) — structure only, no data. Other or
+    unclear (any is_other leaf, cl_other, anything in an is_other category) is never in scope."""
+    cats = {c["id"]: c for c in clusters if int(c["level"]) == 1}
+    other_cats = {cid for cid, c in cats.items() if c.get("is_other")}
+    leaves = [c for c in clusters if int(c["level"]) == 2 and not c.get("is_other") and c["id"] != "cl_other"
+              and c.get("parent_id") not in other_cats]
+    scope = plan.get("scope_category_id")
+    if scope is not None:
+        leaves = [c for c in leaves if c["parent_id"] == scope]
+    leaf_ids = {c["id"] for c in leaves}
+    if plan["group_by"] == "leaf":
+        groups = sorted(leaf_ids)
+    else:
+        groups = sorted({c["parent_id"] for c in leaves})
+    return groups, leaf_ids
+
+
 def semantic_problems(plan: Plan, clusters: list[dict]) -> list[str]:
     """Checks that need the snapshot: the scope must be a published, non-Other category with leaves."""
-    from .reference import question_scope
     cats = {c["id"]: c for c in clusters if int(c["level"]) == 1}
     problems = []
     if plan.scope_category_id is not None:
