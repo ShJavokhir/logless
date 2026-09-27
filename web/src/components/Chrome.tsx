@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { CircleAlert, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, MessageSquareText, Rows3, Search, ShieldCheck, X } from "lucide-react"
+import { CircleAlert, Clapperboard, ExternalLink, FlaskConical, LayoutGrid, LoaderCircle, MessageSquareText, Rows3, Search, ShieldCheck, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Health, Snapshot } from "@/lib/types"
 import { fmtDate, fmtDateRange, fmtInt } from "@/lib/format"
@@ -83,6 +83,7 @@ export function Toolbar({
   askOpen,
   asking,
   onOpenAsk,
+  onOpenBrief,
   view,
   onView,
   disabled,
@@ -100,6 +101,8 @@ export function Toolbar({
   asking: boolean
   /** open the answer card in "ask a question" mode */
   onOpenAsk: () => void
+  /** open the one-minute video brief */
+  onOpenBrief?: () => void
   view: View
   onView: (v: View) => void
   disabled: boolean
@@ -179,6 +182,12 @@ export function Toolbar({
 
       <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
         {notice}
+        {onOpenBrief ? (
+          <Button variant="outline" onClick={onOpenBrief} aria-haspopup="dialog" disabled={disabled} className="h-8 px-3">
+            <Clapperboard />
+            Video brief
+          </Button>
+        ) : null}
         <Button onClick={onOpenAsk} aria-pressed={askOpen} aria-haspopup="dialog" disabled={disabled} className="h-8 px-3.5">
           {asking ? <LoaderCircle className="animate-spin" /> : <MessageSquareText />}
           {ASK_LABEL}

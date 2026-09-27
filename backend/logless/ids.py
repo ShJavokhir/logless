@@ -33,6 +33,10 @@ def run_id() -> str:
     return "run_" + secrets.token_hex(6)
 
 
+def brief_id() -> str:
+    return "brf_" + secrets.token_hex(6)
+
+
 def short_hex(seed: str, n: int = 6) -> str:
     return hashlib.sha256(seed.encode()).hexdigest()[:n]
 

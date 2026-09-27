@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Radio, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { api, describeError, isPause } from "@/lib/api"
@@ -26,6 +26,9 @@ import { EvalDialog } from "@/components/EvalDialog"
 import { Footer, Header, HealthNotice, Toolbar, type View } from "@/components/Chrome"
 import { RunDetailsSheet } from "@/components/RunDetailsSheet"
 import { MapBar, UsageMap, type Lens } from "@/components/UsageMap"
+
+// The Remotion player is only loaded when someone opens the video brief.
+const BriefDialog = lazy(() => import("@/components/BriefDialog").then((m) => ({ default: m.BriefDialog })))
 
 type Load = { status: "loading" } | { status: "ready"; snapshot: Snapshot } | { status: "error"; message: string }
 
@@ -128,6 +131,7 @@ export default function App() {
   const question = useRun(runId)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [evalOpen, setEvalOpen] = useState(false)
+  const [briefOpen, setBriefOpen] = useState(false)
 
   const askQuestion = useCallback(
     async (text: string) => {
@@ -242,6 +246,7 @@ export default function App() {
         askOpen={askOpen}
         asking={asking || isRunActive(question.run)}
         onOpenAsk={() => setAskOpen(true)}
+        onOpenBrief={() => setBriefOpen(true)}
         view={view}
         onView={setView}
         disabled={!index || intake.flowVisible}
@@ -351,6 +356,11 @@ export default function App() {
 
       {snapshot ? <RunDetailsSheet open={sheetOpen} onOpenChange={setSheetOpen} run={activeRun} snapshot={snapshot} /> : null}
       <EvalDialog key={snapshot?.snapshot_id} snapshotId={snapshot?.snapshot_id} open={evalOpen} onOpenChange={setEvalOpen} />
+      {briefOpen && snapshot ? (
+        <Suspense fallback={null}>
+          <BriefDialog key={snapshot.snapshot_id} snapshotId={snapshot.snapshot_id} open={briefOpen} onOpenChange={setBriefOpen} />
+        </Suspense>
+      ) : null}
     </Shell>
   )
 }

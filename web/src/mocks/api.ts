@@ -32,6 +32,7 @@ import type {
   PrdResponse,
   Verdict,
 } from "@/lib/types"
+import type { Brief, BriefResponse } from "@/video/types"
 import snapshotJson from "./snapshot.json"
 import { CONTAINMENT_PROGRAM, questionProgram, questionProgramB } from "./programs"
 import { consistencyChecks, interpretQuestion, questionExplanation, questionResult } from "./results"
@@ -500,6 +501,18 @@ export async function createMockApi(): Promise<Api> {
       runs.set(fresh.id, fresh)
       storyRuns.set(clusterId, fresh.id)
       return { status: "pending", run_id: fresh.id }
+    },
+
+    async getBrief(): Promise<BriefResponse> {
+      await sleep(jitter(200, 300))
+      const sample = (await import("../video/sample-brief.json")).default as unknown as Brief
+      return { status: "ready", brief: sample }
+    },
+
+    async requestBrief(): Promise<BriefResponse> {
+      await sleep(jitter(400, 600))
+      const sample = (await import("../video/sample-brief.json")).default as unknown as Brief
+      return { status: "ready", brief: sample }
     },
 
     async requestPrd(clusterId, snapshotId): Promise<PrdResponse> {

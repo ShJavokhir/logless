@@ -1,0 +1,590 @@
+{
+ "brief_id": "brf_sample",
+ "snapshot_id": "snap_20260927T140846_8a58",
+ "generated_at": "2026-09-27T15:00:00Z",
+ "model": "glm-5.3",
+ "label": "Video brief \u00b7 sample",
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "duration_frames": 1830,
+ "title": "What 5,350 conversations say about your assistant",
+ "dataset": {
+  "name": "WildChat-1M",
+  "workspace": "WildChat \u00b7 public research sample",
+  "period_start": "2023-04-09",
+  "period_end": "2023-05-04"
+ },
+ "totals": {
+  "conversations": 5350,
+  "people": 2963,
+  "languages": 55,
+  "friction_share": 0.1989,
+  "friction_conversations": 1064,
+  "unclear": 325
+ },
+ "scenes": [
+  {
+   "type": "intro",
+   "seconds": 6,
+   "headline": "What 5,350 conversations say about your assistant",
+   "kicker": "A one-minute brief on the published usage map",
+   "from_frame": 0,
+   "frames": 180
+  },
+  {
+   "type": "map",
+   "seconds": 8,
+   "headline": "Study, play and code lead the way",
+   "data": {
+    "categories": [
+     {
+      "id": "cat_7dfaed",
+      "title": "Study support",
+      "share": 0.2,
+      "conversations": 1070,
+      "friction_share": 0.1271,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_ba74da",
+        "title": "Concepts & documents",
+        "share": 0.1355,
+        "conversations": 725,
+        "friction_share": 0.0966
+       },
+       {
+        "id": "cl_73d576",
+        "title": "Worked math solutions",
+        "share": 0.0273,
+        "conversations": 146,
+        "friction_share": 0.2397
+       },
+       {
+        "id": "cl_cde491",
+        "title": "Language practice",
+        "share": 0.02,
+        "conversations": 107,
+        "friction_share": 0.2056
+       },
+       {
+        "id": "cl_02d011",
+        "title": "Translation help",
+        "share": 0.0172,
+        "conversations": 92,
+        "friction_share": 0.0978
+       }
+      ]
+     },
+     {
+      "id": "cat_a54728",
+      "title": "Fun & play",
+      "share": 0.1933,
+      "conversations": 1034,
+      "friction_share": 0.1596,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_679651",
+        "title": "Original fiction",
+        "share": 0.1088,
+        "conversations": 582,
+        "friction_share": 0.0773
+       },
+       {
+        "id": "cl_c15478",
+        "title": "Probing the AI",
+        "share": 0.0267,
+        "conversations": 143,
+        "friction_share": 0.1538
+       },
+       {
+        "id": "cl_b4afab",
+        "title": "Roleplay fiction",
+        "share": 0.0258,
+        "conversations": 138,
+        "friction_share": 0.3478
+       },
+       {
+        "id": "cl_f5a003",
+        "title": "Jokes & games",
+        "share": 0.0155,
+        "conversations": 83,
+        "friction_share": 0.2651
+       },
+       {
+        "id": "cl_6ae30f",
+        "title": "Image creation",
+        "share": 0.011,
+        "conversations": 59,
+        "friction_share": 0.3729
+       },
+       {
+        "id": "cl_d1a72d",
+        "title": "Songs & lyrics",
+        "share": 0.0054,
+        "conversations": 29,
+        "friction_share": 0.2069
+       }
+      ]
+     },
+     {
+      "id": "cat_8ee802",
+      "title": "Coding help",
+      "share": 0.18,
+      "conversations": 963,
+      "friction_share": 0.3167,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_c9b677",
+        "title": "Code questions",
+        "share": 0.0564,
+        "conversations": 302,
+        "friction_share": 0.2517
+       },
+       {
+        "id": "cl_9387c0",
+        "title": "Desktop programs",
+        "share": 0.0249,
+        "conversations": 133,
+        "friction_share": 0.4361
+       },
+       {
+        "id": "cl_688ed8",
+        "title": "Fixing errors",
+        "share": 0.0206,
+        "conversations": 110,
+        "friction_share": 0.3091
+       },
+       {
+        "id": "cl_89ea05",
+        "title": "Implement and fix",
+        "share": 0.017,
+        "conversations": 91,
+        "friction_share": 0.3407
+       },
+       {
+        "id": "cl_e87404",
+        "title": "Data scripts",
+        "share": 0.0138,
+        "conversations": 74,
+        "friction_share": 0.4865
+       },
+       {
+        "id": "cl_5dfc13",
+        "title": "Web front ends",
+        "share": 0.0136,
+        "conversations": 73,
+        "friction_share": 0.3288
+       },
+       {
+        "id": "cl_1c2f50",
+        "title": "Build bots apps",
+        "share": 0.012,
+        "conversations": 64,
+        "friction_share": 0.2969
+       },
+       {
+        "id": "cl_63f1bd",
+        "title": "Low-level systems",
+        "share": 0.0108,
+        "conversations": 58,
+        "friction_share": 0.1724
+       },
+       {
+        "id": "cl_1df616",
+        "title": "Spreadsheet macros",
+        "share": 0.0069,
+        "conversations": 37,
+        "friction_share": 0.2973
+       },
+       {
+        "id": "cl_db7209",
+        "title": "SQL databases",
+        "share": 0.0039,
+        "conversations": 21,
+        "friction_share": 0.2857
+       }
+      ]
+     },
+     {
+      "id": "cat_8b60ec",
+      "title": "Quick answers",
+      "share": 0.1733,
+      "conversations": 927,
+      "friction_share": 0.2352,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_4f1f8f",
+        "title": "Everyday questions",
+        "share": 0.1553,
+        "conversations": 831,
+        "friction_share": 0.2335
+       },
+       {
+        "id": "cl_137550",
+        "title": "Symbol meanings",
+        "share": 0.0095,
+        "conversations": 51,
+        "friction_share": 0.1765
+       },
+       {
+        "id": "cl_e07768",
+        "title": "What-if scenarios",
+        "share": 0.0052,
+        "conversations": 28,
+        "friction_share": 0.3214
+       },
+       {
+        "id": "cl_472879",
+        "title": "China facts",
+        "share": 0.0032,
+        "conversations": 17,
+        "friction_share": 0.3529
+       }
+      ]
+     },
+     {
+      "id": "cat_676440",
+      "title": "Writing help",
+      "share": 0.1385,
+      "conversations": 741,
+      "friction_share": 0.1377,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_e88dfa",
+        "title": "Coursework texts",
+        "share": 0.0557,
+        "conversations": 298,
+        "friction_share": 0.1208
+       },
+       {
+        "id": "cl_5e5dc0",
+        "title": "Marketing copy",
+        "share": 0.0308,
+        "conversations": 165,
+        "friction_share": 0.1697
+       },
+       {
+        "id": "cl_90977f",
+        "title": "Academic papers",
+        "share": 0.0237,
+        "conversations": 127,
+        "friction_share": 0.2047
+       },
+       {
+        "id": "cl_e706c9",
+        "title": "Everyday messages",
+        "share": 0.0207,
+        "conversations": 111,
+        "friction_share": 0.0991
+       },
+       {
+        "id": "cl_3bbc32",
+        "title": "Travel guides",
+        "share": 0.0075,
+        "conversations": 40,
+        "friction_share": 0.025
+       }
+      ]
+     },
+     {
+      "id": "cat_354bfa",
+      "title": "Life & business",
+      "share": 0.0277,
+      "conversations": 148,
+      "friction_share": 0.1824,
+      "is_other": false,
+      "children": [
+       {
+        "id": "cl_100b4d",
+        "title": "Business & money",
+        "share": 0.0151,
+        "conversations": 81,
+        "friction_share": 0.2593
+       },
+       {
+        "id": "cl_0f0ad2",
+        "title": "Personal advice",
+        "share": 0.0125,
+        "conversations": 67,
+        "friction_share": 0.0896
+       }
+      ]
+     },
+     {
+      "id": "cat_3bf203",
+      "title": "Other",
+      "share": 0.0873,
+      "conversations": 467,
+      "friction_share": 0.2377,
+      "is_other": true,
+      "children": [
+       {
+        "id": "cl_other",
+        "title": "Other or unclear",
+        "share": 0.0873,
+        "conversations": 467,
+        "friction_share": 0.2377
+       }
+      ]
+     }
+    ]
+   },
+   "from_frame": 180,
+   "frames": 240
+  },
+  {
+   "type": "top_workflows",
+   "seconds": 7,
+   "headline": "Everyday questions are the front door",
+   "data": {
+    "items": [
+     {
+      "id": "cl_4f1f8f",
+      "title": "Everyday questions",
+      "category": "Quick answers",
+      "share": 0.1553,
+      "conversations": 831,
+      "people": 577
+     },
+     {
+      "id": "cl_ba74da",
+      "title": "Concepts & documents",
+      "category": "Study support",
+      "share": 0.1355,
+      "conversations": 725,
+      "people": 553
+     },
+     {
+      "id": "cl_679651",
+      "title": "Original fiction",
+      "category": "Fun & play",
+      "share": 0.1088,
+      "conversations": 582,
+      "people": 229
+     },
+     {
+      "id": "cl_c9b677",
+      "title": "Code questions",
+      "category": "Coding help",
+      "share": 0.0564,
+      "conversations": 302,
+      "people": 233
+     },
+     {
+      "id": "cl_e88dfa",
+      "title": "Coursework texts",
+      "category": "Writing help",
+      "share": 0.0557,
+      "conversations": 298,
+      "people": 223
+     },
+     {
+      "id": "cl_5e5dc0",
+      "title": "Marketing copy",
+      "category": "Writing help",
+      "share": 0.0308,
+      "conversations": 165,
+      "people": 139
+     }
+    ]
+   },
+   "from_frame": 420,
+   "frames": 210
+  },
+  {
+   "type": "friction",
+   "seconds": 8,
+   "headline": "Coding help is where users fight the assistant",
+   "data": {
+    "overall_share": 0.1989,
+    "items": [
+     {
+      "id": "cl_4f1f8f",
+      "title": "Everyday questions",
+      "friction_share": 0.2335,
+      "friction_conversations": 194,
+      "conversations": 831
+     },
+     {
+      "id": "cl_c9b677",
+      "title": "Code questions",
+      "friction_share": 0.2517,
+      "friction_conversations": 76,
+      "conversations": 302
+     },
+     {
+      "id": "cl_ba74da",
+      "title": "Concepts & documents",
+      "friction_share": 0.0966,
+      "friction_conversations": 70,
+      "conversations": 725
+     },
+     {
+      "id": "cl_9387c0",
+      "title": "Desktop programs",
+      "friction_share": 0.4361,
+      "friction_conversations": 58,
+      "conversations": 133
+     },
+     {
+      "id": "cl_b4afab",
+      "title": "Roleplay fiction",
+      "friction_share": 0.3478,
+      "friction_conversations": 48,
+      "conversations": 138
+     },
+     {
+      "id": "cl_679651",
+      "title": "Original fiction",
+      "friction_share": 0.0773,
+      "friction_conversations": 45,
+      "conversations": 582
+     }
+    ]
+   },
+   "from_frame": 630,
+   "frames": 240
+  },
+  {
+   "type": "signals",
+   "seconds": 6,
+   "headline": "Most friction shows up as people asking again",
+   "data": {
+    "friction_conversations": 1064,
+    "items": [
+     {
+      "signal": "repeat_request",
+      "label": "Asked again",
+      "conversations": 636
+     },
+     {
+      "signal": "assistant_limit",
+      "label": "Assistant couldn't help",
+      "conversations": 442
+     },
+     {
+      "signal": "correction",
+      "label": "Corrected the assistant",
+      "conversations": 343
+     },
+     {
+      "signal": "complaint",
+      "label": "Complained",
+      "conversations": 132
+     }
+    ]
+   },
+   "from_frame": 870,
+   "frames": 180
+  },
+  {
+   "type": "spotlight",
+   "seconds": 9,
+   "headline": "Everyday questions hit a wall of refusals",
+   "cluster_id": "cl_4f1f8f",
+   "insight": "People want a direct answer. The assistant too often says it cannot help with questions it should handle.",
+   "data": {
+    "id": "cl_4f1f8f",
+    "title": "Everyday questions",
+    "category": "Quick answers",
+    "description": "People ask one-off general knowledge, practical, and troubleshooting questions and want direct answers, recipes, or step-by-step instructions across unrelated topics. They expect the assistant to know current facts and to answer straightforwardly.",
+    "share": 0.1553,
+    "conversations": 831,
+    "people": 577,
+    "friction_share": 0.2335,
+    "signals": {
+     "correction": 34,
+     "repeat_request": 71,
+     "assistant_limit": 134,
+     "complaint": 19
+    },
+    "problems": [
+     "The assistant declined or said it could not answer questions it should have been able to address",
+     "Answers were vague, evasive, or asked for more context instead of giving the requested information",
+     "The user had to ask again because the first answer did not directly provide what was requested"
+    ],
+    "needs": [
+     "Get a direct answer to short factual questions without being asked for more context",
+     "Get current or recent information like sports results, news, and exchange rates",
+     "Get step-by-step how-to guidance for recipes, health, vehicles, and software"
+    ]
+   },
+   "from_frame": 1050,
+   "frames": 270
+  },
+  {
+   "type": "languages",
+   "seconds": 5,
+   "headline": "A global audience, English first",
+   "data": {
+    "languages": 55,
+    "items": [
+     {
+      "name": "English",
+      "conversations": 2678,
+      "share": 0.5005607476635514
+     },
+     {
+      "name": "Chinese",
+      "conversations": 1356,
+      "share": 0.25345794392523363
+     },
+     {
+      "name": "Russian",
+      "conversations": 511,
+      "share": 0.09551401869158878
+     },
+     {
+      "name": "French",
+      "conversations": 143,
+      "share": 0.026728971962616824
+     },
+     {
+      "name": "Portuguese",
+      "conversations": 122,
+      "share": 0.02280373831775701
+     },
+     {
+      "name": "Other languages",
+      "conversations": 540,
+      "share": 0.10093457943925234
+     }
+    ]
+   },
+   "from_frame": 1320,
+   "frames": 150
+  },
+  {
+   "type": "takeaways",
+   "seconds": 8,
+   "headline": "Where to act next",
+   "bullets": [
+    "Stop refusing everyday questions the assistant can answer",
+    "Make coding answers run the first time",
+    "Treat a repeated request as a failed answer"
+   ],
+   "from_frame": 1470,
+   "frames": 240
+  },
+  {
+   "type": "outro",
+   "seconds": 4,
+   "headline": "Every number verified. No transcript read.",
+   "data": {
+    "snapshot_id": "snap_20260927T140846_8a58",
+    "pipeline": "GLM 5.3 \u00b7 Jev \u00b7 gVisor sandbox"
+   },
+   "from_frame": 1710,
+   "frames": 120
+  }
+ ],
+ "metrics_used": [],
+ "checks": [],
+ "attempts": 1,
+ "video_url": null
+}

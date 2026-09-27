@@ -261,7 +261,7 @@ class Error(_Out):
 
 class Run(_Out):
     run_id: str
-    kind: Literal["analysis", "story", "prd", "containment", "intake"]
+    kind: Literal["analysis", "story", "prd", "brief", "containment", "intake"]
     intent: Literal["question"] | None
     snapshot_id: str
     state: Literal["queued", "planning", "executing", "validating", "repairing", "explaining", "completed", "failed"]
@@ -321,6 +321,145 @@ class Prd(_Out):
     generated_at: str
 
 
+class BriefMetric(_Out):
+    name: str
+    value: str
+
+
+class BriefDataset(_Out):
+    name: str
+    workspace: str
+    period_start: str
+    period_end: str
+
+
+class BriefTotals(_Out):
+    conversations: int
+    people: int
+    languages: int
+    friction_share: float | None
+    friction_conversations: int
+    unclear: int
+
+
+class BriefLeaf(_Out):
+    id: str
+    title: str
+    share: float | None
+    conversations: int
+    friction_share: float | None
+
+
+class BriefCategory(BriefLeaf):
+    is_other: bool
+    children: list[BriefLeaf]
+
+
+class MapData(_Out):
+    categories: list[BriefCategory]
+
+
+class TopItem(_Out):
+    id: str
+    title: str
+    category: str
+    share: float | None
+    conversations: int
+    people: int
+
+
+class TopData(_Out):
+    items: list[TopItem]
+
+
+class FrictionItem(_Out):
+    id: str
+    title: str
+    friction_share: float | None
+    friction_conversations: int
+    conversations: int
+
+
+class FrictionData(_Out):
+    overall_share: float | None
+    items: list[FrictionItem]
+
+
+class SignalItem(_Out):
+    signal: Signal
+    label: str
+    conversations: int
+
+
+class SignalsData(_Out):
+    friction_conversations: int
+    items: list[SignalItem]
+
+
+class SpotlightData(_Out):
+    id: str
+    title: str
+    category: str
+    description: str
+    share: float | None
+    conversations: int
+    people: int
+    friction_share: float | None
+    signals: Signals
+    problems: list[str]
+    needs: list[str]
+
+
+class LanguageItem(_Out):
+    name: str
+    conversations: int
+    share: float
+
+
+class LanguagesData(_Out):
+    languages: int
+    items: list[LanguageItem]
+
+
+class OutroData(_Out):
+    snapshot_id: str
+    pipeline: str
+
+
+class BriefScene(_Out):
+    type: Literal["intro", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro"]
+    seconds: int
+    from_frame: int
+    frames: int
+    headline: str
+    kicker: str | None = None
+    cluster_id: str | None = None
+    insight: str | None = None
+    bullets: list[str] | None = None
+    data: (MapData | TopData | FrictionData | SignalsData | SpotlightData | LanguagesData | OutroData | None) = None
+
+
+class Brief(_Out):
+    brief_id: str
+    snapshot_id: str
+    generated_at: str
+    model: str
+    label: str
+    fps: int
+    width: int
+    height: int
+    duration_frames: int
+    title: str
+    dataset: BriefDataset
+    totals: BriefTotals
+    scenes: list[BriefScene]
+    metrics_used: list[BriefMetric]
+    checks: list[str]
+    attempts: int
+    video_status: Literal["ready", "rendering", "failed", "none", "unavailable"]
+    video_url: str | None
+
+
 class EvalCheck(_Out):
     id: str
     name: str
@@ -355,6 +494,11 @@ class AnalysisIn(_In):
 
 class StoryIn(_In):
     snapshot_id: str = Field(max_length=40)
+
+
+class BriefIn(_In):
+    snapshot_id: str | None = Field(default=None, max_length=40)
+    regenerate: bool = False
 
 
 class ContainmentIn(_In):

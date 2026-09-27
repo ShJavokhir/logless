@@ -111,6 +111,13 @@ CREATE TABLE IF NOT EXISTS prds (
   created_at TEXT NOT NULL,
   PRIMARY KEY (snapshot_id, cluster_id)
 );
+CREATE TABLE IF NOT EXISTS briefs (
+  brief_id TEXT PRIMARY KEY,
+  snapshot_id TEXT NOT NULL,
+  json TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS briefs_snapshot ON briefs(snapshot_id, created_at);
 CREATE TABLE IF NOT EXISTS eval_reports (
   snapshot_id TEXT PRIMARY KEY,
   json TEXT NOT NULL,

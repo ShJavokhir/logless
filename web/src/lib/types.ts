@@ -202,7 +202,7 @@ export type Attempt = {
 
 export type Run = {
   run_id: string
-  kind: "analysis" | "story" | "prd" | "containment" | "intake"
+  kind: "analysis" | "story" | "prd" | "containment" | "intake" | "brief"
   intent: AnalysisIntent | null
   snapshot_id: string
   state: RunState

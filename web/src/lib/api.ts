@@ -18,6 +18,7 @@ import type {
   StoryResponse,
   PrdResponse,
 } from "./types"
+import type { BriefResponse } from "@/video/types"
 import { SANDBOX_UNAVAILABLE } from "./copy"
 import { presenterHeaders } from "./presenter"
 
@@ -29,6 +30,8 @@ export interface Api {
   getRun(runId: string, signal?: AbortSignal): Promise<Run>
   requestStory(clusterId: string, snapshotId: string): Promise<StoryResponse>
   requestPrd(clusterId: string, snapshotId: string): Promise<PrdResponse>
+  getBrief(snapshotId: string, signal?: AbortSignal): Promise<BriefResponse>
+  requestBrief(snapshotId: string, regenerate: boolean): Promise<BriefResponse>
   startContainment(): Promise<RunIdResponse>
   getEval(signal?: AbortSignal): Promise<EvalReport>
   getHealth(signal?: AbortSignal): Promise<Health>
@@ -112,6 +115,8 @@ const live: Api = {
     request<StoryResponse>("POST", `/clusters/${encodeURIComponent(clusterId)}/story`, { snapshot_id: snapshotId }),
   requestPrd: (clusterId, snapshotId) =>
     request<PrdResponse>("POST", `/clusters/${encodeURIComponent(clusterId)}/prd`, { snapshot_id: snapshotId }),
+  getBrief: (snapshotId, signal) => request<BriefResponse>("GET", `/brief?snapshot_id=${encodeURIComponent(snapshotId)}`, undefined, signal),
+  requestBrief: (snapshotId, regenerate) => request<BriefResponse>("POST", "/brief", { snapshot_id: snapshotId, regenerate }),
   startContainment: () => request<RunIdResponse>("POST", "/demo/containment", {}),
   getEval: (signal) => request<EvalReport>("GET", "/eval", undefined, signal),
   getHealth: (signal) => request<Health>("GET", "/health", undefined, signal),
@@ -140,6 +145,8 @@ export const api: Api = {
   getRun: async (runId, signal) => (await impl()).getRun(runId, signal),
   requestStory: async (clusterId, snapshotId) => (await impl()).requestStory(clusterId, snapshotId),
   requestPrd: async (clusterId, snapshotId) => (await impl()).requestPrd(clusterId, snapshotId),
+  getBrief: async (snapshotId, signal) => (await impl()).getBrief(snapshotId, signal),
+  requestBrief: async (snapshotId, regenerate) => (await impl()).requestBrief(snapshotId, regenerate),
   startContainment: async () => (await impl()).startContainment(),
   getEval: async (signal) => (await impl()).getEval(signal),
   getHealth: async (signal) => (await impl()).getHealth(signal),
@@ -169,6 +176,7 @@ const FRIENDLY: Record<string, string> = {
   timeout: "The API took too long to respond. Try again.",
   interpretation_failed: "The question couldn't be interpreted this time. Try rephrasing it.",
   prd_rejected: "The PRD draft didn't pass validation twice, so nothing is shown.",
+  brief_rejected: "The director's storyboard didn't pass the checks twice, so no new cut is shown.",
   story_rejected: "The story didn't pass the privacy check twice, so nothing is shown.",
   payload_too_large: "That request was too large.",
 }

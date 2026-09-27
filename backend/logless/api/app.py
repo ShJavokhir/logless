@@ -22,7 +22,7 @@ from typing import Callable
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -33,7 +33,7 @@ from ..sandbox import runs as runstore
 from ..sandbox.analysis import run_analysis
 from ..sandbox.client import RunnerClient
 from ..sandbox.containment import run_containment
-from . import models, prds, search, serializers, stories
+from . import brief_video, briefs, models, prds, search, serializers, stories
 from ..sandbox.plan import normalize_question, sanitize_question
 from .ratelimit import HourlyBudget, RateLimiter, presenter_limits
 
@@ -111,6 +111,7 @@ _active_lock = threading.Lock()
 _start_lock = threading.RLock()  # a just-completed Future can invoke its callback during submission
 _story_inflight: dict[tuple[str, str], str] = {}
 _prd_inflight: dict[tuple[str, str], str] = {}
+_brief_inflight: dict[str, str] = {}
 _question_inflight: dict[tuple[str, str], str] = {}
 _runner: RunnerClient | None = None
 _health_cache: tuple[float, str] = (0.0, "unreachable")
@@ -267,6 +268,8 @@ def bucket_for(method: str, path: str) -> str:
             return "story"
         if path.endswith("/prd"):
             return "prd"
+        if path == "/api/brief":
+            return "brief"
     return "default"
 
 
@@ -519,6 +522,54 @@ def create_app() -> FastAPI:
             clusters = snap["clusters"]
             _submit(lambda: prds.run_prd(run, snapshot_id=snap["snapshot_id"], node=node, clusters=clusters),
                     on_done=_release_later(_prd_inflight, key, run.id), run=run)
+        return {"status": "pending", "run_id": run.id}
+
+    def _brief_out(hit: dict) -> dict:
+        return serializers.serialize_brief(hit, brief_video.ensure(hit))
+
+    @app.get("/api/brief/{brief_id}/video.mp4")
+    def api_brief_video(brief_id: str):
+        path = brief_video.video_path(brief_id)
+        if path is None:
+            raise ApiError(404, "not_found", "No video for that brief.")
+        return FileResponse(path, media_type="video/mp4", filename=f"logless-{brief_id}.mp4",
+                            headers={"Cache-Control": "public, max-age=86400, immutable"})
+
+    @app.get("/api/brief")
+    def api_brief_get(snapshot_id: str | None = None):
+        """Latest video brief of that snapshot (default: the current one)."""
+        sid = snapshot_id if snapshot_id is not None else store.current_id()
+        if sid is None or not serializers.SNAPSHOT_ID.match(sid):
+            return {"status": "none"}
+        hit = briefs.latest(sid)
+        return {"status": "ready", "brief": _brief_out(hit)} if hit else {"status": "none"}
+
+    @app.post("/api/brief")
+    def api_brief(request: Request, body: models.BriefIn | None = None):
+        body = body or models.BriefIn()
+        snap = _require_snapshot(body.snapshot_id)
+        sid = snap["snapshot_id"]
+        if not body.regenerate:
+            hit = briefs.latest(sid)
+            if hit is not None:
+                return {"status": "ready", "brief": _brief_out(hit)}
+        with _start_lock:
+            if not body.regenerate:
+                # Re-check under the lock: a run may have finished and saved its brief meanwhile.
+                hit = briefs.latest(sid)
+                if hit is not None:
+                    return {"status": "ready", "brief": _brief_out(hit)}
+            rid = _brief_inflight.get(sid)
+            if rid:
+                raw = runstore.load(rid)
+                if raw and raw["state"] not in runstore.TERMINAL:
+                    return {"status": "pending", "run_id": rid}
+            _capacity(request.state.presenter)
+            _spend("brief", request.state.presenter)
+            run = runstore.Run.create("brief", None, sid)
+            _brief_inflight[sid] = run.id
+            _submit(lambda: briefs.run_brief(run, snapshot=snap),
+                    on_done=_release_later(_brief_inflight, sid, run.id), run=run)
         return {"status": "pending", "run_id": run.id}
 
     @app.post("/api/demo/containment")

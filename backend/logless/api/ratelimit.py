@@ -15,6 +15,7 @@ LIMITS: dict[str, tuple[float, float]] = {
     "analysis": (4, 1 / 15),
     "story": (6, 1 / 10),
     "prd": (6, 1 / 10),
+    "brief": (6, 1 / 10),
     "containment": (2, 1 / 30),
 }
 MAX_KEYS = 20_000
@@ -57,6 +58,7 @@ BUDGET_DEFAULTS: dict[str, tuple[str, int, str]] = {
     "analysis": ("LOGLESS_BUDGET_ANALYSES_PER_HOUR", 120, "live analyses"),
     "story": ("LOGLESS_BUDGET_STORIES_PER_HOUR", 60, "user stories"),
     "prd": ("LOGLESS_BUDGET_PRDS_PER_HOUR", 60, "PRD drafts"),
+    "brief": ("LOGLESS_BUDGET_BRIEFS_PER_HOUR", 30, "video briefs"),
     "containment": ("LOGLESS_BUDGET_CONTAINMENT_PER_HOUR", 60, "containment checks"),
 }
 WINDOW_S = 3600.0
@@ -67,6 +69,7 @@ PRESENTER_BUDGET_DEFAULTS: dict[str, tuple[str, int]] = {
     "analysis": ("PRESENTER_BUDGET_ANALYSES", 60),
     "story": ("PRESENTER_BUDGET_STORIES", 30),
     "prd": ("PRESENTER_BUDGET_PRDS", 30),
+    "brief": ("PRESENTER_BUDGET_BRIEFS", 20),
     "containment": ("PRESENTER_BUDGET_CONTAINMENT", 30),
 }
 

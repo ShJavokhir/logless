@@ -121,6 +121,7 @@ def public_payloads() -> list[tuple[str, str]]:
     out += [("run", r["json"]) for r in con.execute("SELECT json FROM runs")]
     out += [("story", r["json"]) for r in con.execute("SELECT json FROM stories")]
     out += [("prd", r["json"]) for r in con.execute("SELECT json FROM prds")]
+    out += [("brief", r["json"]) for r in con.execute("SELECT json FROM briefs")]
     out += [("eval_report", r["json"]) for r in con.execute("SELECT json FROM eval_reports")]
     dist = REPO_ROOT / "web" / "dist"
     if dist.exists():

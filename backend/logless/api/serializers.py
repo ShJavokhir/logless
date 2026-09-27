@@ -421,6 +421,113 @@ def serialize_prd(raw: dict) -> dict:
     return out
 
 
+BRIEF_ID = re.compile(r"^brf_[0-9a-f]{12}$")
+DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+SCENE_TYPES = ("intro", "map", "top_workflows", "friction", "signals", "spotlight", "languages", "takeaways", "outro")
+SIGNAL_LABELS = {"correction": "Corrected the assistant", "repeat_request": "Asked again",
+                 "assistant_limit": "Assistant couldn't help", "complaint": "Complained"}
+BRIEF_PIPELINE = "GLM 5.3 · Jev · gVisor sandbox"
+
+
+def _brief_leaf(c: dict) -> dict:
+    return {"id": _id(c["id"], LEAF_ID), "title": _str(c["title"], 120), "share": _opt_share(c.get("share")),
+            "conversations": _int(c["conversations"]), "friction_share": _opt_share(c.get("friction_share"))}
+
+
+def _scene_data(kind: str, d: Any) -> dict | None:
+    if not isinstance(d, dict):
+        return None
+    if kind == "map":
+        return {"categories": [{"id": _id(c["id"], CATEGORY_ID), "title": _str(c["title"], 120),
+                                "share": _opt_share(c.get("share")), "conversations": _int(c["conversations"]),
+                                "friction_share": _opt_share(c.get("friction_share")), "is_other": bool(c.get("is_other")),
+                                "children": [_brief_leaf(k) for k in c.get("children") or []][:40]}
+                               for c in d.get("categories") or []][:20]}
+    if kind == "top_workflows":
+        return {"items": [{"id": _id(x["id"], LEAF_ID), "title": _str(x["title"], 120), "category": _str(x.get("category") or "", 120),
+                           "share": _opt_share(x.get("share")), "conversations": _int(x["conversations"]),
+                           "people": _int(x["people"])} for x in d.get("items") or []][:6]}
+    if kind == "friction":
+        return {"overall_share": _opt_share(d.get("overall_share")),
+                "items": [{"id": _id(x["id"], LEAF_ID), "title": _str(x["title"], 120),
+                           "friction_share": _opt_share(x.get("friction_share")),
+                           "friction_conversations": _int(x["friction_conversations"]),
+                           "conversations": _int(x["conversations"])} for x in d.get("items") or []][:6]}
+    if kind == "signals":
+        items = []
+        for x in (d.get("items") or [])[:4]:
+            if x.get("signal") not in SIGNAL_LABELS:
+                raise Blocked("bad signal")
+            items.append({"signal": x["signal"], "label": SIGNAL_LABELS[x["signal"]], "conversations": _int(x["conversations"])})
+        return {"friction_conversations": _int(d["friction_conversations"]), "items": items}
+    if kind == "spotlight":
+        sig = d.get("signals") or {}
+        return {"id": _id(d["id"], LEAF_ID), "title": _str(d["title"], 120), "category": _str(d.get("category") or "", 120),
+                "description": _str(d.get("description") or "", 600), "share": _opt_share(d.get("share")),
+                "conversations": _int(d["conversations"]), "people": _int(d["people"]),
+                "friction_share": _opt_share(d.get("friction_share")), "signals": {s: _int(sig.get(s, 0)) for s in SIGNALS},
+                "problems": [_str(x, 300) for x in d.get("problems") or []][:4],
+                "needs": [_str(x, 300) for x in d.get("needs") or []][:4]}
+    if kind == "languages":
+        return {"languages": _int(d["languages"]),
+                "items": [{"name": _str(x["name"], 60), "conversations": _int(x["conversations"]),
+                           "share": _opt_share(x.get("share")) or 0.0} for x in d.get("items") or []][:8]}
+    if kind == "outro":
+        return {"snapshot_id": _id(d["snapshot_id"], SNAPSHOT_ID), "pipeline": BRIEF_PIPELINE}
+    return None
+
+
+def _brief_scene(s: dict) -> dict:
+    kind = s.get("type")
+    if kind not in SCENE_TYPES:
+        raise Blocked("bad scene type")
+    out = {"type": kind, "seconds": _int(s["seconds"]), "from_frame": _int(s["from_frame"]), "frames": _int(s["frames"]),
+           "headline": _str(s["headline"], 160)}
+    if kind == "intro" and s.get("kicker"):
+        out["kicker"] = _str(s["kicker"], 200)
+    if kind == "spotlight":
+        out["cluster_id"] = _id(s["cluster_id"], LEAF_ID)
+        out["insight"] = _str(s["insight"], 400)
+    if kind == "takeaways":
+        out["bullets"] = [_str(b, 240) for b in s.get("bullets") or []][:3]
+    data = _scene_data(kind, s.get("data"))
+    if data is not None:
+        out["data"] = data
+    return out
+
+
+VIDEO_STATUSES = {"ready", "rendering", "failed", "none", "unavailable"}
+
+
+def serialize_brief(raw: dict, video: str = "unavailable") -> dict:
+    """`video` is the MP4 export status from brief_video.status(); the URL is ours, never stored."""
+    ds, t = raw["dataset"], raw["totals"]
+    out = {"brief_id": _id(raw["brief_id"], BRIEF_ID), "snapshot_id": _id(raw["snapshot_id"], SNAPSHOT_ID),
+           "generated_at": _str(raw["generated_at"], 40), "model": _str(raw["model"], 60), "label": _str(raw["label"], 300),
+           "fps": _int(raw["fps"]), "width": _int(raw["width"]), "height": _int(raw["height"]),
+           "duration_frames": _int(raw["duration_frames"]), "title": _str(raw["title"], 160),
+           "dataset": {"name": _str(ds["name"], 60), "workspace": _str(ds["workspace"], 120),
+                       "period_start": _id(ds["period_start"], DATE), "period_end": _id(ds["period_end"], DATE)},
+           "totals": {"conversations": _int(t["conversations"]), "people": _int(t["people"]), "languages": _int(t["languages"]),
+                      "friction_share": _opt_share(t.get("friction_share")),
+                      "friction_conversations": _int(t["friction_conversations"]), "unclear": _int(t["unclear"])},
+           "scenes": [_brief_scene(s) for s in raw.get("scenes") or []][:10],
+           "metrics_used": [{"name": _str(m["name"], 60), "value": _str(m["value"], 40)} for m in raw.get("metrics_used") or []][:40],
+           "checks": [_str(c, 200) for c in raw.get("checks") or []][:12],
+           "attempts": _int(raw.get("attempts", 1)),
+           "video_status": video if video in VIDEO_STATUSES else "unavailable", "video_url": None}
+    if out["video_status"] == "ready":
+        out["video_url"] = f"/api/brief/{out['brief_id']}/video.mp4"
+    models.Brief.model_validate(out)
+    if leakcheck.problems(json.dumps(out, ensure_ascii=False), contact=False):
+        raise Blocked("brief failed the leak check")
+    free = [out["title"]] + [x for s in out["scenes"]
+                             for x in [s["headline"], s.get("kicker") or "", s.get("insight") or "", *(s.get("bullets") or [])]]
+    if leakcheck.problems(" ".join(free)):
+        raise Blocked("brief text failed the leak check")
+    return out
+
+
 def serialize_eval(raw: dict) -> dict:
     out = {"snapshot_id": _id(raw["snapshot_id"], SNAPSHOT_ID), "generated_at": _str(raw["generated_at"], 40),
            "checks": [{"id": _str(c["id"], 60), "name": _str(c["name"], 160), "value": _str(str(c.get("value", "")), 200),

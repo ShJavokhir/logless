@@ -19,6 +19,7 @@ STAGES: dict[str, list[str]] = {
     "analysis": ["planning", "executing", "validating", "explaining"],
     "story": ["writing", "checking"],
     "prd": ["drafting", "checking"],
+    "brief": ["reading", "directing", "checking"],
     "containment": ["runaway", "cleanup", "health", "destructive", "followup", "leak_attempt"],
 }
 _lock = threading.Lock()
