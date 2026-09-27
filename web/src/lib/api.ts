@@ -17,6 +17,7 @@ import type {
   Snapshot,
   StoryResponse,
   PrdResponse,
+  SubthemesResponse,
 } from "./types"
 import type { BriefResponse } from "@/video/types"
 import { SANDBOX_UNAVAILABLE } from "./copy"
@@ -25,6 +26,7 @@ import { presenterHeaders } from "./presenter"
 export interface Api {
   readonly mode: "mock" | "live"
   getSnapshot(signal?: AbortSignal): Promise<Snapshot>
+  getSubthemes(snapshotId: string, signal?: AbortSignal): Promise<SubthemesResponse>
   search(req: SearchRequest, signal?: AbortSignal): Promise<SearchResponse>
   startAnalysis(req: AnalysisRequest): Promise<RunIdResponse>
   getRun(runId: string, signal?: AbortSignal): Promise<Run>
@@ -110,6 +112,8 @@ async function fetchJson<T>(method: Method, path: string, body?: unknown, signal
 const live: Api = {
   mode: "live",
   getSnapshot: (signal) => request<Snapshot>("GET", "/snapshot", undefined, signal),
+  getSubthemes: (snapshotId, signal) =>
+    request<SubthemesResponse>("GET", `/subthemes?snapshot_id=${encodeURIComponent(snapshotId)}`, undefined, signal),
   search: (req, signal) => request<SearchResponse>("POST", "/search", req, signal),
   startAnalysis: (req) => request<RunIdResponse>("POST", "/analyses", req),
   getRun: (runId, signal) => request<Run>("GET", `/runs/${encodeURIComponent(runId)}`, undefined, signal),
@@ -142,6 +146,7 @@ function impl(): Promise<Api> {
 export const api: Api = {
   mode: MOCK_MODE ? "mock" : "live",
   getSnapshot: async (signal) => (await impl()).getSnapshot(signal),
+  getSubthemes: async (snapshotId, signal) => (await impl()).getSubthemes(snapshotId, signal),
   search: async (req, signal) => (await impl()).search(req, signal),
   startAnalysis: async (req) => (await impl()).startAnalysis(req),
   getRun: async (runId, signal) => (await impl()).getRun(runId, signal),

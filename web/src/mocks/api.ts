@@ -25,6 +25,8 @@ import type {
   RunStage,
   RunState,
   Snapshot,
+  Subtheme,
+  SubthemesResponse,
   StageStatus,
   Story,
   StoryResponse,
@@ -48,6 +50,30 @@ const jitter = (lo: number, hi: number) => lo + Math.random() * (hi - lo)
 const iso = (ms: number) => new Date(ms).toISOString()
 const hex = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join("")
 const uuid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`)
+
+/** Deterministic stand-in sub-themes: each leaf's needs, as unequal slices of the leaf. */
+function mockSubthemes(snap: Snapshot, snapshotId: string): SubthemesResponse {
+  const leaves: Record<string, Subtheme[]> = {}
+  for (const leaf of snap.clusters) {
+    const needs = leaf.needs ?? []
+    if (leaf.is_other || leaf.conversations < 30 || needs.length < 2) {
+      leaves[leaf.id] = []
+      continue
+    }
+    const weights = needs.map((_, i) => 1 / (i + 1.4))
+    const rest = Math.max(1, Math.round(leaf.conversations * 0.08))
+    const sum = weights.reduce((a, b) => a + b, 0)
+    let left = leaf.conversations - rest
+    const items: Subtheme[] = needs.map((n, i) => {
+      const c = i === needs.length - 1 ? left : Math.round(((leaf.conversations - rest) * weights[i]) / sum)
+      left -= c
+      return { id: `${leaf.id}_s${i}`, short_title: n.text.split(/\s+/).slice(0, 3).join(" "), conversations: c, users: Math.max(5, Math.round(c * 0.6)) }
+    })
+    items.push({ id: `${leaf.id}_rest`, short_title: null, conversations: rest, users: Math.max(1, Math.round(rest * 0.7)), rest: true })
+    leaves[leaf.id] = items
+  }
+  return { snapshot_id: snapshotId, base_snapshot_id: snap.snapshot_id, leaves }
+}
 
 function param(name: string): string | null {
   if (typeof window === "undefined") return null
@@ -437,6 +463,11 @@ export async function createMockApi(): Promise<Api> {
     async getSnapshot() {
       await sleep(jitter(280, 420))
       return structuredClone(SNAPSHOT)
+    },
+
+    async getSubthemes(snapshotId) {
+      await sleep(jitter(120, 240))
+      return mockSubthemes(SNAPSHOT, snapshotId)
     },
 
     async search(req) {

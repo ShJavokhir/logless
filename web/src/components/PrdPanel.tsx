@@ -1,26 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react"
 import { ClipboardCopy, Download, FileText, LoaderCircle, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
-import { api, describeError } from "@/lib/api"
 import type { Node as SnapshotNode, Prd } from "@/lib/types"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { splitCitations } from "@/lib/citations"
 import { METRIC_NAMES, prdMarkdown } from "@/lib/prd"
 import { fmtClock } from "@/lib/format"
-import { useRun } from "@/hooks/useRun"
+import { usePrd } from "@/hooks/usePrd"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { EvidenceTag } from "./common"
-
-type Phase =
-  | { kind: "idle" }
-  | { kind: "requesting" }
-  | { kind: "pending"; runId: string }
-  | { kind: "ready"; prd: Prd }
-  | { kind: "error"; message: string }
-
-// PRDs survive re-selection within a session (keyed by snapshot + cluster).
-const cache = new Map<string, Prd>()
 
 export function PrdPanel({
   index,
@@ -31,65 +19,10 @@ export function PrdPanel({
   leaf: SnapshotNode
   onHoverCitation: (id: string | null) => void
 }) {
-  const snapshotId = index.snapshot.snapshot_id
-  const key = `${snapshotId}:${leaf.id}`
-  const [phase, setPhase] = useState<Phase>(() => {
-    const cached = cache.get(key)
-    return cached ? { kind: "ready", prd: cached } : { kind: "idle" }
-  })
-  const pendingId = phase.kind === "pending" ? phase.runId : null
-  const { run, error: runError } = useRun(pendingId)
-  const alive = useRef(true)
-  useEffect(() => {
-    alive.current = true
-    return () => {
-      alive.current = false
-    }
-  }, [])
+  const { prd, busy, error: errorMessage, run, request } = usePrd(index.snapshot.snapshot_id, leaf.id)
 
-  const apply = useCallback(
-    (res: Awaited<ReturnType<typeof api.requestPrd>>) => {
-      if (res.status === "ready") {
-        cache.set(key, res.prd)
-        setPhase({ kind: "ready", prd: res.prd })
-      } else {
-        setPhase({ kind: "pending", runId: res.run_id })
-      }
-    },
-    [key],
-  )
-  const fail = useCallback((err: unknown) => setPhase({ kind: "error", message: describeError(err, "The PRD could not be drafted.") }), [])
+  if (prd) return <PrdCard prd={prd} leaf={leaf} onHoverCitation={onHoverCitation} />
 
-  // When the PRD run completes, ask again for the ready draft. A failed run is derived in render.
-  const completedRunId = run?.state === "completed" ? run.run_id : null
-  useEffect(() => {
-    if (!completedRunId || completedRunId !== pendingId) return
-    let cancelled = false
-    api.requestPrd(leaf.id, snapshotId).then(
-      (res) => !cancelled && apply(res),
-      (err) => !cancelled && fail(err),
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [completedRunId, pendingId, leaf.id, snapshotId, apply, fail])
-
-  const request = () => {
-    setPhase({ kind: "requesting" })
-    api.requestPrd(leaf.id, snapshotId).then(
-      (res) => alive.current && apply(res),
-      (err) => alive.current && fail(err),
-    )
-  }
-
-  if (phase.kind === "ready") {
-    return <PrdCard prd={phase.prd} leaf={leaf} onHoverCitation={onHoverCitation} />
-  }
-
-  const runFailed = phase.kind === "pending" && run?.state === "failed"
-  const errorMessage =
-    phase.kind === "error" ? phase.message : runFailed ? (run?.error?.message ?? "The PRD could not be drafted.") : runError
-  const busy = (phase.kind === "requesting" || phase.kind === "pending") && !runFailed && !runError
   const liveStage = run?.stages.find((s) => s.status === "running")
 
   return (

@@ -85,7 +85,7 @@ What the script does:
   - `/var/lib/logless` (data): `logless:logless 750`.
   - `/etc/logless` (env files): `root:logless 750`.
 - Writes the placeholder page `/opt/logless/web/dist/index.html` ("logless — deploying").
-- **ufw:** Vultr's Ubuntu image ships with **ufw enabled, allowing only 22/tcp**. The script adds `80/tcp` and `443/tcp`, keeping ufw as a second layer behind the Vultr firewall group. The first ACME attempt failed because of this (`Timeout during connect (likely firewall problem)`). Once the ports were open, Caddy's retry got the cert.
+- **ufw:** Vultr's Ubuntu image ships with **ufw enabled, allowing only 22/tcp**. The script adds public `80/tcp` and `443/tcp`, plus `8080/tcp` only on NetBird's `wt0` interface. The first ACME attempt failed because of this (`Timeout during connect (likely firewall problem)`). Once the ports were open, Caddy's retry got the cert.
 
 Caddy routes `/api/*` to `reverse_proxy 127.0.0.1:8000`. Everything else is served from `/opt/logless/web/dist` with `try_files {path} /index.html`. It also:
 - Compresses with `encode zstd gzip`.
@@ -93,6 +93,10 @@ Caddy routes `/api/*` to `reverse_proxy 127.0.0.1:8000`. Everything else is serv
 - Strips the `Server` header.
 - Marks `/assets/*` as immutable and `index.html` as `no-cache`.
 - Disables HTTP/3, because the firewall doesn't open UDP 443.
+
+The same SPA and API routes now listen on plain HTTP port 8080 for NetBird's reverse proxy. Only traffic arriving on `wt0` can reach that port through the host firewall. The public HTTPS listener remains on the named `sslip.io` host. This new path has not yet been deployed or tested through a real NetBird service.
+
+For phone remote control, install and connect the NetBird peer on the app VM. Set `NETBIRD_API_URL`, `NETBIRD_API_TOKEN`, and `NETBIRD_PEER_ID` in the app service environment. The API token needs permission to list, create, read, and delete reverse-proxy services. Keep `NETBIRD_TARGET_PORT=8080`, run `setup-app.sh` with the updated Caddyfile, and check that port 8080 is reachable from the NetBird mesh but not from the public interface. Production session creation fails closed until those settings are present. A presenter pairs a phone through the QR dialog and PIN; ending or expiring the session deletes its NetBird service.
 
 Verified from the Mac:
 ```

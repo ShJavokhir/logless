@@ -591,6 +591,15 @@ def _default_evaluate(snapshot_id: str) -> None:
     report.generate(write_summary=False, snapshot_id=snapshot_id)
 
 
+def _freeze_base_inputs(snapshot_id: str) -> None:
+    """A base snapshot published before live-question inputs were frozen has none, so Loggy fails on it
+    after a reset. With the batch's decisions cleared, the build's rows are exactly the base's again."""
+    from .sandbox.export import has_frozen_inputs, load_cluster_map, save_cluster_map
+    found = load_cluster_map(snapshot_id)
+    if found is not None and not has_frozen_inputs(snapshot_id):
+        save_cluster_map(snapshot_id, *found)
+
+
 def _clear_decisions(build_id: str | None, ids: list[str]) -> None:
     con = db.private()
     with db.write(con):
@@ -627,6 +636,8 @@ def reset() -> dict:
             con.execute("UPDATE snapshots SET is_current = 1 WHERE snapshot_id = ?", (base,))
         restored = True
     _clear_decisions(build_id, ids)
+    if base:
+        _freeze_base_inputs(base)
     con = db.private()
     with db.write(con):
         con.execute("UPDATE intake_batches SET status = 'ready', ingested_snapshot_id = NULL, ingested_at = NULL"

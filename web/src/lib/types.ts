@@ -379,3 +379,11 @@ export type IntakeSummary = {
 }
 
 export type IntakeStatus = { ready: boolean; batch_size: number; base_snapshot_id: string | null }
+
+// ---------------------------------------------------------------- sub-themes (map layer)
+
+/** k-means sub-cluster inside one leaf; `rest` folds the ones under the size floor (never titled). */
+export type Subtheme = { id: string; short_title: string | null; conversations: number; users: number; rest?: boolean }
+
+/** Counts are from the base build; derived (intake) snapshots reuse them as shares of each leaf. */
+export type SubthemesResponse = { snapshot_id: string; base_snapshot_id: string; leaves: Record<string, Subtheme[]> }

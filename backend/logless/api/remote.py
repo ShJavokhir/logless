@@ -2,7 +2,7 @@
 
 Each session is its own workload with its own URL. With NetBird configured (logless/netbird.py), creating a
 session provisions a reverse-proxy service `loggy-<id>.<proxy domain>` that forwards over WireGuard to this
-host's peer and asks for a one-time PIN before anything loads; ending the session deletes the service, so the
+host's peer and asks for a session PIN before anything loads; ending the session deletes the service, so the
 URL stops resolving to logless. Without NetBird (local development) the phone uses REMOTE_LOCAL_URL or the
 desktop's own origin, and there is no PIN.
 
@@ -78,7 +78,7 @@ class Session:
         out = {
             "session_id": self.id,
             "status": self.status,
-            "provider": "netbird" if self.service_id else "local",
+            "provider": "netbird" if self.pin is not None else "local",
             "url": self.url,
             "expires_at": _iso(self.expires_at),
             "phone_connected": self.phone_seen is not None and time.time() - self.phone_seen < 15,
@@ -123,11 +123,19 @@ def _end(s: Session, reason: str) -> None:
         if s.status == "ended":
             return
         s.status, s.end_reason, s.ended_at = "ended", reason, time.time()
-        sid = s.service_id
+    _delete_service(s)
+
+
+def _delete_service(s: Session) -> None:
+    """Keep the service ID until deletion succeeds, so the reaper can retry."""
+    sid = s.service_id
     if sid and (nb := _client()):
         try:
             nb.delete_service(sid)
-            log.info("remote session %s ended (%s); NetBird service deleted", s.id, reason)
+            with _lock:
+                if s.service_id == sid:
+                    s.service_id = None
+            log.info("remote session %s: NetBird service deleted", s.id)
         except netbird.NetBirdError as e:
             log.error("remote session %s: could not delete NetBird service: %s", s.id, e)
 
@@ -158,7 +166,12 @@ def _reap_once() -> None:
     now, idle = time.time(), _desktop_idle_s()
     with _lock:
         live = [s for s in _sessions.values() if s.status != "ended"]
-        for sid in [k for k, s in _sessions.items() if s.status == "ended" and now - (s.ended_at or now) > ENDED_RETENTION_S]:
+        pending_delete = [s for s in _sessions.values() if s.status == "ended" and s.service_id]
+    for s in pending_delete:
+        _delete_service(s)
+    with _lock:
+        for sid in [k for k, s in _sessions.items() if s.status == "ended" and not s.service_id
+                    and now - (s.ended_at or now) > ENDED_RETENTION_S]:
             del _sessions[sid]
     for s in live:
         if now >= s.expires_at:
@@ -175,7 +188,9 @@ def _reconcile() -> None:
     with _lock:
         mine = {s.service_id for s in _sessions.values()}
     try:
-        orphans = [svc for svc in nb.list_services() if svc.name.startswith(PREFIX) and svc.id not in mine]
+        peer_id = os.environ["NETBIRD_PEER_ID"]
+        orphans = [svc for svc in nb.list_services() if svc.name.startswith(PREFIX)
+                   and peer_id in svc.peer_ids and svc.id not in mine]
         for svc in orphans:
             nb.delete_service(svc.id)
         if orphans:
@@ -232,10 +247,12 @@ def create_session(request: Request):
     with _lock:
         if sum(s.status != "ended" for s in _sessions.values()) >= MAX_SESSIONS:
             return _err(429, "too_many_sessions", "End an existing remote session first.")
-    sid = secrets.token_hex(4)
-    now = time.time()
-    s = Session(id=sid, token=secrets.token_urlsafe(24), pin=None, url=os.environ.get("REMOTE_LOCAL_URL") or None,
-                service_id=None, status="ready", expires_at=now + _ttl_s(), desktop_seen=now)
+        sid = secrets.token_hex(4)
+        now = time.time()
+        s = Session(id=sid, token=secrets.token_urlsafe(24), pin=None, url=os.environ.get("REMOTE_LOCAL_URL") or None,
+                    service_id=None, status="provisioning" if nb else "ready",
+                    expires_at=now + _ttl_s(), desktop_seen=now)
+        _sessions[sid] = s
     if nb is not None:
         try:
             domain = f"{PREFIX}{sid}.{nb.proxy_domain()}"
@@ -244,10 +261,10 @@ def create_session(request: Request):
                                     port=int(os.environ.get("NETBIRD_TARGET_PORT", "8080")), pin=s.pin)
         except netbird.NetBirdError as e:
             log.error("remote: could not create NetBird service: %s", e)
+            with _lock:
+                _sessions.pop(sid, None)
             return _err(502, "netbird_failed", "NetBird could not provision a URL for this session.")
         s.service_id, s.url, s.status = svc.id, f"https://{svc.domain}", "provisioning"
-    with _lock:
-        _sessions[sid] = s
     if s.status == "provisioning":
         threading.Thread(target=_await_ready, args=(s,), name=f"logless-remote-{sid}", daemon=True).start()
     log.info("remote session %s created (%s)", sid, "netbird" if s.service_id else "local")
@@ -271,19 +288,19 @@ def get_session(sid: str, request: Request):
 
 @router.post("/api/remote/sessions/{sid}/questions")
 def ask(sid: str, body: QuestionIn, request: Request):
-    s = _get(sid)
-    if s is None or not _token_ok(request, s):
-        return _err(404, "not_found", "Unknown remote session.")
-    if s.status != "ready":
-        return _err(410, "session_ended", "This remote session has ended.")
-    if len(s.thread) >= MAX_QUESTIONS:
-        return _err(429, "question_limit", f"This session has used its {MAX_QUESTIONS} questions. Pair again for more.")
     from . import app as api   # lazy: app.py includes this router
-    if s.thread and (last := runstore.load(s.thread[-1]["run_id"])) and last["state"] not in runstore.TERMINAL:
-        return _err(409, "question_in_flight", "loggy is still answering the last question.")
-    # The presenter opened this session, so its questions spend the presenter's budget.
-    run_id = api.start_question(body.question, None, presenter=True)
     with _lock:
+        s = _sessions.get(sid)
+        if s is None or not _token_ok(request, s):
+            return _err(404, "not_found", "Unknown remote session.")
+        if s.status != "ready":
+            return _err(410, "session_ended", "This remote session has ended.")
+        if len(s.thread) >= MAX_QUESTIONS:
+            return _err(429, "question_limit", f"This session has used its {MAX_QUESTIONS} questions. Pair again for more.")
+        if s.thread and (last := runstore.load(s.thread[-1]["run_id"])) and last["state"] not in runstore.TERMINAL:
+            return _err(409, "question_in_flight", "loggy is still answering the last question.")
+        # The presenter opened this session, so its questions spend the presenter's budget.
+        run_id = api.start_question(body.question, None, presenter=True)
         s.thread.append({"question": sanitize_question(body.question.strip()), "run_id": run_id, "asked_at": _iso(time.time())})
     return {"run_id": run_id}
 

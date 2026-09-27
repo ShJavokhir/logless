@@ -30,6 +30,7 @@ class Service:
     name: str
     domain: str
     status: str   # meta.status: pending | active | tunnel_not_created | certificate_pending | certificate_failed | error
+    peer_ids: tuple[str, ...]
 
 
 def configured() -> bool:
@@ -51,16 +52,15 @@ class NetBird:
         except httpx.HTTPError as e:
             raise NetBirdError(f"{method} {path}: {type(e).__name__}") from None
         if r.status_code >= 400:
-            try:
-                msg = str(r.json().get("message", ""))[:200]
-            except ValueError:
-                msg = ""
-            raise NetBirdError(f"{method} {path}: HTTP {r.status_code} {msg}".strip())
+            # An upstream message might echo submitted credentials or the session PIN.
+            raise NetBirdError(f"{method} {path}: HTTP {r.status_code}")
         return r.json() if r.content else None
 
     @staticmethod
     def _service(d: dict) -> Service:
-        return Service(id=d["id"], name=d["name"], domain=d["domain"], status=(d.get("meta") or {}).get("status", "pending"))
+        return Service(id=d["id"], name=d["name"], domain=d["domain"],
+                       status=(d.get("meta") or {}).get("status", "pending"),
+                       peer_ids=tuple(t["target_id"] for t in d.get("targets", []) if t.get("target_type") == "peer"))
 
     def proxy_domain(self) -> str:
         """NETBIRD_PROXY_DOMAIN, else the address of the first online proxy cluster."""

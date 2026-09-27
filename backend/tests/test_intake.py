@@ -222,6 +222,23 @@ def test_freeze_failure_cannot_publish_a_broken_snapshot(tmp_data, monkeypatch):
     assert db.private().execute("SELECT COUNT(*) FROM assignments WHERE round=?", (intake.INTAKE_ROUND,)).fetchone()[0] == 0
 
 
+def test_reset_freezes_inputs_for_a_base_published_before_freezing(tmp_data, monkeypatch):
+    b, base, ids = _setup(tmp_data, monkeypatch)
+    from logless.sandbox import export
+    monkeypatch.setattr(stats, "save_cluster_map", export.save_cluster_map)
+    clusters = stats.clusters_for(stats.load_structure(b))
+    con = db.private()
+    con.execute(export.CLUSTER_MAP_SCHEMA)  # an older base: cluster map only, no frozen rows
+    with db.write(con):
+        con.execute("INSERT INTO sandbox_cluster_map(snapshot_id, build_id, clusters_json, created_at) VALUES (?,?,?,?)",
+                    (base, b.build_id, json.dumps(clusters), "2026-09-27T00:00:00Z"))
+    assert not export.has_frozen_inputs(base)
+    _run(base, len(ids))
+    intake.reset()
+    base_total = intake.snapshot_json(base)["totals"]["conversations"]
+    assert len(export.export_inputs(*export.load_cluster_map(base), snapshot_id=base).df) == base_total
+
+
 def test_publication_happens_after_dependencies_are_ready(tmp_data, monkeypatch):
     b, base, ids = _setup(tmp_data, monkeypatch)
     from logless.sandbox import export

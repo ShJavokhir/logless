@@ -9,10 +9,11 @@ import { readRoute, type Route } from "./story/route"
 // Read ?presenter=<key> once and strip it from the URL before anything else runs.
 capturePresenterKey()
 const HowItWorks = lazy(() => import("./explainer/HowItWorks"))
+const MarbleLab = lazy(() => import("./lab/MarbleLab"))
 const RemoteChat = lazy(() => import("./remote/RemoteChat"))
 
 function Root() {
-  const [route, setRoute] = useState<Route>(() => readRoute(window.location.hash) ?? { page: "story", step: 0 })
+  const [route, setRoute] = useState<Route>(() => readRoute(window.location.hash) ?? { page: "demo", tab: "data" })
   useEffect(() => {
     // Only "#/..." hashes are routes; in-page anchors such as #containment leave the page alone.
     const onHash = () => {
@@ -23,8 +24,9 @@ function Root() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
   if (route.page === "how-it-works") return <Suspense fallback={<p className="p-8">Loading the guide…</p>}><HowItWorks /></Suspense>
+  if (route.page === "marble-lab") return <Suspense fallback={null}><MarbleLab /></Suspense>
   if (route.page === "remote") return <Suspense fallback={null}><RemoteChat key={route.sessionId} sessionId={route.sessionId} token={route.token} /></Suspense>
-  return route.page === "explore" ? <App /> : <StoryApp step={route.step} />
+  return route.page === "explore" ? <App /> : <StoryApp tab={route.tab} />
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -1,34 +1,31 @@
+export const TABS = [
+  { id: "data", label: "Dataset" },
+  { id: "loggy", label: "Loggy" },
+  { id: "build", label: "Build" },
+] as const
+
+export type Tab = (typeof TABS)[number]["id"]
 export type Route =
   | { page: "explore" }
   | { page: "how-it-works" }
-  | { page: "story"; step: number }
+  | { page: "marble-lab" }
   | { page: "remote"; sessionId: string; token: string | null }
+  | { page: "demo"; tab: Tab }
 
-export const STEPS = [
-  { slug: "", label: "Intro" },
-  { slug: "organize", label: "Organize" },
-  { slug: "ask", label: "Ask" },
-  { slug: "build", label: "Build" },
-] as const
-
-/** "#/explore" is the workspace, "#/" or "#/<step>" the story; anything else (in-page anchors) is not a route. */
+/** "#/explore" is the workspace, "#/" or "#/<tab>" the demo; anything else (in-page anchors) is not a route. */
 export function readRoute(hash: string): Route | null {
-  if (!hash || hash === "#") return { page: "story", step: 0 }
+  if (!hash || hash === "#") return { page: "demo", tab: "data" }
   if (!hash.startsWith("#/")) return null
   const slug = hash.slice(2).split(/[/?]/)[0]
   if (slug === "how-it-works") return { page: "how-it-works" }
   if (slug === "explore") return { page: "explore" }
+  if (slug === "marble-lab") return { page: "marble-lab" }
   if (slug === "remote") {
-    // "#/remote/<session>/<token>" from the QR code; the phone page then drops the token from the address bar.
     const [, sessionId, token] = hash.slice(2).split("/")
     if (sessionId) return { page: "remote", sessionId, token: token || null }
   }
-  const step = STEPS.findIndex((s) => s.slug === slug)
-  return { page: "story", step: step < 0 ? 0 : step }
+  return { page: "demo", tab: TABS.find((t) => t.id === slug)?.id ?? "data" }
 }
 
-export const hrefOf = (step: number) => `#/${STEPS[step]?.slug ?? ""}`
+export const hrefOf = (tab: Tab) => `#/${tab}`
 export const EXPLORE_HREF = "#/explore"
-
-export const ORGANIZE_BEATS = ["One conversation", "All conversations", "The map"] as const
-export const ASK_BEATS = ["The agent", "Containment"] as const

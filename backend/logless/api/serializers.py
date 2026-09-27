@@ -556,3 +556,38 @@ def serialize_search(snapshot_id: str, query: str, results: list[dict], elapsed_
                          "relevance": r["relevance"] if r["relevance"] in ("relevant", "unclear", "not_relevant") else "unclear",
                          "p": round(_num(r["p"]), 4)} for r in results],
             "elapsed_ms": _int(elapsed_ms)}
+
+
+# ---------------------------------------------------------------- sub-themes
+
+SUBTHEME_ID = re.compile(r"^cl_(?:[0-9a-f]{6}|other)_(?:s\d{1,2}|rest)$")
+
+
+def serialize_subthemes(snapshot_id: str, raw: dict) -> dict:
+    """Only ids, short titles (or null), integer counts and the rest flag. A canary token anywhere blocks
+    the payload; a title matching a contact pattern is dropped to null."""
+    leaves: dict[str, list[dict]] = {}
+    for lid, items in (raw.get("leaves") or {}).items():
+        lid = _id(lid, LEAF_ID)
+        out = []
+        for x in items or []:
+            sid = _id(x["id"], SUBTHEME_ID)
+            if not sid.startswith(lid + "_"):
+                raise Blocked("bad id")
+            title = _opt_str(x.get("short_title"), SHORT_TITLE_MAX)
+            if title is not None:
+                found = leakcheck.problems(title)
+                if "canary token" in found:
+                    raise Blocked("sub-theme title failed the canary check")
+                if found:
+                    title = None
+            item = {"id": sid, "short_title": title, "conversations": _int(x["conversations"]), "users": _int(x["users"])}
+            if x.get("rest"):
+                item["rest"] = True
+            out.append(item)
+        leaves[lid] = out
+    out = {"snapshot_id": _id(snapshot_id, SNAPSHOT_ID), "base_snapshot_id": _id(raw["base_snapshot_id"], SNAPSHOT_ID),
+           "leaves": leaves}
+    if leakcheck.problems(json.dumps(out, ensure_ascii=False), contact=False):
+        raise Blocked("sub-themes failed the leak check")
+    return out

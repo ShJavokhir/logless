@@ -98,8 +98,8 @@ export function RemoteButton() {
           <DialogHeader>
             <DialogTitle className="text-[17px] font-semibold">Ask loggy from your phone</DialogTitle>
             <DialogDescription className="text-[13px]">
-              Scan the code with your phone camera. Each session gets its own NetBird URL behind a one-time PIN, and the URL is
-              deleted when the session ends.
+              Scan the code with your phone camera. With NetBird, each session gets a URL protected by a session PIN.
+              The URL is deleted when the session ends.
             </DialogDescription>
           </DialogHeader>
 
