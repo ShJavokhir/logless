@@ -33,7 +33,7 @@ from ..sandbox import runs as runstore
 from ..sandbox.analysis import run_analysis
 from ..sandbox.client import RunnerClient
 from ..sandbox.containment import run_containment
-from . import brief_video, briefs, models, prds, search, serializers, stories
+from . import brief_video, briefs, models, prds, remote, search, serializers, stories
 from ..sandbox.plan import normalize_question, sanitize_question
 from .ratelimit import HourlyBudget, RateLimiter, presenter_limits
 
@@ -239,6 +239,32 @@ def _release_later(table: dict, key, rid: str) -> Callable[[], None]:
     return release
 
 
+def start_question(question: str, snapshot_id: str | None, *, presenter: bool) -> str:
+    """Start (or join, if the same question is already running) a question run; returns its run id.
+    Used by /api/analyses and by remote-control sessions."""
+    snap = _require_snapshot(snapshot_id)
+    titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
+    nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
+    sid = snap["snapshot_id"]
+    raw_q = question.strip()
+    if not raw_q:
+        raise ApiError(422, "invalid_request", "Invalid field: question")
+    key = (sid, normalize_question(raw_q))
+    with _start_lock:
+        rid = _question_inflight.get(key)
+        if rid:
+            existing = runstore.load(rid)
+            if existing and existing["state"] not in runstore.TERMINAL:
+                return rid
+        _capacity(presenter)
+        _spend("analysis", presenter)
+        run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
+        _question_inflight[key] = run.id
+        _submit(lambda: run_analysis(run, snapshot_id=sid, titles=titles, nodes=nodes, question=raw_q, runner=runner()),
+                on_done=_release_later(_question_inflight, key, run.id), run=run)
+    return run.id
+
+
 def _shutdown_runs() -> None:
     # submit takes _start_lock before the executor's internal shutdown lock. Cancellation
     # invokes callbacks synchronously; preserve that order so callbacks can reenter it.
@@ -260,7 +286,7 @@ def bucket_for(method: str, path: str) -> str:
     if method == "POST":
         if path == "/api/search":
             return "search"
-        if path == "/api/analyses":
+        if path == "/api/analyses" or (path.startswith("/api/remote/") and path.endswith("/questions")):
             return "analysis"
         if path == "/api/demo/containment":
             return "containment"
@@ -329,7 +355,9 @@ async def lifespan(_: FastAPI):
     if getattr(search_executor, "_shutdown", False):
         search_executor = ThreadPoolExecutor(max_workers=SEARCH_CONCURRENCY, thread_name_prefix="logless-search")
     _search_flights.clear()
+    remote.start()
     yield
+    remote.stop()
     _shutdown_runs()
     search_executor.shutdown(wait=False, cancel_futures=True)
 
@@ -344,8 +372,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="logless", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
     if os.environ.get("LOGLESS_ENV", "development") != "production":
-        app.add_middleware(CORSMiddleware, allow_origins=DEV_ORIGINS, allow_methods=["GET", "POST"],
-                           allow_headers=["Content-Type", "X-Logless-Presenter"], allow_credentials=False, max_age=600)
+        app.add_middleware(CORSMiddleware, allow_origins=DEV_ORIGINS, allow_methods=["GET", "POST", "DELETE"],
+                           allow_headers=["Content-Type", "X-Logless-Presenter", "X-Loggy-Token"], allow_credentials=False, max_age=600)
 
     @app.middleware("http")
     async def rate_limit(request: Request, call_next):
@@ -433,28 +461,7 @@ def create_app() -> FastAPI:
     @app.post("/api/analyses")
     def api_analyses(body: models.AnalysisIn, request: Request):
         """Open questions only (usage/friction were retired; the model rejects them with 422)."""
-        snap = _require_snapshot(body.snapshot_id)
-        presenter = request.state.presenter
-        titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
-        nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
-        sid = snap["snapshot_id"]
-        raw_q = body.question.strip()
-        if not raw_q:
-            raise ApiError(422, "invalid_request", "Invalid field: question")
-        key = (sid, normalize_question(raw_q))
-        with _start_lock:
-            rid = _question_inflight.get(key)
-            if rid:
-                existing = runstore.load(rid)
-                if existing and existing["state"] not in runstore.TERMINAL:
-                    return {"run_id": rid}
-            _capacity(presenter)
-            _spend("analysis", presenter)
-            run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
-            _question_inflight[key] = run.id
-            _submit(lambda: run_analysis(run, snapshot_id=sid, titles=titles, nodes=nodes, question=raw_q, runner=runner()),
-                    on_done=_release_later(_question_inflight, key, run.id), run=run)
-        return {"run_id": run.id}
+        return {"run_id": start_question(body.question, body.snapshot_id, presenter=request.state.presenter)}
 
     @app.get("/api/runs/{run_id}")
     def api_run(run_id: str):
@@ -609,6 +616,7 @@ def create_app() -> FastAPI:
         return serializers.serialize_eval(rep)
 
     from .intake import router as intake_router; app.include_router(intake_router)  # noqa: E702 — §11 live intake
+    app.include_router(remote.router)  # remote control over NetBird (remote.py)
     return BodyLimit(app)  # type: ignore[return-value]
 
 
