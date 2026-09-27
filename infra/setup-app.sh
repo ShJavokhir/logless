@@ -37,6 +37,7 @@ echo ">> host firewall (ufw ships enabled on Vultr's Ubuntu image with only 22/t
 if command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
   ufw allow 80/tcp >/dev/null
   ufw allow 443/tcp >/dev/null
+  ufw allow in on wt0 to any port 8080 proto tcp >/dev/null
 fi
 
 echo ">> uv"

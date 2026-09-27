@@ -8,7 +8,7 @@
 	}
 }
 
-__LOGLESS_HOST__ {
+(logless-site) {
 	encode zstd gzip
 
 	header {
@@ -36,4 +36,14 @@ __LOGLESS_HOST__ {
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+__LOGLESS_HOST__ {
+	import logless-site
+}
+
+# NetBird's proxy forwards over WireGuard to this HTTP listener. The host firewall
+# allows port 8080 only on wt0; the public Vultr firewall does not expose it.
+http://:8080 {
+	import logless-site
 }

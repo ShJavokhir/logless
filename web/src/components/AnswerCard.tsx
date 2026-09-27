@@ -25,7 +25,8 @@ type Props = {
   onFocusCategory: (id: string) => void
   onPeek: (id: string | null) => void
   onOpenDetails: () => void
-  onClose: () => void
+  /** omit to hide the close button */
+  onClose?: () => void
   /** question intent: submit a question (also used by example chips) */
   onAsk?: (question: string) => void
   /** question intent: clear the current question and show the ask form */
@@ -61,9 +62,11 @@ export function AnswerCard(props: Props) {
         <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} aria-label={collapsed ? "Expand answer" : "Collapse answer"}>
           <ChevronDown className={cn("transition-transform duration-150", collapsed && "-rotate-90")} />
         </Button>
-        <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close answer">
-          <X />
-        </Button>
+        {onClose ? (
+          <Button variant="ghost" size="icon-xs" onClick={onClose} aria-label="Close answer">
+            <X />
+          </Button>
+        ) : null}
       </header>
 
       {!collapsed ? (

@@ -13,4 +13,13 @@ describe("explainer routing", () => {
       page: "how-it-works",
     });
   });
+  it("routes a paired phone without changing the demo tabs", () => {
+    expect(readRoute("#/remote/abc123/secret-token")).toEqual({
+      page: "remote", sessionId: "abc123", token: "secret-token",
+    });
+    expect(readRoute("#/remote/abc123")).toEqual({
+      page: "remote", sessionId: "abc123", token: null,
+    });
+    expect(readRoute("#/build")).toEqual({ page: "demo", tab: "build" });
+  });
 });

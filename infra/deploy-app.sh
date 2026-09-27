@@ -46,6 +46,10 @@ keep = ["VULTR_INFERENCE_API_KEY", "TYPESAFE_API_KEY", "FIREWORKS_API_KEY", "PSE
         "PRESENTER_KEY"]
 for k in keep:
     print(f"{k}={env[k]}")
+for k in ("NETBIRD_API_URL", "NETBIRD_API_TOKEN", "NETBIRD_PEER_ID", "NETBIRD_TARGET_PORT",
+          "NETBIRD_PROXY_DOMAIN", "REMOTE_TTL_MIN", "REMOTE_DESKTOP_IDLE_S"):
+    if env.get(k):
+        print(f"{k}={env[k]}")
 print("LOGLESS_ENV=production")
 print("LOGLESS_DATA_DIR=/var/lib/logless")
 print("RUNNER_URL=http://10.20.0.4:8787")

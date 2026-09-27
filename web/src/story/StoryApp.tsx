@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Wordmark } from "@/components/Chrome"
+import { presenterKey } from "@/lib/presenter"
+import { RemoteButton } from "@/remote/RemoteButton"
 import { EXPLORE_HREF, TABS, hrefOf, type Tab } from "./route"
 import { DataTab } from "./DataTab"
 import { LoggyTab } from "./LoggyTab"
@@ -94,6 +96,7 @@ export function StoryApp({ tab }: { tab: Tab }) {
           </nav>
           <div className="flex items-center gap-3 justify-self-end">
             <a href="#/how-it-works" className="text-[12.5px] text-muted-foreground hover:text-foreground">How it works</a>
+            {api.mode === "live" && presenterKey() ? <RemoteButton /> : null}
             <a
               href={EXPLORE_HREF}
               aria-label="Open the workspace"
