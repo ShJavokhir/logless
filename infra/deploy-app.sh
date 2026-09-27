@@ -19,15 +19,28 @@ fi
 echo "==> build web (real API)"
 (cd web && VITE_MOCK=0 pnpm -s build)
 
+echo "==> build video brief bundle (MP4 export; see infra/setup-render.sh)"
+(cd web && node video-render/render.mjs --make-bundle ../var/brief-bundle >/dev/null)
+
 echo "==> sync code"
 rsync -az --delete -e "$RSYNC_SSH" \
   --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' --exclude '.pytest_cache' \
   backend/ logless-app:/opt/logless/backend/
 rsync -az --delete -e "$RSYNC_SSH" web/dist/ logless-app:/opt/logless/web/dist/
 rsync -az -e "$RSYNC_SSH" infra/logless-api.service logless-app:/etc/systemd/system/logless-api.service
+# The renderer package and headless Chrome are installed once by infra/setup-render.sh.
+if $SSH 'test -x /opt/node/bin/node && test -d /opt/logless/render/node_modules/@remotion/renderer'; then
+  rsync -az --delete -e "$RSYNC_SSH" var/brief-bundle/ logless-app:/opt/logless/render/bundle/
+  rsync -az -e "$RSYNC_SSH" web/video-render/render.mjs web/video-render/package.json logless-app:/opt/logless/render/
+  RENDER=1
+else
+  echo "    (no renderer on the VM: briefs stay player-only; run infra/setup-render.sh to enable MP4 export)"
+  RENDER=0
+fi
 
 echo "==> env file"
-python3 - <<'EOF' | $SSH 'umask 027; cat > /etc/logless/env.new && chown root:logless /etc/logless/env.new && chmod 0640 /etc/logless/env.new && mv /etc/logless/env.new /etc/logless/env'
+RENDER=$RENDER python3 - <<'EOF' | $SSH 'umask 027; cat > /etc/logless/env.new && chown root:logless /etc/logless/env.new && chmod 0640 /etc/logless/env.new && mv /etc/logless/env.new /etc/logless/env'
+import os
 env = dict(l.strip().split("=", 1) for l in open(".env") if "=" in l and not l.startswith("#"))
 keep = ["VULTR_INFERENCE_API_KEY", "TYPESAFE_API_KEY", "FIREWORKS_API_KEY", "PSEUDONYM_SALT", "RUNNER_TOKEN", "SAMPLE_SIZE", "SAMPLE_SEED",
         "PRESENTER_KEY"]
@@ -38,6 +51,11 @@ print("LOGLESS_DATA_DIR=/var/lib/logless")
 print("RUNNER_URL=http://10.20.0.4:8787")
 # Receipts show the sandbox image digest only if the runner reports exactly this id (the runner
 # itself refuses to run any other image; see /etc/logless-runner/env RUNNER_IMAGE_DIGEST).
+if os.environ.get("RENDER") == "1":
+    print("BRIEF_RENDER_NODE=/opt/node/bin/node")
+    print("BRIEF_RENDER_SCRIPT=/opt/logless/render/render.mjs")
+    print("BRIEF_RENDER_BUNDLE=/opt/logless/render/bundle")
+    print("BRIEF_RENDER_HOME=/tmp")
 print("SANDBOX_IMAGE_DIGEST=" + env.get("SANDBOX_IMAGE_DIGEST", "sha256:91c87e91583edb8cbe9f63de89294f8f269e123d767078ac35f7023df7aefce9"))
 EOF
 

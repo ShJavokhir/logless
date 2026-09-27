@@ -33,9 +33,12 @@ _state: dict[str, str] = {}   # brief_id -> "rendering" | "failed" (in-process o
 def _cfg() -> tuple[str, Path, Path] | None:
     script = os.environ.get("BRIEF_RENDER_SCRIPT", "")
     bundle = os.environ.get("BRIEF_RENDER_BUNDLE", "")
+    node = os.environ.get("BRIEF_RENDER_NODE", "node")
     if not script or not bundle or not Path(script).is_file() or not Path(bundle).is_dir():
         return None
-    return os.environ.get("BRIEF_RENDER_NODE", "node"), Path(script), Path(bundle)
+    if os.path.isabs(node) and not os.access(node, os.X_OK):
+        return None
+    return node, Path(script), Path(bundle)
 
 
 def enabled() -> bool:
@@ -94,7 +97,7 @@ def _render(brief: dict) -> None:
         tmp = out_dir / f".{bid}.part.mp4"
         src.write_text(json.dumps(brief), encoding="utf-8")
         cmd = ["nice", "-n", "10", node, str(script), str(src), str(tmp), "--bundle", str(bundle),
-               "--scale", "0.6667", "--concurrency", os.environ.get("BRIEF_RENDER_CONCURRENCY", "2")]
+               "--height", "720", "--concurrency", os.environ.get("BRIEF_RENDER_CONCURRENCY", "2")]
         # A minimal environment: the renderer never sees the service's provider keys.
         env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.environ.get("BRIEF_RENDER_HOME", str(script.parent)),
                "LANG": "C.UTF-8"}

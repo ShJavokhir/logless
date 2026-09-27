@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 // Render a brief JSON to MP4 with the same composition the app plays.
-//   node video-render/render.mjs <brief.json> <out.mp4> [--bundle dir] [--scale 0.5] [--concurrency N] [--gl angle]
+//   node video-render/render.mjs <brief.json> <out.mp4> [--bundle dir] [--height 720 | --scale 0.5] [--concurrency N] [--gl angle]
 //   node video-render/render.mjs --make-bundle <out-dir>      (pre-build the composition for a server)
 // The brief is data only (words already gated, numbers filled by the backend);
 // the composition code is ours, so nothing model-written is executed here.
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { bundle } from "@remotion/bundler"
 import { renderMedia, selectComposition } from "@remotion/renderer"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
+// The bundler is only needed to build; a server with a pre-built bundle installs just the renderer.
+const bundle = async (o) => (await import("@remotion/bundler")).bundle(o)
 if (argv[0] === "--make-bundle") {
   const dir = await bundle({ entryPoint: path.join(here, "../src/video/remotion-entry.tsx"), outDir: path.resolve(argv[1]) })
   console.log(JSON.stringify({ bundle: dir }))
@@ -27,7 +28,6 @@ const opt = (name, dflt) => {
   return i >= 0 ? rest[i + 1] : dflt
 }
 const brief = JSON.parse(readFileSync(briefPath, "utf8"))
-const scale = Number(opt("--scale", "1"))
 const concurrency = opt("--concurrency", null)
 
 const t0 = Date.now()
@@ -38,6 +38,9 @@ const serveUrl = prebuilt
 const gl = opt("--gl", null)
 const inputProps = { brief }
 const composition = await selectComposition({ serveUrl, id: "brief", inputProps })
+// --height 720 renders at exactly 1280x720 (a fractional --scale can yield a non-integer size).
+const height = opt("--height", null)
+const scale = height ? Number(height) / composition.height : Number(opt("--scale", "1"))
 let last = -1
 await renderMedia({
   composition,

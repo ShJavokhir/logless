@@ -1,0 +1,9 @@
+{
+  "name": "logless-brief-render",
+  "private": true,
+  "type": "module",
+  "description": "Server-side MP4 export of a video brief from a pre-built Remotion bundle (see render.mjs).",
+  "dependencies": {
+    "@remotion/renderer": "4.0.529"
+  }
+}
