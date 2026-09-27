@@ -9,11 +9,10 @@
   "beats": [
     {
       "id": "title",
-      "rate": 190,
       "chunks": [
         {
           "caption": null,
-          "spoken": "Users tell you what's broken every day, but you can't read their conversations.",
+          "spoken": "You can't read your users' chats. So logless sends an agent that writes and runs code, sandboxed on Vultr.",
           "at": "title+0.3"
         }
       ]
@@ -22,8 +21,8 @@
       "id": "map",
       "chunks": [
         {
-          "caption": "5,000 real conversations, read only by an LLM pipeline on Vultr.",
-          "spoken": "Five thousand real conversations, read only by an LLM pipeline on Vultr.",
+          "caption": "5,000 real chats, grouped by GLM on Vultr.",
+          "spoken": "Five thousand real chats, grouped by G L M on Vultr.",
           "at": "map_start+0.15"
         }
       ]
@@ -32,18 +31,18 @@
       "id": "intake",
       "chunks": [
         {
-          "caption": "300 new ones arrive, pre-read by GLM.",
-          "spoken": "Three hundred new ones arrive, pre-read by G.L.M.",
+          "caption": "300 more arrive.",
+          "spoken": "Three hundred more arrive.",
           "at": "intake_click-0.3"
         },
         {
-          "caption": "Jev decides each live, about {rate} a second.",
-          "spoken": "Jev decides each live, about {rate} a second.",
+          "caption": "TypeSafe Jev routes each live, about {rate} a second.",
+          "spoken": "TypeSafe Jev routes each live, about {rate} a second.",
           "at": "intake_first"
         },
         {
-          "caption": "The privacy gate re-checks; the map republishes.",
-          "spoken": "The privacy gate re-checks; the map republishes.",
+          "caption": "Privacy gate passes; the map republishes.",
+          "spoken": "Privacy gate passes; the map republishes.",
           "at": "intake_flight_end-0.6"
         }
       ]
@@ -52,8 +51,8 @@
       "id": "finding",
       "chunks": [
         {
-          "caption": "Coding is under a fifth of conversations, but over a quarter of the friction.",
-          "spoken": "Coding is under a fifth of conversations, but over a quarter of the friction.",
+          "caption": "Coding: under a fifth of chats, over a quarter of friction.",
+          "spoken": "Coding: under a fifth of chats, over a quarter of friction.",
           "at": "finding_start+0.3"
         }
       ]
@@ -62,13 +61,13 @@
       "id": "ask",
       "chunks": [
         {
-          "caption": "GLM plans the question and writes two independent programs without seeing any data.",
-          "spoken": "G.L.M. plans the question, and writes two independent programs without seeing any data.",
+          "caption": "The agent plans, then writes two independent programs without seeing a row.",
+          "spoken": "The agent plans, then writes two independent programs, without seeing a row.",
           "at": "ask_open-0.3"
         },
         {
-          "caption": "Each runs in its own gVisor sandbox; both must agree and pass the gate.",
-          "spoken": "Each runs in its own gee-visor sandbox; both must agree and pass the gate.",
+          "caption": "Each runs in its own gVisor container on a keyless VM; both must agree and pass the gate.",
+          "spoken": "Each runs in its own gee-visor container on a keyless VM; both must agree and pass the gate.",
           "at": "ask_click+1.0"
         }
       ]
@@ -77,8 +76,8 @@
       "id": "details",
       "chunks": [
         {
-          "caption": "Every answer has a receipt: both programs and their cross-checks.",
-          "spoken": "Every answer has a receipt: both programs and their cross-checks.",
+          "caption": "Every answer ships with a receipt.",
+          "spoken": "Every answer ships with a receipt.",
           "at": "details_start+0.3"
         }
       ]
@@ -87,19 +86,19 @@
       "id": "contain",
       "chunks": [
         {
-          "caption": "A runaway program is killed at two seconds.",
-          "spoken": "A runaway program is killed at two seconds.",
+          "caption": "A runaway program: killed at two seconds.",
+          "spoken": "A runaway program: killed at two seconds.",
           "at": "contain_click+0.3"
         },
         {
-          "caption": "rm -rf / hits a read-only root: nothing deleted.",
-          "spoken": "R M dash R F slash hits a read-only root: nothing deleted.",
+          "caption": "rm -rf /: read-only root, deletions refused.",
+          "spoken": "R M dash R F slash: read-only root. Deletions refused.",
           "at": "kill_seen+0.3",
           "requires": "rmrf_seen"
         },
         {
-          "caption": "A per-person export is rejected by the gate.",
-          "spoken": "A per-person export is rejected by the gate.",
+          "caption": "A per-person export: rejected by the gate.",
+          "spoken": "A per-person export: rejected by the gate.",
           "at": "leak_seen-1.0"
         }
       ]
@@ -114,5 +113,14 @@
         }
       ]
     }
-  ]
+  ],
+  "elevenlabs": {
+    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "model": "eleven_multilingual_v2",
+    "settings": {
+      "stability": 0.5,
+      "similarity_boost": 0.75,
+      "speed": 1.1
+    }
+  }
 }

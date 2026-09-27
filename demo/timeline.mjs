@@ -40,7 +40,7 @@ const P = {
   tailPad: 0.3, // after a beat's last word before the cut
   beatGap: 0.2, // minimum pause between beats' narration
   closing: 2.4,
-  maxTotal: 59.6,
+  maxTotal: 70,
 }
 
 const fr = (s) => Math.round(s * FPS) // seconds → frames
