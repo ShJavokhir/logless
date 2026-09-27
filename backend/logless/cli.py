@@ -27,6 +27,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("eval", help="compute the evaluation report for the current snapshot")
 
+    stp = sub.add_parser("subthemes", help="sub-cluster each published leaf theme and store titled sub-themes")
+    stp.add_argument("--build", required=True, help="build id whose published snapshot gets sub-themes")
+
     it = sub.add_parser("intake", help="live intake batch (docs/CONTRACTS.md §11)")
     itsub = it.add_subparsers(dest="intake_cmd", required=True)
     ip = itsub.add_parser("prepare", help="pick N new shard conversations and extract their facets now")
@@ -84,6 +87,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             out = intake.reset()
         print(_json.dumps(out, indent=1))
+        return 0
+    if args.cmd == "subthemes":
+        import json as _json
+        from .pipeline import subthemes
+        print(_json.dumps(subthemes.run(args.build), indent=1))
         return 0
     if args.cmd == "eval":
         from .eval import report

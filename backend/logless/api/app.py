@@ -117,6 +117,19 @@ _runner: RunnerClient | None = None
 _health_cache: tuple[float, str] = (0.0, "unreachable")
 
 
+def _subthemes_for(snapshot_id: str) -> dict | None:
+    """The stored sub-themes of the build behind a snapshot: its own build (private `builds`), an
+    intake snapshot's base build (`intake_batches`), else the build recorded with its cluster map."""
+    from ..intake import build_of_snapshot
+    from ..pipeline.subthemes import load_for_build
+    from ..sandbox.export import load_cluster_map
+    build_id = build_of_snapshot(snapshot_id)
+    if build_id is None:
+        cm = load_cluster_map(snapshot_id)
+        build_id = cm[0] if cm else None
+    return load_for_build(build_id) if build_id else None
+
+
 def runner() -> RunnerClient:
     global _runner
     if _runner is None:
@@ -586,6 +599,18 @@ def create_app() -> FastAPI:
             _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"], nodes=nodes,
                                             health=lambda: health_status(fresh=True)["status"], runner=runner()), run=run)
         return {"run_id": run.id}
+
+    @app.get("/api/subthemes")
+    def api_subthemes(snapshot_id: str | None = None):
+        """Sub-themes inside each leaf of a snapshot (default: the current one). Intake-derived snapshots
+        share their base build's leaf ids, so they resolve to that build's sub-themes."""
+        sid = snapshot_id if snapshot_id is not None else store.current_id()
+        if sid is None or not serializers.SNAPSHOT_ID.match(sid):
+            raise ApiError(404, "not_found", "No sub-themes for that snapshot.")
+        raw = _subthemes_for(sid)
+        if raw is None:
+            raise ApiError(404, "not_found", "No sub-themes for that snapshot.")
+        return serializers.serialize_subthemes(sid, raw)
 
     @app.get("/api/eval")
     def api_eval():

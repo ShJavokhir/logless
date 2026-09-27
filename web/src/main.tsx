@@ -10,7 +10,7 @@ import { readRoute, type Route } from "./story/route"
 capturePresenterKey()
 
 function Root() {
-  const [route, setRoute] = useState<Route>(() => readRoute(window.location.hash) ?? { page: "story", step: 0 })
+  const [route, setRoute] = useState<Route>(() => readRoute(window.location.hash) ?? { page: "demo", tab: "data" })
   useEffect(() => {
     // Only "#/..." hashes are routes; in-page anchors such as #containment leave the page alone.
     const onHash = () => {
@@ -20,7 +20,7 @@ function Root() {
     window.addEventListener("hashchange", onHash)
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
-  return route.page === "explore" ? <App /> : <StoryApp step={route.step} />
+  return route.page === "explore" ? <App /> : <StoryApp tab={route.tab} />
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -2,7 +2,7 @@ export type MapCamera = { k: number; tx: number; ty: number }
 export type Point = { x: number; y: number }
 
 export const OVERVIEW: MapCamera = { k: 1, tx: 0, ty: 0 }
-export const MAX_ZOOM = 8
+export const MAX_ZOOM = 12
 
 export function clampCamera(camera: MapCamera, width: number, height: number): MapCamera {
   const k = Math.max(1, Math.min(MAX_ZOOM, camera.k))
@@ -36,3 +36,20 @@ export function categoryDetail(k: number, radius: number, viewport: number): num
   const revealAt = Math.max(1.65, Math.min(4.8, viewport * 0.82 / (2 * radius)))
   return smoothStep(1.08, revealAt, k)
 }
+
+/**
+ * The camera a fraction `u` of the way from `from` to `to`, moving the way a
+ * zoom looks natural: scale changes geometrically (each step feels the same
+ * size) about the one screen point both cameras agree on, so nothing slides
+ * sideways. Without a scale change it is a straight pan.
+ */
+export function along(from: MapCamera, to: MapCamera, u: number): MapCamera {
+  const r = to.k / from.k
+  if (Math.abs(r - 1) < 1e-6) return { k: to.k, tx: from.tx + (to.tx - from.tx) * u, ty: from.ty + (to.ty - from.ty) * u }
+  const px = (to.tx - r * from.tx) / (1 - r)
+  const py = (to.ty - r * from.ty) / (1 - r)
+  const s = Math.pow(r, u)
+  return { k: from.k * s, tx: px + (from.tx - px) * s, ty: py + (from.ty - py) * s }
+}
+
+export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)

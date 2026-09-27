@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest"
-import { categoryDetail, clampCamera, MAX_ZOOM, OVERVIEW, pinchCamera, zoomAt } from "./mapCamera"
+import { along, categoryDetail, clampCamera, MAX_ZOOM, OVERVIEW, pinchCamera, zoomAt } from "./mapCamera"
 import { packLayout } from "./hierarchy"
 import snapshot from "@/mocks/real-snapshot.json"
 import type { Snapshot } from "./types"
 
 describe("map camera", () => {
+  it("moves along a geometric zoom that keeps the cursor's world point fixed", () => {
+    const start = { k: 1.5, tx: -60, ty: -90 }
+    const cursor = { x: 610, y: 120 }
+    const end = zoomAt(start, cursor, 6, 900, 650)
+    const world = { x: (cursor.x - start.tx) / start.k, y: (cursor.y - start.ty) / start.k }
+    for (const u of [0, 0.25, 0.5, 0.75, 1]) {
+      const c = along(start, end, u)
+      expect((cursor.x - c.tx) / c.k).toBeCloseTo(world.x)
+      expect((cursor.y - c.ty) / c.k).toBeCloseTo(world.y)
+    }
+    // halfway in time is halfway in log-scale: 1.5 → 3 → 6
+    expect(along(start, end, 0.5).k).toBeCloseTo(3)
+    expect(along(start, end, 1)).toMatchObject({ k: end.k })
+    expect(along(start, end, 1).tx).toBeCloseTo(end.tx)
+  })
+
+  it("pans in a straight line when the scale does not change", () => {
+    expect(along({ k: 2, tx: 0, ty: 0 }, { k: 2, tx: -100, ty: 40 }, 0.5)).toEqual({ k: 2, tx: -50, ty: 20 })
+  })
+
   it("holds the world point under the cursor throughout a zoom", () => {
     const start = { k: 2, tx: -180, ty: -240 }
     const cursor = { x: 370, y: 290 }

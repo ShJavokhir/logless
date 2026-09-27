@@ -161,6 +161,10 @@
   transform-origin: 0 0;
   will-change: transform;
 }
+/* Zoom-driven opacity has to follow the camera frame by frame, not trail it. */
+.map-zoom[data-moving] .map-anim {
+  transition: none;
+}
 .map-zoom-button {
   display: grid;
   place-items: center;
@@ -210,4 +214,101 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------------------------------------------------------------- Loggy */
+
+.loggy-part {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.loggy-float {
+  animation: loggy-float 3.6s ease-in-out infinite;
+}
+@keyframes loggy-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%); }
+}
+.loggy-blink {
+  animation: loggy-blink 4.8s ease-in-out infinite;
+}
+@keyframes loggy-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.12); }
+}
+.loggy-scan {
+  animation: loggy-scan 1.3s ease-in-out infinite;
+}
+@keyframes loggy-scan {
+  0%, 100% { transform: translateX(-1.6px); }
+  50% { transform: translateX(1.6px); }
+}
+.loggy-wide {
+  transform: scale(1.18);
+  transition: transform 200ms ease;
+}
+.loggy-talk {
+  animation: loggy-talk 0.32s ease-in-out infinite alternate;
+}
+@keyframes loggy-talk {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1.6); }
+}
+.loggy-bulb {
+  animation: loggy-bulb 0.9s ease-in-out infinite;
+}
+@keyframes loggy-bulb {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.loggy-ring {
+  animation: loggy-ring 1.6s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+@keyframes loggy-ring {
+  from { transform: scale(1); opacity: 0.45; }
+  to { transform: scale(1.75); opacity: 0; }
+}
+.loggy-glow {
+  animation: loggy-glow 6s ease-in-out infinite;
+}
+@keyframes loggy-glow {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.18); opacity: 0.8; }
+}
+.loggy-pop {
+  animation: loggy-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes loggy-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+/* Stage text: a light sweep while Loggy is working. */
+.loggy-shimmer {
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--muted-foreground) 40%, var(--foreground) 50%, var(--muted-foreground) 60%, var(--muted-foreground) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: loggy-shimmer 1.8s linear infinite;
+}
+@keyframes loggy-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+.loggy-sweep {
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--brand) 70%, white), transparent);
+  background-size: 200% 100%;
+  animation: loggy-sweep 1.1s linear infinite;
+}
+@keyframes loggy-sweep {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.loggy-wave {
+  animation: loggy-wave 0.9s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+@keyframes loggy-wave {
+  from { transform: scaleY(0.2); }
+  to { transform: scaleY(1); }
 }

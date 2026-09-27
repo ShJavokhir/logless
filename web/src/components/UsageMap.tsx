@@ -3,7 +3,9 @@ import { ChevronRight, Minus, Plus, Scan } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useElementSize } from "@/hooks/useElementSize"
 import { layoutOrderOf, packLayout, zoomTransform, type PackedCircle } from "@/lib/hierarchy"
-import type { Snapshot } from "@/lib/types"
+import type { Snapshot, SubthemesResponse } from "@/lib/types"
+import { api } from "@/lib/api"
+import { packSubthemes, type SubCircle } from "@/lib/subthemes"
 import { useLayoutTween } from "@/hooks/useLayoutTween"
 import { useMapCamera } from "@/hooks/useMapCamera"
 import { categoryDetail, smoothStep } from "@/lib/mapCamera"
@@ -38,6 +40,9 @@ const PACK = { categoryPadding: 14, leafPadding: 3, categoryBand: 16, margin: 6 
 const CAT_BAND = 16 // px between a category rim and its leaves; holds the curved label
 const LEAF_MIN_LABEL_R = 22 // every leaf at least this big (on screen) gets a label
 const KEY_BELOW_WIDTH = 560 // narrower maps get a category key instead of straight labels
+
+// Sub-themes appear once a leaf is this big on screen (px radius), fully by the second.
+const SUB_REVEAL: [number, number] = [80, 140]
 
 const OPACITY: Record<Emphasis, number> = { none: 1, match: 1, partial: 0.62, dim: 0.14 }
 
@@ -110,6 +115,30 @@ export function UsageMap({
   const detailOf = (c: PackedCircle) => highlight.active || (selectedId && index.byId.get(selectedId)?.parent_id === c.id)
     ? 1 : categoryDetail(k, c.r, Math.min(width, height))
 
+  // Label fitting and sub-theme packing follow the zoom in ~3% steps, not every animation frame.
+  const kFit = Math.pow(2, Math.round(Math.log2(k) * 24) / 24)
+
+  // Sub-themes are an optional layer: a missing or failed response just hides it.
+  const snapshotId = index.snapshot.snapshot_id
+  const [subResponse, setSubResponse] = useState<SubthemesResponse | null>(null)
+  useEffect(() => {
+    const ctl = new AbortController()
+    api.getSubthemes(snapshotId, ctl.signal).then(setSubResponse, () => {})
+    return () => ctl.abort()
+  }, [snapshotId])
+  const subthemes = subResponse?.snapshot_id === snapshotId ? subResponse : null
+  const subCircles = useMemo(() => {
+    const out = new Map<string, SubCircle[]>()
+    if (!layout || !subthemes) return out
+    for (const l of layout.leaves) {
+      const items = subthemes.leaves[l.id]
+      if (!items?.length || l.r * kFit < SUB_REVEAL[0] * 0.9) continue
+      const subs = packSubthemes(l, items, 3.5 / Math.max(1e-6, l.r * kFit))
+      if (subs.length) out.set(l.id, subs)
+    }
+    return out
+  }, [layout, subthemes, kFit])
+
   // Re-measure labels once the web font has loaded (canvas widths change).
   const [fontsReady, setFontsReady] = useState(0)
   useEffect(() => {
@@ -132,7 +161,7 @@ export function UsageMap({
     if (!layout) return null
     const leaf = new Map<string, CircleLabel | null>()
     for (const l of layout.leaves) {
-      const rs = l.r * k
+      const rs = l.r * kFit
       const text = labelText(l.node)
       let fit = rs >= 12 ? fitCircleLabel(text, rs, { maxFont: 13, minFont: 10, maxLines: 3, subLine: true, measure: canvasMeasure }) : null
       if (!fit && rs >= LEAF_MIN_LABEL_R) fit = fitCircleLabel(text, rs, { maxFont: 11, minFont: 10, maxLines: 4, measure: canvasMeasure })
@@ -143,14 +172,25 @@ export function UsageMap({
     for (const c of layout.categories) {
       // Screen-space type stays readable as the camera moves. Overview labels
       // fit inside a quiet centre; child labels take over before they overlap.
-      const rs = c.r * k
+      const rs = c.r * kFit
       cat.set(c.id, fitCircleLabel(labelText(c.node), rs * 0.92, {
         maxFont: Math.min(23, Math.max(13, rs * 0.17)), minFont: 10,
         maxLines: 3, subLine: rs >= 42, measure: canvasMeasure, weight: 600,
       }) ?? ellipsizeLabel(labelText(c.node), rs * 0.9, 11, canvasMeasure))
     }
-    return { leaf, cat }
-  }, [layout, k, fontsReady])
+    const sub = new Map<string, CircleLabel | null>()
+    for (const subs of subCircles.values()) {
+      for (const c of subs) {
+        const rs = c.r * kFit
+        const text = c.item.short_title
+        sub.set(c.item.id, text && rs >= 16
+          ? fitCircleLabel(text, rs, { maxFont: 12, minFont: 9.5, maxLines: 3, subLine: rs >= 30, measure: canvasMeasure })
+            ?? (rs >= 22 ? ellipsizeLabel(text, rs, 9.5, canvasMeasure) : null)
+          : null)
+      }
+    }
+    return { leaf, cat, sub }
+  }, [layout, kFit, fontsReady, subCircles])
 
   const onKey = useCallback((e: KeyboardEvent, fn: () => void) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -221,7 +261,7 @@ export function UsageMap({
               onSelectLeaf(null)
             }}
           />
-          <g className="map-zoom" style={{ transform: `translate(${tx}px, ${ty}px) scale(${k})` }}>
+          <g className="map-zoom" data-moving={interacting || undefined} style={{ transform: `translate(${tx}px, ${ty}px) scale(${k})` }}>
             {layout.categories.map((c) => {
               const pal = index.palette.get(c.id)!
               const em = categoryEmphasis(highlight, c.id)
@@ -291,7 +331,10 @@ export function UsageMap({
               const subColor = friction ? textColor : "oklch(0.44 0.01 285)"
               const parent = layout.byId.get(l.parentId ?? "")
               const detail = parent ? detailOf(parent) : 1
-              const labelOpacity = detail * smoothStep(16, 30, l.r * k)
+              const subs = outOfFocus ? undefined : subCircles.get(l.id)
+              const reveal = subs ? detail * smoothStep(SUB_REVEAL[0], SUB_REVEAL[1], l.r * k) : 0
+              const labelOpacity = detail * smoothStep(16, 30, l.r * k) * (1 - smoothStep(0, 0.45, reveal))
+              const arcR = l.r - 9 / k
               const lab = labels?.leaf.get(l.id) ?? null
               const liveConv = node.conversations + (liveDelta?.get(l.id) ?? 0)
               const lines = lab?.lines ?? null
@@ -344,6 +387,45 @@ export function UsageMap({
                     strokeDasharray={em === "partial" || (node.is_other && !friction) ? "3 2.5" : undefined}
                     vectorEffect="non-scaling-stroke"
                   />
+                  {subs && reveal > 0.01 ? (
+                    <g opacity={reveal} aria-hidden="true">
+                      {subs.map((c) => {
+                        const lab = labels?.sub.get(c.item.id) ?? null
+                        const fs = lab?.fontSize ?? 11
+                        const lh = (lab?.lineHeight ?? 12.8) / k
+                        const n = (lab?.lines.length ?? 0) + (lab?.sub ? 1 : 0)
+                        const y0 = c.y - ((n - 1) * lh) / 2
+                        return (
+                          <g key={c.item.id} data-subtheme={c.item.id}>
+                            <circle cx={c.x} cy={c.y} r={c.r}
+                              fill={friction ? "oklch(1 0 0 / 0.5)" : c.item.rest ? "oklch(1 0 0 / 0.28)" : "oklch(1 0 0 / 0.62)"}
+                              stroke={friction ? "oklch(0 0 0 / 0.16)" : pal.leafStroke} strokeWidth={0.9}
+                              strokeDasharray={c.item.rest ? "2.5 2" : undefined} vectorEffect="non-scaling-stroke" />
+                            {lab ? (
+                              <text x={c.x} opacity={smoothStep(0.5, 1, reveal)} textAnchor="middle" fontSize={fs / k} fontWeight={500} fill="oklch(0.26 0.01 285)" style={{ pointerEvents: "none" }}>
+                                {lab.lines.map((line, i) => (
+                                  <tspan key={i} x={c.x} y={y0 + i * lh} dominantBaseline="central">{line}</tspan>
+                                ))}
+                                {lab.sub ? (
+                                  <tspan x={c.x} y={y0 + lab.lines.length * lh + 1 / k} dominantBaseline="central"
+                                    fontFamily="var(--font-mono)" fontSize={(fs - 1.5) / k} fontWeight={450} fill="oklch(0.46 0.01 285)">
+                                    {fmtPct(c.share)}
+                                  </tspan>
+                                ) : null}
+                              </text>
+                            ) : null}
+                          </g>
+                        )
+                      })}
+                      <path id={`leafarc-${l.id}`} d={`M ${l.x - arcR} ${l.y} A ${arcR} ${arcR} 0 0 1 ${l.x + arcR} ${l.y}`} fill="none" />
+                      <text opacity={smoothStep(0.35, 0.9, reveal)} fontSize={10.5 / k} fontWeight={600} letterSpacing={0.6 / k} fill={friction ? textColor : pal.label}
+                        dominantBaseline="central" style={{ pointerEvents: "none" }}>
+                        <textPath href={`#leafarc-${l.id}`} startOffset="50%" textAnchor="middle">
+                          {labelText(node)} · {friction ? `${fmtPct(share)} friction` : fmtInt(liveConv)}
+                        </textPath>
+                      </text>
+                    </g>
+                  ) : null}
                   {lines && !outOfFocus && labelOpacity > 0.01 ? (
                     <text
                       x={l.x}

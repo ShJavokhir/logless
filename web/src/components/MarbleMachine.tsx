@@ -162,7 +162,20 @@ function sprite(tone: Tone, r: number, dpr: number): HTMLCanvasElement {
 // ------------------------------------------------------------------ component
 
 /** One marble = one real conversation in the prepared batch; it leaves the queue when Jev's answer for it lands. */
-export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake; index: SnapshotIndex; armed: boolean; onSort: () => void }) {
+export function MarbleMachine({
+  intake,
+  index,
+  armed,
+  onSort,
+  action,
+}: {
+  intake: Intake
+  index: SnapshotIndex
+  armed: boolean
+  onSort: () => void
+  /** extra control beside the status badge (e.g. reset) */
+  action?: React.ReactNode
+}) {
   const [base] = useState(index)
   const boxRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -593,21 +606,21 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
             </div>
             <div className="absolute text-[11px] leading-snug text-muted-foreground" style={{ left: g.jar.x, top: g.jar.y + g.jar.h + 14, width: g.jar.w + 40 }}>
               <p className="font-medium text-foreground">{fmtInt(total)} real WildChat conversations</p>
-              <p>One marble = one conversation. Read earlier by GLM on Vultr; nothing is decided until Jev answers.</p>
+              <p>One marble = one conversation.</p>
             </div>
 
             {/* HUD */}
             <div className="absolute flex flex-col gap-4" style={{ left: hudLeft, top: PAD - 6, right: PAD }}>
               <header className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="mb-1 font-mono text-[10px] tracking-[0.14em] text-subtle uppercase">Live classification · TypeSafe Jev</p>
-                  <h2 className="text-[22px] font-semibold tracking-tight">
-                    {fmtInt(total)} conversations → {rows.length} workflows
-                  </h2>
-                </div>
+                <h2 className="text-[22px] font-semibold tracking-tight">
+                  {fmtInt(total)} conversations → {rows.length} workflows
+                </h2>
+                <span className="flex shrink-0 items-center gap-2">
+                {action}
                 <span className={cn("mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium", intake.published ? "bg-ok-soft text-ok" : armed ? "bg-muted text-muted-foreground" : "bg-brand-soft text-brand")}>
                   {intake.published ? <Check className="size-3.5" /> : <Radio className={cn("size-3.5", running && "animate-pulse")} />}
-                  {intake.published ? "Published" : armed ? "Armed" : "Live"}
+                  {intake.published ? "Published" : armed ? "Ready" : "Live"}
+                </span>
                 </span>
               </header>
               <ol aria-label="Classification stages" className="flex flex-wrap gap-1.5">
@@ -639,7 +652,6 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
                   </button>
                   <p className="max-w-[360px] text-[12px] leading-snug text-muted-foreground">
                     Jev makes {intake.counters?.decisions_per_conversation ?? 5} decisions per conversation: its workflow, plus friction signals. Each marble drops the moment its real answer lands.
-                    <span className="mt-1 block text-subtle">Esc to cancel</span>
                   </p>
                 </div>
               ) : (
@@ -652,7 +664,7 @@ export function MarbleMachine({ intake, index, armed, onSort }: { intake: Intake
               )}
               {!armed ? (
                 <div aria-live="off" className="max-w-[720px]">
-                  <p className="mb-1 font-mono text-[10px] tracking-[0.12em] text-subtle uppercase">Jev just decided · sampled</p>
+                  <p className="mb-1 text-[11.5px] font-medium text-muted-foreground">Latest decisions</p>
                   {intake.feed.length ? (
                     <ul className="flex flex-col gap-0.5">
                       {intake.feed.slice(0, 3).map((ev, i) => {

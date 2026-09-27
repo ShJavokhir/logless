@@ -215,6 +215,12 @@ def save_cluster_map(snapshot_id: str, build_id: str, clusters: list[dict]) -> N
              for r in rows.itertuples(index=False)])
 
 
+def has_frozen_inputs(snapshot_id: str) -> bool:
+    con = db.private()
+    con.execute(FROZEN_SCHEMA)
+    return con.execute("SELECT 1 FROM sandbox_inputs WHERE snapshot_id=? LIMIT 1", (snapshot_id,)).fetchone() is not None
+
+
 def load_cluster_map(snapshot_id: str) -> tuple[str, list[dict]] | None:
     con = db.private()
     con.execute(CLUSTER_MAP_SCHEMA)

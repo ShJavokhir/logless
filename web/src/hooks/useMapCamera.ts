@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { clampCamera, MAX_ZOOM, OVERVIEW, pinchCamera, zoomAt, type MapCamera, type Point } from "@/lib/mapCamera"
+import { along, clampCamera, easeInOut, MAX_ZOOM, OVERVIEW, pinchCamera, zoomAt, type MapCamera, type Point } from "@/lib/mapCamera"
+
+/**
+ * instant: follow the input 1:1 (trackpad, pinch, drag), committed once per frame.
+ * glide: catch up quickly (mouse-wheel notches, buttons, keys).
+ * fly: a timed ease-in-out (framing a category, reset).
+ */
+export type CameraMotion = "instant" | "glide" | "fly"
+
+const GLIDE_MS = 90
 
 /** One animated camera drives geometry AND labels; no competing CSS transform. */
 export function useMapCamera(width: number, height: number, reduced: boolean, onExplore: () => void) {
@@ -21,7 +30,7 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
   }, [reduced, onExplore])
   const surfaceReady = width > 40 && height > 40
 
-  const move = useCallback((next: MapCamera, immediate = false) => {
+  const move = useCallback((next: MapCamera, motion: CameraMotion = "fly") => {
     const { width, height } = bounds.current
     if (!width || !height) return
     target.current = clampCamera(next, width, height)
@@ -32,20 +41,35 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
       frame.current = 0
       timeout.current = setTimeout(() => setInteracting(false), 140)
     }
-    if (immediate || reducedRef.current) {
+    if (motion === "instant" || reducedRef.current) {
       current.current = target.current
-      setCamera(target.current)
-      finish()
+      // Trackpads fire faster than the screen refreshes: render once per frame.
+      frame.current = requestAnimationFrame(() => {
+        setCamera(current.current)
+        finish()
+      })
       return
     }
-    let previous = performance.now()
+    const from = current.current
+    const to = target.current
+    const started = performance.now()
+    // Longer trips take a little longer, never sluggish.
+    const trip = Math.abs(Math.log2(to.k / from.k)) + Math.hypot(to.tx - from.tx, to.ty - from.ty) / Math.max(width, height)
+    const duration = Math.min(720, 320 + trip * 150)
+    let previous = started
     const tick = (now: number) => {
-      const a = 1 - Math.exp(-Math.min(64, now - previous) / 75)
-      previous = now
-      const c = current.current
-      const t = target.current
-      const done = Math.abs(c.k - t.k) < 0.0005 && Math.hypot(c.tx - t.tx, c.ty - t.ty) < 0.15
-      current.current = done ? t : { k: c.k + (t.k - c.k) * a, tx: c.tx + (t.tx - c.tx) * a, ty: c.ty + (t.ty - c.ty) * a }
+      let done: boolean
+      if (motion === "fly") {
+        const t = Math.min(1, (now - started) / duration)
+        current.current = t >= 1 ? to : along(from, to, easeInOut(t))
+        done = t >= 1
+      } else {
+        const a = 1 - Math.exp(-Math.min(64, now - previous) / GLIDE_MS)
+        previous = now
+        const c = current.current
+        done = Math.abs(Math.log(c.k / to.k)) < 0.0008 && Math.hypot(c.tx - to.tx, c.ty - to.ty) < 0.2
+        current.current = done ? to : along(c, to, a)
+      }
       setCamera(current.current)
       if (done) finish()
       else frame.current = requestAnimationFrame(tick)
@@ -58,7 +82,7 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
     bounds.current = { width, height }
     // Preserve the visible world centre across a responsive resize.
     const c = target.current
-    move({ k: c.k, tx: old.width ? c.tx * width / old.width : 0, ty: old.height ? c.ty * height / old.height : 0 }, true)
+    move({ k: c.k, tx: old.width ? c.tx * width / old.width : 0, ty: old.height ? c.ty * height / old.height : 0 }, "instant")
   }, [width, height, move])
 
   useEffect(() => () => {
@@ -69,12 +93,12 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
   const zoom = useCallback((factor: number) => {
     const { width, height } = bounds.current
     exploreRef.current()
-    move(zoomAt(target.current, { x: width / 2, y: height / 2 }, target.current.k * factor, width, height))
+    move(zoomAt(current.current, { x: width / 2, y: height / 2 }, target.current.k * factor, width, height), "glide")
   }, [move])
   const reset = useCallback(() => move(OVERVIEW), [move])
   const pan = useCallback((dx: number, dy: number) => {
     exploreRef.current()
-    move({ ...target.current, tx: target.current.tx + dx, ty: target.current.ty + dy })
+    move({ ...target.current, tx: target.current.tx + dx, ty: target.current.ty + dy }, "glide")
   }, [move])
 
   useEffect(() => {
@@ -99,8 +123,12 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
       exploreRef.current()
       const { width, height } = bounds.current
       const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? height : 1)
-      const factor = Math.exp(-Math.max(-120, Math.min(120, delta)) * (e.ctrlKey ? 0.009 : 0.0035))
-      move(zoomAt(target.current, local(e), target.current.k * factor, width, height))
+      // A mouse wheel clicks in big notches; a trackpad streams small deltas that should track the fingers.
+      const notch = !e.ctrlKey && (e.deltaMode !== 0 || Math.abs(delta) >= 50)
+      const factor = Math.exp(-Math.max(-150, Math.min(150, delta)) * (e.ctrlKey ? 0.012 : notch ? 0.003 : 0.0022))
+      // Anchor on what is on screen now, so the point under the cursor stays put even mid-glide.
+      const base = notch ? target.current.k : current.current.k
+      move(zoomAt(current.current, local(e), base * factor, width, height), notch ? "glide" : "instant")
     }
     const down = (e: PointerEvent) => {
       if (e.button !== 0) return
@@ -124,7 +152,7 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
         exploreRef.current()
         const p = pair()
         setDragging(true)
-        move(pinchCamera(pinch.camera, pinch.midpoint, p.midpoint, p.distance / pinch.distance, width, height), true)
+        move(pinchCamera(pinch.camera, pinch.midpoint, p.midpoint, p.distance / pinch.distance, width, height), "instant")
       } else if (start) {
         const p = local(e)
         const dx = p.x - start.x
@@ -134,7 +162,7 @@ export function useMapCamera(width: number, height: number, reduced: boolean, on
           if (gestureCamera.k > 1.001) {
             exploreRef.current()
             setDragging(true)
-            move({ ...gestureCamera, tx: gestureCamera.tx + dx, ty: gestureCamera.ty + dy }, true)
+            move({ ...gestureCamera, tx: gestureCamera.tx + dx, ty: gestureCamera.ty + dy }, "instant")
           }
         }
       }
