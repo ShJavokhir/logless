@@ -28,8 +28,8 @@ from pathlib import Path
 
 from . import gate
 from .analysis import load_inputs, output_contract
-from .client import RunnerClient, SandboxInvalidResponse, SandboxUnavailable, receipt
-from .export import SandboxInputs
+from .client import RunnerClient, SandboxInvalidResponse, SandboxUnavailable, execution_issue, execution_started, receipt
+from .export import ExportError, SandboxInputs
 from .runs import Run
 
 log = logging.getLogger("logless.sandbox")
@@ -37,7 +37,11 @@ RUNAWAY_DEADLINE_S = 2.0
 DESTRUCTIVE_DEADLINE_S = 8.0   # rm -rf / takes ~2 s under --cpus=1; headroom for a loaded VM
 FOLLOWUP_TIMEOUT_S = 10.0
 DESTRUCTIVE_COMMAND = "rm -rf --no-preserve-root /"
-TASKS_DIR = Path(__file__).resolve().parents[2] / "sandbox_tasks"
+# Wheels carry the same reviewed fixtures as package data. Editable/source-tree installs
+# use the canonical files in backend/sandbox_tasks without maintaining a second source copy.
+TASKS_DIR = Path(__file__).resolve().parent / "tasks"
+if not TASKS_DIR.is_dir():
+    TASKS_DIR = Path(__file__).resolve().parents[2] / "sandbox_tasks"
 # The fixed plan the follow-up and leak programs are checked against: conversations per category.
 FIXED_PLAN = {"group_by": "category", "scope_category_id": None, "measure": "conversations", "signal": None,
               "rank_by": "count", "limit": 5}
@@ -74,15 +78,20 @@ def _sha(code: str) -> str:
 def run_containment(run: Run, *, snapshot_id: str, health: Callable[[], str], nodes: dict[str, dict],
                     runner: RunnerClient | None = None, inputs: SandboxInputs | None = None) -> None:
     """`nodes` maps published ids to snapshot nodes (for the follow-up's consistency checks)."""
+    client = runner
     try:
-        _run(run, snapshot_id, health, nodes, runner or RunnerClient(), inputs)
+        client = client or RunnerClient()
+        _run(run, snapshot_id, health, nodes, client, inputs)
     except SandboxInvalidResponse:
-        run.fail("sandbox_invalid_response", "The sandbox returned a malformed response, so nothing from it was used.")
+        run.fail("sandbox_invalid_response", "The sandbox execution report could not be verified, so nothing from it was used.")
     except SandboxUnavailable:
         run.fail("sandbox_unavailable", "The sandbox is unreachable right now; the saved snapshot is unaffected.")
     except Exception as e:  # noqa: BLE001
         log.error("containment %s crashed: %s", run.id, type(e).__name__)
         run.fail("internal_error", "The containment check failed unexpectedly.")
+    finally:
+        if runner is None and client is not None:
+            client.close()
 
 
 def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str, dict], runner: RunnerClient,
@@ -92,16 +101,30 @@ def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str,
     c = {"deadline_ms": int(RUNAWAY_DEADLINE_S * 1000), "elapsed_ms": 0, "killed": False, "container_removed": False,
          "app_health": "degraded", "destructive": None, "followup_passed": False, "leak_attempt_rejected": False,
          "leak_rejection_checks": []}
+    executions = 0
+
+    def execute(stage: str, kind: str, code: str, files: dict, timeout_s: float):
+        nonlocal executions
+        res = runner.run(kind=kind, code=code, files=files, timeout_s=timeout_s)
+        executions += int(execution_started(res))
+        rc = receipt(res, _sha(code), timeout_s=timeout_s)
+        run.update(attempts=executions)
+        if rc is None:
+            run.stage(stage, "failed", execution_issue(res))
+            run.update(containment=c)
+            run.fail("sandbox_unavailable", "The sandbox did not provide verified execution evidence; containment checks stopped.")
+        return res, rc
 
     # 1. runaway job, killed from outside at the deadline
     run.state("executing")
     run.stage("runaway", "running", "infinite loop · 2.0 s deadline enforced by the supervisor outside the container")
     code = task_source("runaway.py")
-    res = runner.run(kind="containment", code=code, files={}, timeout_s=RUNAWAY_DEADLINE_S)
-    rc = receipt(res, _sha(code), timeout_s=RUNAWAY_DEADLINE_S)
+    res, rc = execute("runaway", "containment", code, {}, RUNAWAY_DEADLINE_S)
+    if rc is None:
+        return
     c.update(elapsed_ms=rc["elapsed_ms"], killed=res.state == "timed_out" and bool(res.get("timed_out")),
              container_removed=bool(res.get("container_removed")))
-    run.update(receipt=rc, attempts=1)
+    run.update(receipt=rc)
     if c["killed"]:
         run.stage("runaway", "done", f"Execution limit reached · sandbox terminated after {rc['elapsed_ms']:,} ms "
                                      f"(deadline {c['deadline_ms']:,} ms)")
@@ -126,7 +149,10 @@ def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str,
     run.stage("destructive", "running", f"a fresh container runs `{DESTRUCTIVE_COMMAND}` (read-only root, all caps dropped)")
     import json as _json
     code = task_source("destructive.py")
-    res = runner.run(kind="containment", code=code, files={}, timeout_s=DESTRUCTIVE_DEADLINE_S)
+    res, destructive_receipt = execute("destructive", "containment", code, {}, DESTRUCTIVE_DEADLINE_S)
+    if destructive_receipt is None:
+        return
+    destructive_image = res.get("image")
     removed = bool(res.get("container_removed"))
     healthy_after = health() == "ok"
     report: dict = {}
@@ -163,7 +189,7 @@ def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str,
     # 5 + 6 need the typed inputs of the current snapshot
     try:
         inputs = inputs or load_inputs(snapshot_id)
-    except LookupError:
+    except (LookupError, ExportError):
         run.stage("followup", "skipped", "no sandbox inputs for this snapshot")
         run.stage("leak_attempt", "skipped", "no sandbox inputs for this snapshot")
         run.update(containment=c)
@@ -173,8 +199,9 @@ def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str,
     run.stage("followup", "running", "fixed benign stdlib program in a fresh container")
     files = inputs.files(output_contract(snapshot_id, FIXED_PLAN))
     code = task_source("followup.py")
-    res = runner.run(kind="analysis", code=code, files=files, timeout_s=FOLLOWUP_TIMEOUT_S)
-    run.update(attempts=3)
+    res, followup_receipt = execute("followup", "analysis", code, files, FOLLOWUP_TIMEOUT_S)
+    if followup_receipt is None:
+        return
     if res.state == "succeeded":
         v = gate.check_program(res.output, snapshot_id=snapshot_id, plan=FIXED_PLAN, clusters=inputs.clusters,
                                leaf_ids=inputs.leaf_ids, category_ids=inputs.category_ids)
@@ -189,15 +216,19 @@ def _run(run: Run, snapshot_id: str, health: Callable[[], str], nodes: dict[str,
 
     # The follow-up ran cleanly from the same pinned image → nothing the destructive command did
     # persisted. Finalise the destructive verdict from outside evidence only.
-    d["next_run_clean"] = c["followup_passed"]
+    same_image = bool(destructive_image) and res.get("image") == destructive_image
+    d["next_run_clean"] = c["followup_passed"] and same_image
     d["contained"] = bool(outside_ok and d["next_run_clean"])
+    if c["followup_passed"] and not same_image:
+        run.stage("destructive", "failed", "the follow-up used a different image; unchanged-image recovery was not verified")
     run.update(containment=c)
 
     run.state("validating")
     run.stage("leak_attempt", "running", "a program tries to publish per-user friction rows")
     code = task_source("leak_attempt.py")
-    res = runner.run(kind="analysis", code=code, files=files, timeout_s=FOLLOWUP_TIMEOUT_S)
-    run.update(attempts=4)
+    res, leak_receipt = execute("leak_attempt", "analysis", code, files, FOLLOWUP_TIMEOUT_S)
+    if leak_receipt is None:
+        return
     if res.state != "succeeded":
         # No output means the gate was never exercised: that is not a rejection, and not a pass.
         run.stage("leak_attempt", "failed", f"the leak-attempt program did not run to completion (job {res.state}); "

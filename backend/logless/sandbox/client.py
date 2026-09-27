@@ -24,6 +24,7 @@ from ..config import settings
 
 log = logging.getLogger("logless.sandbox")
 TERMINAL = {"succeeded", "failed", "timed_out"}
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024  # includes JSON escaping around the 1 MiB result
 
 RUNNER_ERRORS = (
     "timeout", "nonzero_exit", "oom_killed", "no_output", "output_too_large", "output_not_regular_file",
@@ -103,7 +104,8 @@ class JobResult:
         return self.raw.get("stderr_tail") or ""
 
 
-def validate_job(data: Any, *, job_id: str, code_sha256: str) -> RunnerJob:
+def validate_job(data: Any, *, job_id: str, code_sha256: str, kind: str | None = None,
+                 timeout_s: float | None = None, memory_mb: int | None = None) -> RunnerJob:
     """Strictly validate a runner job document and bind it to what we submitted."""
     try:
         job = RunnerJob.model_validate(data)
@@ -111,9 +113,37 @@ def validate_job(data: Any, *, job_id: str, code_sha256: str) -> RunnerJob:
         raise SandboxInvalidResponse("invalid_response") from None
     if job.job_id != job_id or job.code_sha256 != code_sha256:
         raise SandboxInvalidResponse("mismatched_job")
+    if kind is not None and job.kind != kind:
+        raise SandboxInvalidResponse("mismatched_job")
+    expected_runtime = os.environ.get("SANDBOX_RUNTIME", "runsc")
+    if expected_runtime not in ("runsc", "runc") or (job.runtime is not None and job.runtime != expected_runtime):
+        raise SandboxInvalidResponse("unexpected_runtime")
+    if job.limits.cpus != 1 or job.limits.pids != 64 or \
+            (timeout_s is not None and job.limits.timeout_s != timeout_s) or \
+            (memory_mb is not None and job.limits.memory_mb != memory_mb):
+        raise SandboxInvalidResponse("unexpected_limits")
     if job.state in ("succeeded", "timed_out") and None in (job.elapsed_ms, job.started_at, job.finished_at):
         raise SandboxInvalidResponse("incomplete_response")
-    if job.state == "succeeded" and (job.output is None or job.exit_code != 0 or not job.container_removed):
+    if job.state in TERMINAL and job.started_at is not None and \
+            None in (job.elapsed_ms, job.finished_at, job.runtime):
+        raise SandboxInvalidResponse("unverified_execution")
+    if job.state in TERMINAL and job.started_at is None and job.elapsed_ms is not None:
+        raise SandboxInvalidResponse("unverified_execution")
+    if job.state == "succeeded":
+        if job.output is None or job.exit_code != 0 or not job.container_removed or job.timed_out or job.error is not None:
+            raise SandboxInvalidResponse("inconsistent_response")
+        if job.runtime != expected_runtime or not job.image or not IMAGE_REF.fullmatch(job.image):
+            raise SandboxInvalidResponse("incomplete_response")
+        digest = os.environ.get("SANDBOX_IMAGE_DIGEST", "")
+        if digest and job.image != f"{os.environ.get('SANDBOX_IMAGE', 'logless-analysis:1')}@{digest}":
+            raise SandboxInvalidResponse("unexpected_image")
+        try:
+            nbytes = len(job.output.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise SandboxInvalidResponse("invalid_response") from None
+        if nbytes > 1024 * 1024 or nbytes != job.output_bytes:
+            raise SandboxInvalidResponse("inconsistent_response")
+    if job.state == "timed_out" and (not job.timed_out or job.error != "timeout"):
         raise SandboxInvalidResponse("inconsistent_response")
     if job.state != "succeeded" and job.output is not None:
         raise SandboxInvalidResponse("inconsistent_response")
@@ -139,13 +169,32 @@ def host_label() -> str:
     return os.environ.get("SANDBOX_HOST_LABEL", "logless-sandbox")
 
 
-def receipt(res: JobResult, code_sha256: str, *, timeout_s: float, memory_mb: int = 512) -> dict:
+def execution_started(res: JobResult) -> bool:
+    """Whether the runner recorded a start, rather than merely accepting/creating a job."""
+    return bool(res.get("started_at"))
+
+
+def execution_issue(res: JobResult) -> str:
+    """Fixed-vocabulary diagnostic; never turn a missing observation into an execution claim."""
+    code = res.get("error") if res.get("error") in RUNNER_ERRORS else "runner_error"
+    what = "execution could not be verified" if execution_started(res) else "job did not start"
+    return f"{what} ({code})"
+
+
+def receipt(res: JobResult, code_sha256: str, *, timeout_s: float, memory_mb: int = 512) -> dict | None:
     """The sanitized Receipt of docs/CONTRACTS.md §6. Runner-reported values are used only where
     they are validated measurements (state flags, exit code, timings, sizes); names and limits
-    come from the app side."""
+    come from the app side. Never-started jobs return None. A reported start with missing runtime
+    or timing instead fails closed as unverifiable: it must not be labelled "not executed"."""
+    if not execution_started(res):
+        if res.get("elapsed_ms") is not None:
+            raise SandboxInvalidResponse("unverified_execution")
+        return None
+    if not res.get("finished_at") or res.get("elapsed_ms") is None or res.get("runtime") not in ("runsc", "runc"):
+        raise SandboxInvalidResponse("unverified_execution")
     return {
         "job_id": res["job_id"],
-        "runtime": res.get("runtime") if res.get("runtime") in ("runsc", "runc") else "runsc",
+        "runtime": res["runtime"],
         "image": display_image(res.get("image")),
         "code_sha256": code_sha256,
         "exit_code": res.get("exit_code"),
@@ -168,13 +217,24 @@ class RunnerClient:
         self.token = token if token is not None else s.runner_token
         self._http = httpx.Client(timeout=httpx.Timeout(10.0, connect=2.0), transport=transport)
 
+    def close(self) -> None:
+        self._http.close()
+
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.token}"}
 
     def _call(self, method: str, path: str, *, json: dict | None = None, timeout: float | None = None) -> httpx.Response:
         try:
-            r = self._http.request(method, self.base + path, json=json, headers=self._headers(),
-                                   timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT)
+            with self._http.stream(method, self.base + path, json=json, headers=self._headers(),
+                                   timeout=timeout if timeout is not None else httpx.USE_CLIENT_DEFAULT) as response:
+                body = bytearray()
+                for chunk in response.iter_bytes(chunk_size=65536):
+                    if len(body) + len(chunk) > MAX_RESPONSE_BYTES:
+                        raise SandboxInvalidResponse("response_too_large")
+                    body.extend(chunk)
+                headers = {k: v for k, v in response.headers.items() if k not in ("content-encoding", "content-length")}
+                r = httpx.Response(response.status_code, headers=headers, content=bytes(body),
+                                   request=response.request)
         except httpx.HTTPError as e:
             raise SandboxUnavailable(type(e).__name__) from None
         if r.status_code in (401, 403):
@@ -188,11 +248,16 @@ class RunnerClient:
     def health(self, timeout: float = 1.5) -> dict | None:
         """The runner's /health, or None if it does not answer within `timeout`."""
         try:
-            r = self._http.get(self.base + "/health", timeout=timeout)
+            r = self._call("GET", "/health", timeout=timeout)
             data = r.json() if r.status_code == 200 else None
-        except (httpx.HTTPError, ValueError):
+        except (SandboxUnavailable, ValueError):
             return None
-        return {"status": "ok"} if isinstance(data, dict) and data.get("status") == "ok" else {"status": "degraded"}
+        ok = isinstance(data, dict) and data.get("status") == "ok" \
+            and data.get("runtime") == os.environ.get("SANDBOX_RUNTIME", "runsc")
+        digest = os.environ.get("SANDBOX_IMAGE_DIGEST", "")
+        if ok and digest:
+            ok = data.get("image") == f"{os.environ.get('SANDBOX_IMAGE', 'logless-analysis:1')}@{digest}"
+        return {"status": "ok" if ok else "degraded"}
 
     def submit(self, *, kind: str, code: str, files: dict[str, str], timeout_s: float, memory_mb: int = 512,
                job_id: str | None = None) -> str:
@@ -210,7 +275,8 @@ class RunnerClient:
             raise SandboxUnavailable(f"rejected_{r.status_code}")
         return job_id
 
-    def get(self, job_id: str, code_sha256: str) -> JobResult:
+    def get(self, job_id: str, code_sha256: str, *, kind: str | None = None,
+            timeout_s: float | None = None, memory_mb: int | None = None) -> JobResult:
         r = self._call("GET", f"/jobs/{job_id}")
         if r.status_code != 200:
             raise SandboxUnavailable(f"job_{r.status_code}")
@@ -218,14 +284,16 @@ class RunnerClient:
             data = r.json()
         except ValueError:
             raise SandboxInvalidResponse("invalid_response") from None
-        return JobResult(validate_job(data, job_id=job_id, code_sha256=code_sha256).model_dump())
+        return JobResult(validate_job(data, job_id=job_id, code_sha256=code_sha256, kind=kind,
+                                      timeout_s=timeout_s, memory_mb=memory_mb).model_dump())
 
-    def wait(self, job_id: str, code_sha256: str, *, timeout: float, poll: float = 0.1) -> JobResult:
+    def wait(self, job_id: str, code_sha256: str, *, timeout: float, poll: float = 0.1,
+             kind: str | None = None, timeout_s: float | None = None, memory_mb: int | None = None) -> JobResult:
         deadline = time.monotonic() + timeout
         misses = 0
         while True:
             try:
-                res = self.get(job_id, code_sha256)
+                res = self.get(job_id, code_sha256, kind=kind, timeout_s=timeout_s, memory_mb=memory_mb)
                 misses = 0
             except SandboxInvalidResponse:
                 raise
@@ -243,4 +311,5 @@ class RunnerClient:
     def run(self, *, kind: str, code: str, files: dict[str, str], timeout_s: float, memory_mb: int = 512) -> JobResult:
         """Submit and wait. Allows for queueing plus container start/teardown around the deadline."""
         job_id = self.submit(kind=kind, code=code, files=files, timeout_s=timeout_s, memory_mb=memory_mb)
-        return self.wait(job_id, hashlib.sha256(code.encode()).hexdigest(), timeout=timeout_s + 60)
+        return self.wait(job_id, hashlib.sha256(code.encode()).hexdigest(), timeout=timeout_s + 60,
+                         kind=kind, timeout_s=timeout_s, memory_mb=memory_mb)

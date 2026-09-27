@@ -64,7 +64,12 @@ def was_truncated(conversation: list[dict]) -> bool:
 def load_sample(n: int | None = None, seed: int | None = None) -> int:
     """Sample n conversations and store them in private.db. Idempotent for the same (n, seed)."""
     s = settings()
-    n = n or s.sample_size
+    from .importer import metadata
+    if metadata() is not None:
+        raise ValueError("WildChat seed cannot replace an imported dataset; choose a separate LOGLESS_DATA_DIR")
+    n = s.sample_size if n is None else n
+    if n < 1:
+        raise ValueError("sample size must be positive")
     seed = seed if seed is not None else s.sample_seed
     table = pq.read_table(download(), columns=COLUMNS)
     convs = table.column("conversation").to_pylist()

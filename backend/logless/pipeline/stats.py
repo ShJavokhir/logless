@@ -25,6 +25,9 @@ OTHER_LANGUAGES = "Other languages"
 def clusters_for(st: dict) -> list[dict]:
     """The `clusters` argument for run_aggregate: leaves and categories with their private theme ids."""
     out = []
+    themes = [theme for leaf in st["leaves"] for theme in leaf["theme_ids"]]
+    if len(themes) != len(set(themes)):
+        raise ValueError("each theme must belong to exactly one leaf without duplicates")
     for lf in st["leaves"]:
         out.append({"id": lf["id"], "parent_id": lf["parent_id"], "level": 2, "is_other": bool(lf["is_other"]),
                     "theme_ids": list(lf["theme_ids"])})

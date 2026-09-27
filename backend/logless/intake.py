@@ -13,9 +13,8 @@ published map in real time, with real model decisions and a real, gated, atomic 
 - `reset()`: re-publish the base snapshot and clear the batch's decisions (idempotent), so the demo can be
   rehearsed.
 
-Events never carry conversation ids, user ids or raw text: only the chosen leaf id, probability, friction
-decisions, language, turn count and a generalized facet summary that passed the PII check and the API
-leak scan (else null)."""
+Presenter-only events carry routing diagnostics, never conversation ids, user ids, raw text, or
+per-conversation facet summaries. A PII check alone does not make a summary safe to disclose."""
 from __future__ import annotations
 
 import json
@@ -129,6 +128,28 @@ def status() -> dict:
             "base_snapshot_id": snap["snapshot_id"] if ready else b.get("base_snapshot_id")}
 
 
+def recover_interrupted_publication() -> bool:
+    """At process startup only: abandon private staging that never became a public snapshot.
+
+    Do not call this concurrently with a live intake run. The public commit is authoritative:
+    if the staged snapshot exists, leave it and its inputs intact even after a progress-write crash.
+    """
+    batch = current_batch()
+    if not batch or batch["status"] != "ingested" or not batch.get("ingested_snapshot_id"):
+        return False
+    if snapshot_json(batch["ingested_snapshot_id"]) is not None:
+        return False
+    current = current_snapshot()
+    if not current or current["snapshot_id"] != batch.get("base_snapshot_id"):
+        return False  # an unrelated operator publication is not ours to undo
+    _clear_decisions(batch.get("base_build_id"), batch_conv_ids(batch["batch_id"]))
+    con = db.private()
+    with db.write(con):
+        con.execute("UPDATE intake_batches SET status='ready', ingested_snapshot_id=NULL, ingested_at=NULL"
+                    " WHERE batch_id=?", (batch["batch_id"],))
+    return True
+
+
 def util_count(sql: str, ids: list[str]) -> int:
     n = 0
     con = db.private()
@@ -148,6 +169,11 @@ def prepare(n: int = 300, seed: int | None = None) -> dict:
     from .pipeline import facets as facets_stage
     from .pipeline import util
 
+    if type(n) is not int or not 1 <= n <= 5000:
+        raise IntakeError("invalid_batch_size", "batch size must be between 1 and 5000")
+    from .data.importer import metadata
+    if metadata() is not None:
+        raise IntakeError("unsupported_intake_source", "Live intake uses the WildChat adapter; prepare a separate imported workspace.")
     ensure_schema()
     snap = current_snapshot()
     if snap is not None and is_intake_snapshot(snap["snapshot_id"]):
@@ -241,24 +267,8 @@ ASK: Callable[[Any, dict], dict] = _jev_live   # tests swap in a deterministic f
 
 
 def summary_for(task: str | None, pii_status: str | None) -> str | None:
-    """The public one-line summary: the generalized facet `task`, only if it passed the PII check and the
-    API leak scan; at most 90 characters (cut at a word boundary)."""
-    if not task or pii_status not in ("ok", "rewritten"):
-        return None
-    t = " ".join(task.split()).rstrip(".")
-    if len(t) > SUMMARY_MAX:
-        cut = t[: SUMMARY_MAX - 1].rsplit(" ", 1)[0].rstrip(",;:")
-        t = cut + "…"
-    try:
-        from .api.leakcheck import problems
-    except ImportError:  # pragma: no cover
-        return None
-    if problems(t):
-        return None
-    from .pipeline.privacy import contact_hits, source_id_hits
-    if contact_hits(t) or source_id_hits(t):
-        return None
-    return t
+    """Retained for protocol compatibility; per-conversation text is never released."""
+    return None
 
 
 class IntakeRun:
@@ -388,7 +398,8 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
     facets_stage.ensure_schema()
     b = current_batch()
     snap = current_snapshot()
-    if b is None or snap is None or snap["snapshot_id"] != run.doc["snapshot_id"]:
+    if (b is None or b["status"] != "ready" or snap is None
+            or snap["snapshot_id"] != run.doc["snapshot_id"] or is_intake_snapshot(snap["snapshot_id"])):
         raise IntakeError("intake_not_ready", "no prepared batch for the current snapshot")
     base_snap = snap["snapshot_id"]
     build_id = build_of_snapshot(base_snap)
@@ -472,7 +483,7 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
     run.set_stage("filing", "running")
     con = db.private()
     now = utcnow()
-    filed = list(decisions)
+    new_id = None
     try:
         with db.write(con):
             for cid in ids:  # undecided conversations are filed as Other, friction unclear (never guessed)
@@ -525,14 +536,22 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
 
         # ---- publishing (atomic flip) + live-question inputs
         run.set_stage("publishing", "running")
-        publish.publish_snapshot(new_snap)
         stats.save_cluster_map(new_id, build_id, clusters)
         with db.write(con):
             con.execute("UPDATE intake_batches SET status='ingested', ingested_snapshot_id=?, ingested_at=?, base_snapshot_id=?,"
                         " base_build_id=? WHERE batch_id=?", (new_id, utcnow(), base_snap, build_id, b["batch_id"]))
+        publish.publish_snapshot(new_snap)
         run.set_stage("publishing", "done", new_id)
     except Exception:
-        _clear_decisions(build_id, ids)
+        # The public flip is the commit point. Never invalidate a snapshot already visible to
+        # readers, even if a later progress write fails. Frozen rows are private and harmless
+        # before publication; any failed attempt can be retried with a fresh snapshot id.
+        current = current_snapshot()
+        if new_id is None or not current or current["snapshot_id"] != new_id:
+            _clear_decisions(build_id, ids)
+            with db.write(con):
+                con.execute("UPDATE intake_batches SET status='ready', ingested_snapshot_id=NULL, ingested_at=NULL"
+                            " WHERE batch_id=?", (b["batch_id"],))
         raise
 
     other = sum(1 for d in decisions.values() if d["leaf"] == OTHER_LEAF) + (len(ids) - len(decisions))
@@ -598,6 +617,9 @@ def reset() -> dict:
     build_id = b.get("base_build_id") or (build_of_snapshot(base) if base else None)
     restored = False
     cur = current_snapshot()
+    allowed = {base, b.get("ingested_snapshot_id")}
+    if cur is not None and cur["snapshot_id"] not in allowed:
+        raise IntakeError("stale_intake", "A different build is current; reset cannot replace it.")
     if base and snapshot_json(base) is not None and (cur is None or cur["snapshot_id"] != base):
         con = db.public()
         with db.write(con):

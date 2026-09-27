@@ -13,10 +13,12 @@ log = logging.getLogger("logless.pipeline.surprising")
 
 
 def run(build: util.Build) -> dict:
+    from ..data.importer import metadata
+    source = metadata()
     st = build.load("structure_final")
     leaves = [lf for lf in st["leaves"] if not lf["is_other"]]
     keys = {f"w{i + 1}": lf for i, lf in enumerate(leaves)}
-    state = {"intended_uses": INTENDED_USES,
+    state = {"intended_uses": source["intended_uses"] if source else INTENDED_USES,
              "workflows": {k: {"title": lf["title"], "description": lf["description_pub"]} for k, lf in keys.items()}}
     ans = util.jev_ask(state, surprise_questions(list(keys)))
     for k, lf in keys.items():

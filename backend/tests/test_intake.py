@@ -97,10 +97,8 @@ def test_engine_with_fake_jev(tmp_data, monkeypatch):
     assert all(set(e) == {"seq", "t_ms", "leaf_id", "p", "friction", "language", "turns", "summary"} for e in evs)
     dump = json.dumps(page)
     assert not any(c in dump for c in ids) and "u_batch" not in dump and "assistant: ok" not in dump
-    by_summary = {e["summary"]: e for e in evs}
-    assert None in by_summary                                # the email facet's summary is withheld
-    assert all(s is None or len(s) <= 90 for s in by_summary)
-    assert any(s and s.endswith("…") for s in by_summary)    # the long one is cut at a word boundary
+    assert all(e["summary"] is None for e in evs)
+    assert not any(task in dump for task in TASKS)
     assert sum(1 for e in evs if e["leaf_id"] == "cl_other") == 1
     # the new snapshot is live and consistent: leaf sums = base + batch; categories are unions
     new = intake.current_snapshot()
@@ -159,13 +157,15 @@ def test_scope_excludes_intake_rows(tmp_data, monkeypatch):
 
 
 def test_summary_withholding():
-    assert intake.summary_for("Write a cover letter for a retail job", "ok") == "Write a cover letter for a retail job"
+    assert intake.summary_for("Write a cover letter for a retail job", "ok") is None
     assert intake.summary_for("Email me at someone@example.com about the report", "ok") is None
     assert intake.summary_for("Visit https://example.org for details", "ok") is None
     assert intake.summary_for("Write a cover letter", "fallback") is None      # did not pass the PII check
     assert intake.summary_for(None, "ok") is None
     long = intake.summary_for("Explain " + "very " * 40 + "long things", "ok")
-    assert len(long) <= 90 and long.endswith("…")
+    assert long is None
+    # Specific sensitive information can survive a PII check without an email, name or URL.
+    assert intake.summary_for("Plan treatment after a rare diagnosis", "rewritten") is None
 
 
 def test_presenter_enforcement(tmp_data, monkeypatch):
@@ -180,7 +180,8 @@ def test_presenter_enforcement(tmp_data, monkeypatch):
     r = c.post("/api/intake/runs", json={}, headers={"X-Logless-Presenter": "k" * 32})
     assert r.status_code == 409 and r.json()["code"] == "intake_not_ready"
     assert c.get("/api/intake/status").json() == {"ready": False, "batch_size": 0, "base_snapshot_id": None}
-    assert c.get("/api/intake/runs/run_000000000000/events").status_code == 404
+    assert c.get("/api/intake/runs/run_000000000000/events").status_code == 403
+    assert c.get("/api/intake/runs/run_000000000000/events", headers={"X-Logless-Presenter": "k" * 32}).status_code == 404
 
 
 def test_api_run_end_to_end(tmp_data, monkeypatch):
@@ -196,7 +197,7 @@ def test_api_run_end_to_end(tmp_data, monkeypatch):
     rid = c.post("/api/intake/runs", json={}, headers=h).json()["run_id"]
     import time
     for _ in range(200):
-        page = c.get(f"/api/intake/runs/{rid}/events", params={"after": 0}).json()
+        page = c.get(f"/api/intake/runs/{rid}/events", params={"after": 0}, headers=h).json()
         if page["state"] != "running":
             break
         time.sleep(0.05)
@@ -205,3 +206,122 @@ def test_api_run_end_to_end(tmp_data, monkeypatch):
     row = db.public().execute("SELECT kind, state FROM runs WHERE run_id = ?", (rid,)).fetchone()
     assert tuple(row) == ("intake", "completed")
     assert c.post("/api/intake/reset", json={}, headers=h).json()["snapshot_id"] == base
+
+
+def test_freeze_failure_cannot_publish_a_broken_snapshot(tmp_data, monkeypatch):
+    b, base, ids = _setup(tmp_data, monkeypatch)
+
+    def fail(*args):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(stats, "save_cluster_map", fail)
+    with pytest.raises(OSError):
+        _run(base, len(ids))
+    assert intake.current_snapshot()["snapshot_id"] == base
+    assert intake.current_batch()["status"] == "ready"
+    assert db.private().execute("SELECT COUNT(*) FROM assignments WHERE round=?", (intake.INTAKE_ROUND,)).fetchone()[0] == 0
+
+
+def test_publication_happens_after_dependencies_are_ready(tmp_data, monkeypatch):
+    b, base, ids = _setup(tmp_data, monkeypatch)
+    from logless.sandbox import export
+    monkeypatch.setattr(stats, "save_cluster_map", export.save_cluster_map)
+    publish_real = publish.publish_snapshot
+
+    def check_before_flip(snapshot):
+        sid = snapshot["snapshot_id"]
+        assert intake.current_snapshot()["snapshot_id"] == base
+        assert intake.build_of_snapshot(sid) == b.build_id
+        mapping = export.load_cluster_map(sid)
+        assert mapping is not None
+        inputs = export.export_inputs(*mapping, snapshot_id=sid)
+        assert len(inputs.df) == snapshot["totals"]["conversations"]
+        publish_real(snapshot)
+
+    monkeypatch.setattr(publish, "publish_snapshot", check_before_flip)
+    _run(base, len(ids))
+
+
+def test_failure_after_publication_does_not_erase_published_inputs(tmp_data, monkeypatch):
+    b, base, ids = _setup(tmp_data, monkeypatch)
+    from logless.sandbox import export
+    monkeypatch.setattr(stats, "save_cluster_map", export.save_cluster_map)
+    run = intake.IntakeRun(base, len(ids))
+    real_stage = run.set_stage
+
+    def fail_after_flip(name, status, detail=None):
+        if name == "publishing" and status == "done":
+            raise OSError("simulated progress write failure")
+        real_stage(name, status, detail)
+
+    monkeypatch.setattr(run, "set_stage", fail_after_flip)
+    with pytest.raises(OSError):
+        intake.run_batch(run, evaluate=lambda s: None)
+    snapshot = intake.current_snapshot()
+    assert snapshot["snapshot_id"] != base
+    assert intake.current_batch()["status"] == "ingested"
+    mapping = export.load_cluster_map(snapshot["snapshot_id"])
+    assert len(export.export_inputs(*mapping, snapshot_id=snapshot["snapshot_id"]).df) == snapshot["totals"]["conversations"]
+    assert db.private().execute("SELECT COUNT(*) FROM assignments WHERE round=?", (intake.INTAKE_ROUND,)).fetchone()[0] == len(ids)
+
+
+def test_reset_cannot_replace_a_newer_build(tmp_data, monkeypatch):
+    _, base, ids = _setup(tmp_data, monkeypatch)
+    newer = intake.snapshot_json(base)
+    newer["snapshot_id"] = "snap_20260928T000000_abcd"
+    publish.publish_snapshot(newer)
+    with pytest.raises(intake.IntakeError, match="different build"):
+        intake.reset()
+    assert intake.current_snapshot()["snapshot_id"] == newer["snapshot_id"]
+
+
+def test_invalid_prepare_size_cannot_delete_existing_batch(tmp_data, monkeypatch):
+    _, base, ids = _setup(tmp_data, monkeypatch)
+    for n in (0, -1, 5001, True):
+        with pytest.raises(intake.IntakeError, match="batch size"):
+            intake.prepare(n)
+    assert intake.batch_conv_ids(BATCH) == sorted(ids)
+
+
+def test_event_allowlist_withholds_private_fields_even_if_engine_regresses(tmp_data):
+    from logless.api.serializers import serialize_intake_events
+    run = intake.IntakeRun("snap_20260927T000000_abcd", 1)
+    run.add_event({"leaf_id": "cl_other", "p": 0.5, "friction": {"correction": "observed", "private": "secret"},
+                   "language": "someone@example.com", "turns": 1, "summary": "sensitive diagnosis",
+                   "conv_id": "c_000000000001", "text": "private transcript"}, 0.2)
+    out = serialize_intake_events(run.page())
+    ev = out["events"][0]
+    assert ev["summary"] is None and ev["language"] == "Unknown"
+    assert set(ev["friction"]) == set(SIG)
+    rendered = json.dumps(out)
+    assert all(v not in rendered for v in ("private", "secret", "diagnosis", "someone@example.com", "c_000000000001"))
+
+
+class SimulatedProcessDeath(BaseException):
+    """Bypass normal exception compensation, as a killed process would."""
+
+
+@pytest.mark.parametrize("after_publication", [False, True])
+def test_startup_recovers_only_unpublished_intake(tmp_data, monkeypatch, after_publication):
+    _, base, ids = _setup(tmp_data, monkeypatch)
+    real_publish = publish.publish_snapshot
+
+    def die(snapshot):
+        if after_publication:
+            real_publish(snapshot)
+        raise SimulatedProcessDeath()
+
+    monkeypatch.setattr(publish, "publish_snapshot", die)
+    with pytest.raises(SimulatedProcessDeath):
+        _run(base, len(ids))
+    assert intake.current_batch()["status"] == "ingested"
+    assert intake.recover_interrupted_publication() is (not after_publication)
+    if after_publication:
+        assert intake.current_snapshot()["snapshot_id"] != base
+        assert intake.current_batch()["status"] == "ingested"
+        assert not intake.status()["ready"]
+    else:
+        assert intake.current_snapshot()["snapshot_id"] == base
+        assert intake.status()["ready"]
+        assert db.private().execute("SELECT COUNT(*) FROM assignments WHERE round=?", (intake.INTAKE_ROUND,)).fetchone()[0] == 0
+    assert intake.recover_interrupted_publication() is False  # idempotent

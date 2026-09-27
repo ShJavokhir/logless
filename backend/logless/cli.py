@@ -15,6 +15,11 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--n", type=int, default=None)
     s.add_argument("--seed", type=int, default=None)
 
+    imp = sub.add_parser("import", help="import text conversation JSONL into an empty private data directory")
+    imp.add_argument("path", help="JSONL conversations (see docs/DATA_IMPORT.md)")
+    imp.add_argument("--metadata", required=True, help="public source/workspace metadata JSON")
+    imp.add_argument("--data-dir", required=True, help="new empty directory; use it for subsequent rebuild/eval/serve")
+
     r = sub.add_parser("rebuild", help="run the pipeline and publish a snapshot atomically")
     r.add_argument("--limit", type=int, default=None, help="only use the first N sampled conversations (pilot)")
     r.add_argument("--from-stage", default=None)
@@ -37,6 +42,22 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    if args.cmd == "import":
+        import json
+        import os
+        from pathlib import Path
+        from .config import settings
+        from .data.importer import ImportError, load_jsonl
+        os.environ["LOGLESS_DATA_DIR"] = str(Path(args.data_dir).expanduser().resolve())
+        settings.cache_clear()
+        try:
+            result = load_jsonl(Path(args.path).expanduser(), Path(args.metadata).expanduser())
+        except (ImportError, OSError) as e:
+            # Filesystem errors carry operator file paths but no private conversation values.
+            p.error(str(e))
+        print(json.dumps(result))
+        return 0
 
     if args.cmd == "seed":
         from .data import wildchat

@@ -8,7 +8,7 @@ import json
 import logging
 import threading
 import time
-from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, TypeVar
@@ -141,6 +141,7 @@ def jev_ask(state: Any, questions: dict[str, dict]) -> dict[str, dict]:
     body = {"model": JEV, "state": state, "questions": questions}
     hit = cache_get(cache_key("jev", body))
     if hit is not None:
+        jev.validate_answers(hit, questions)
         USAGE.add("jev", JEV, cached=True)
         return hit
     ans = jev.ask(state, questions)
@@ -182,30 +183,40 @@ def pmap(fn: Callable[[Any], T], items: list, threads: int, label: str) -> tuple
     fatal: ProviderError | None = None
     consecutive = 0
     with ThreadPoolExecutor(max_workers=threads) as ex:
-        futs = {ex.submit(guarded, it): i for i, it in enumerate(items)}
-        for n, f in enumerate(as_completed(futs), 1):
-            i = futs[f]
-            try:
-                results[i] = f.result()
-                consecutive = 0
-            except (_Skipped, CancelledError):
-                continue
-            except Exception as e:  # quiet: type and provider code only
-                errors += 1
-                code = e.code if isinstance(e, ProviderError) else ""
-                if isinstance(e, ProviderError) and e.fatal:
-                    consecutive += 1
-                    fatal = e
-                    if consecutive >= min(FAIL_FAST_AFTER, len(items)) and not abort.is_set():
-                        abort.set()
-                        for other in futs:
-                            other.cancel()
-                else:
+        # Keep only one window in flight. Submitting the whole corpus lets quick failures
+        # consume every item before the observer has a chance to trigger the circuit breaker.
+        next_item = 0
+        futs = {}
+        n = 0
+        while futs or (next_item < len(items) and not abort.is_set()):
+            while not abort.is_set() and len(futs) < threads and next_item < len(items):
+                futs[ex.submit(guarded, items[next_item])] = next_item
+                next_item += 1
+            done, _ = wait(futs, return_when=FIRST_COMPLETED)
+            for f in done:
+                i = futs.pop(f)
+                n += 1
+                try:
+                    results[i] = f.result()
                     consecutive = 0
-                if not abort.is_set() or consecutive <= FAIL_FAST_AFTER:
-                    log.warning("%s: item failed (%s %s)", label, type(e).__name__, code)
-            if n % step == 0 or n == len(items):
-                log.info("%s: %d/%d done, %d errors, %.1fs", label, n, len(items), errors, time.monotonic() - t0)
+                except (_Skipped, CancelledError):
+                    continue
+                except Exception as e:  # quiet: type and provider code only
+                    errors += 1
+                    code = e.code if isinstance(e, ProviderError) else ""
+                    if isinstance(e, ProviderError) and e.fatal:
+                        consecutive += 1
+                        fatal = e
+                        if consecutive >= min(FAIL_FAST_AFTER, len(items)) and not abort.is_set():
+                            abort.set()
+                            for other in futs:
+                                other.cancel()
+                    else:
+                        consecutive = 0
+                    if not abort.is_set() or consecutive <= FAIL_FAST_AFTER:
+                        log.warning("%s: item failed (%s %s)", label, type(e).__name__, code)
+                if n % step == 0 or n == len(items):
+                    log.info("%s: %d/%d done, %d errors, %.1fs", label, n, len(items), errors, time.monotonic() - t0)
     if abort.is_set() and fatal is not None:
         log.error("%s: aborted after %d consecutive %s failures (%s)", label, FAIL_FAST_AFTER, fatal.provider, fatal.code)
         raise ProviderUnavailable(fatal.provider, fatal.code)

@@ -47,7 +47,7 @@ def run(build: util.Build) -> dict:
     key_to_tid = {v: k for k, v in tid_to_key.items()}
     lines = [json.dumps({"id": tid_to_key[t["theme_id"]], "name": t["name"], "description": t["description"],
                          "share": f"{100 * sizes.get(t['theme_id'], 0) / total:.1f}%"}, ensure_ascii=False) for t in themes]
-    sys = HIERARCHY_SYS.format(lo=CAT_MIN, hi=CAT_MAX)
+    sys = HIERARCHY_SYS.format(lo=min(CAT_MIN, len(themes)), hi=min(CAT_MAX, len(themes)))
     h = util.glm_json(sys, "Leaf themes (one JSON per line):\n" + "\n".join(lines), Hierarchy, model=GLM,
                       reasoning="low", temperature=0.2, max_tokens=6000)
     cats = [c.model_dump() for c in h.categories if c.title.strip()]

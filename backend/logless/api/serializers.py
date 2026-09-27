@@ -312,6 +312,45 @@ def _intake(k: dict | None) -> dict | None:
             "base_snapshot_id": _id(k["base_snapshot_id"], SNAPSHOT_ID), "deltas": deltas}
 
 
+def serialize_intake_events(raw: dict) -> dict:
+    """Presenter routing diagnostics still cross a trust boundary: allowlist every field."""
+    counters = raw["counters"]
+    events = []
+    for event in raw.get("events", [])[:200]:
+        language = _str(event["language"], 60)
+        if leakcheck.problems(language):
+            language = "Unknown"
+        events.append({
+            "seq": _int(event["seq"]), "t_ms": _int(event["t_ms"]),
+            "leaf_id": _id(event["leaf_id"], LEAF_ID), "p": _opt_share(event["p"]),
+            "friction": {s: event.get("friction", {}).get(s) if event.get("friction", {}).get(s)
+                         in ("observed", "not_observed", "unclear") else "unclear" for s in SIGNALS},
+            "language": language, "turns": _int(event["turns"]), "summary": None,
+        })
+    state = raw["state"]
+    stage = raw["stage"]
+    if state not in ("running", "completed", "failed") or stage not in (
+            "deciding", "filing", "gating", "publishing", "evaluating", "done"):
+        raise Blocked("bad intake state")
+    rate = _num(counters["per_second"])
+    if not 0 <= rate < float("inf"):
+        raise Blocked("bad intake rate")
+    out = {"run_id": _id(raw["run_id"], RUN_ID), "state": state, "stage": stage,
+           "counters": {"total": _int(counters["total"]), "decided": _int(counters["decided"]),
+                        "per_second": rate, "p50_ms": _int(counters["p50_ms"]), "decisions_per_conversation": 5},
+           "events": events}
+    if state == "completed":
+        out["intake"] = _intake(raw.get("intake"))
+    elif state == "failed":
+        error = raw.get("error") or {}
+        code = error.get("code")
+        if not isinstance(code, str) or not MAP_KEY.fullmatch(code):
+            code = "intake_failed"
+        # Upstream/private errors need not be echoed; details remain in the operator's logs.
+        out["error"] = {"code": code, "message": "The intake run could not finish; reload to check the current snapshot."}
+    return out
+
+
 def _containment(c: dict | None) -> dict | None:
     if not c:
         return None

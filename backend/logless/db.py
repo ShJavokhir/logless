@@ -128,12 +128,27 @@ def _get(name: str, path: Path, schema: str) -> sqlite3.Connection:
     cons = getattr(_local, "cons", None)
     if cons is None:
         cons = _local.cons = {}
+    paths = getattr(_local, "paths", None)
+    if paths is None:
+        paths = _local.paths = {}
     con = cons.get(name)
+    if con is not None and paths.get(name) != path:
+        if con.in_transaction:
+            raise RuntimeError("cannot change data directories with an open database transaction")
+        con.close()
+        cons.pop(name, None)
+        paths.pop(name, None)
+        con = None
     if con is None:
         path.parent.mkdir(parents=True, exist_ok=True)
         con = _connect(path)
-        con.executescript(schema)
+        try:
+            con.executescript(schema)
+        except Exception:
+            con.close()
+            raise
         cons[name] = con
+        paths[name] = path
     return con
 
 

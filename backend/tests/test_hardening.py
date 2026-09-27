@@ -133,6 +133,14 @@ def test_containment_flags_only_from_evidence(tmp_data):
     assert d["containment"]["followup_passed"] and d["containment"]["leak_attempt_rejected"]
     assert d["containment"]["leak_rejection_checks"] == ["Only allowlisted field names", "Schema matches exactly"]
 
+    # A successful follow-up from a different image cannot prove recovery of the tested image.
+    different_image = job(output=followup_out)
+    different_image.raw["image"] = "logless-analysis:1@sha256:" + "cd" * 32
+    d = go([killed, destructive, different_image, job(output=leak_out)])
+    assert d["state"] == "failed" and d["containment"]["followup_passed"] is True
+    assert d["containment"]["destructive"]["next_run_clean"] is False
+    assert d["containment"]["destructive"]["contained"] is False
+
     # the destructive report is untrusted: even a lying "all fine" report can't make it contained
     # if the outside evidence is missing (container not removed).
     not_removed = job(output=json.dumps({"command": "rm -rf --no-preserve-root /", "ran": True, "rm_exit_code": 0,

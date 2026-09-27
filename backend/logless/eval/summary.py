@@ -44,8 +44,11 @@ def known_limitations(snap: dict, build: util.Build | None, report: dict | None)
                      + "; ".join(f"{l['title']} ({l['conversations']} conversations, {l['users']} people)" for l in tiny) + ".")
     lines.append("- `assistant_limit` mixes capability limits (no browsing, no images, no memory, output length) with "
                  "policy refusals; the published problems say which, but the count does not separate them.")
-    lines.append("- \"People\" are distinct hashed IP addresses: shared or changing addresses (proxies, campuses) merge "
-                 "or split real people, so people counts are approximate.")
+    from ..data.importer import metadata
+    source = metadata()
+    lines.append("- " + (source["people_note"] if source else
+                 "\"People\" are distinct hashed IP addresses: shared or changing addresses (proxies, campuses) merge "
+                 "or split real people, so people counts are approximate."))
     corr = _check(report, "friction_correction")
     cut = "Friction decisions below 0.65 top probability are stored as unclear, trading recall for precision"
     if corr:

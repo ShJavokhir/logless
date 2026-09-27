@@ -43,6 +43,9 @@ MAX_ACTIVE_RUNS = 4
 DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
+# Load the development .env before reading budgets/pool sizes; production already
+# supplies these through the service environment. Otherwise .env overrides are ignored.
+settings()
 SEARCH_CONCURRENCY = int(os.environ.get("LOGLESS_SEARCH_CONCURRENCY", "4"))
 SEARCH_MAX_PENDING = 16   # distinct queries in flight at once (identical queries coalesce)
 SEARCH_WAIT_S = 25.0
@@ -105,7 +108,7 @@ search_executor = ThreadPoolExecutor(max_workers=SEARCH_CONCURRENCY, thread_name
 _search_flights: dict[tuple[str, str], Future] = {}
 _active = 0
 _active_lock = threading.Lock()
-_start_lock = threading.Lock()
+_start_lock = threading.RLock()  # a just-completed Future can invoke its callback during submission
 _story_inflight: dict[tuple[str, str], str] = {}
 _question_inflight: dict[tuple[str, str], str] = {}
 _runner: RunnerClient | None = None
@@ -149,13 +152,31 @@ def _require_snapshot(snapshot_id: str | None = None) -> dict:
     return snap
 
 
-def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None) -> None:
+def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None,
+            *, run: runstore.Run | None = None) -> Future:
     global _active
+    admission = threading.Event()
+    admitted = False
 
-    def wrapper():
+    def execute_admitted():
+        # ThreadPoolExecutor can enqueue a work item before creating a worker. If
+        # thread creation fails, that item may later be picked up by another worker.
+        admission.wait()
+        if admitted:
+            fn()
+
+    def settled(future: Future) -> None:
         global _active
         try:
-            fn()
+            if future.cancelled():
+                if run is not None:
+                    run.fail("server_stopping", "The server stopped before this run could start.")
+            elif (failure := future.exception()) is not None:
+                log.error("background run failed (%s)", type(failure).__name__)
+                if run is not None and run.doc["state"] not in runstore.TERMINAL:
+                    run.fail("internal_error", "The run could not finish.")
+        except Exception as failure:
+            log.error("could not record background failure (%s)", type(failure).__name__)
         finally:
             with _active_lock:
                 _active -= 1
@@ -164,7 +185,20 @@ def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None) -
 
     with _active_lock:
         _active += 1
-    executor.submit(wrapper)
+    try:
+        future = executor.submit(execute_admitted)
+    except Exception:
+        # No worker will run a finally block when scheduling itself fails. Settle the
+        # reservation and saved run just as a cancelled queue entry would be settled.
+        cancelled = Future()
+        cancelled.cancel()
+        admission.set()  # any internally enqueued item must exit without executing fn
+        settled(cancelled)
+        raise ApiError(503, "server_stopping", "The server cannot start a new run right now; retry shortly.") from None
+    admitted = True
+    admission.set()
+    future.add_done_callback(settled)
+    return future
 
 
 def is_presenter(request: Request) -> bool:
@@ -203,6 +237,13 @@ def _release_later(table: dict, key, rid: str) -> Callable[[], None]:
     return release
 
 
+def _shutdown_runs() -> None:
+    # submit takes _start_lock before the executor's internal shutdown lock. Cancellation
+    # invokes callbacks synchronously; preserve that order so callbacks can reenter it.
+    with _start_lock:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+
 # ---------------------------------------------------------------- middleware
 
 def client_ip(request: Request) -> str:
@@ -237,36 +278,33 @@ class BodyLimit:
             return await self.app(scope, receive, send)
         for k, v in scope.get("headers", []):
             if k == b"content-length":
-                if not v.isdigit() or int(v) > MAX_BODY:
+                if not v.isdigit() or len(v) > 20 or int(v) > MAX_BODY:
                     return await err(413, "payload_too_large", "Request body too large.")(scope, receive, send)
-        total = 0
-        too_big = False
-
-        async def limited():
-            nonlocal total, too_big
+        # Intake trigger/reset endpoints don't parse a body. Enforce the limit before
+        # dispatch for those too, rather than depending on the endpoint to call receive.
+        body = bytearray()
+        while True:
             msg = await receive()
             if msg["type"] == "http.request":
-                total += len(msg.get("body", b""))
-                if total > MAX_BODY:
-                    too_big = True
-                    return {"type": "http.request", "body": b"", "more_body": False}
-            return msg
-
-        started = False
-
-        async def guarded_send(message):
-            nonlocal started
-            if too_big and not started:
-                started = True
-                resp = err(413, "payload_too_large", "Request body too large.")
-                await resp(scope, receive, send)
+                chunk = msg.get("body", b"")
+                if len(body) + len(chunk) > MAX_BODY:
+                    return await err(413, "payload_too_large", "Request body too large.")(scope, receive, send)
+                body.extend(chunk)
+                if not msg.get("more_body", False):
+                    break
+            elif msg["type"] == "http.disconnect":
                 return
-            if too_big:
-                return
-            started = True
-            await send(message)
+        body = bytes(body)
+        delivered = False
 
-        await self.app(scope, limited, guarded_send)
+        async def buffered():
+            nonlocal delivered
+            if not delivered:
+                delivered = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        await self.app(scope, buffered, send)
 
 
 # ---------------------------------------------------------------- app
@@ -274,6 +312,9 @@ class BodyLimit:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global executor, search_executor
+    from .. import intake
+    if intake.recover_interrupted_publication():
+        log.warning("recovered an intake interrupted before publication; the base snapshot stays current")
     n = runstore.fail_interrupted()
     if n:
         log.warning("marked %d interrupted runs as failed", n)
@@ -283,7 +324,7 @@ async def lifespan(_: FastAPI):
         search_executor = ThreadPoolExecutor(max_workers=SEARCH_CONCURRENCY, thread_name_prefix="logless-search")
     _search_flights.clear()
     yield
-    executor.shutdown(wait=False, cancel_futures=True)
+    _shutdown_runs()
     search_executor.shutdown(wait=False, cancel_futures=True)
 
 
@@ -406,7 +447,7 @@ def create_app() -> FastAPI:
             run = runstore.Run.create("analysis", "question", sid, question=sanitize_question(raw_q))
             _question_inflight[key] = run.id
             _submit(lambda: run_analysis(run, snapshot_id=sid, titles=titles, nodes=nodes, question=raw_q, runner=runner()),
-                    on_done=_release_later(_question_inflight, key, run.id))
+                    on_done=_release_later(_question_inflight, key, run.id), run=run)
         return {"run_id": run.id}
 
     @app.get("/api/runs/{run_id}")
@@ -445,7 +486,7 @@ def create_app() -> FastAPI:
             run = runstore.Run.create("story", None, snap["snapshot_id"])
             _story_inflight[key] = run.id
             _submit(lambda: stories.run_story(run, snapshot_id=snap["snapshot_id"], node=node),
-                    on_done=_release_later(_story_inflight, key, run.id))
+                    on_done=_release_later(_story_inflight, key, run.id), run=run)
         return {"status": "pending", "run_id": run.id}
 
     @app.post("/api/demo/containment")
@@ -460,7 +501,7 @@ def create_app() -> FastAPI:
             run = runstore.Run.create("containment", None, snap["snapshot_id"])
             nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
             _submit(lambda: run_containment(run, snapshot_id=snap["snapshot_id"], nodes=nodes,
-                                            health=lambda: health_status(fresh=True)["status"], runner=runner()))
+                                            health=lambda: health_status(fresh=True)["status"], runner=runner()), run=run)
         return {"run_id": run.id}
 
     @app.get("/api/eval")

@@ -32,7 +32,8 @@ def _body(messages: list[dict], model: str, reasoning: Reasoning, temperature: f
 
 
 def chat(messages: list[dict], *, model: str = GLM, reasoning: Reasoning = "off", temperature: float = 0.2,
-         max_tokens: int = 1200, json_mode: bool = False, use_cache: bool = True) -> tuple[str, dict]:
+         max_tokens: int = 1200, json_mode: bool = False, use_cache: bool = True,
+         timeout: float | None = None, attempts: int = 5) -> tuple[str, dict]:
     """One chat completion. Returns (content, meta) where meta has model/usage."""
     if reasoning != "off":
         max_tokens = max(max_tokens, 4000)  # reasoning tokens count against max_tokens
@@ -40,12 +41,15 @@ def chat(messages: list[dict], *, model: str = GLM, reasoning: Reasoning = "off"
     key = cache_key("glm", body)
     if use_cache and (hit := cache_get(key)) is not None:
         return hit["content"], {**hit["meta"], "cached": True}
-    out = post_json("glm", f"{VULTR_INFERENCE_URL}/chat/completions", settings().vultr_inference_api_key, body)
+    out = post_json("glm", f"{VULTR_INFERENCE_URL}/chat/completions", settings().vultr_inference_api_key, body,
+                    timeout=timeout, attempts=attempts)
     try:
         choice = out["choices"][0]
         content = choice["message"].get("content") or ""
-    except (KeyError, IndexError) as e:
+    except (KeyError, IndexError, TypeError, AttributeError) as e:
         raise ProviderError("glm", None, "malformed_response") from e
+    if not isinstance(content, str):
+        raise ProviderError("glm", None, "malformed_response")
     meta = {"model": out.get("model", model), "usage": out.get("usage"), "finish_reason": choice.get("finish_reason")}
     if content and use_cache:
         cache_put(key, "glm", model, {"content": content, "meta": meta})
@@ -59,14 +63,16 @@ def _schema_text(schema: type[BaseModel] | dict) -> str:
 
 
 def chat_json(system: str, user: str, schema: type[T], *, model: str = GLM, reasoning: Reasoning = "off",
-              temperature: float = 0.2, max_tokens: int = 1200, retries: int = 2, use_cache: bool = True) -> tuple[T, dict]:
+              temperature: float = 0.2, max_tokens: int = 1200, retries: int = 2, use_cache: bool = True,
+              timeout: float | None = None, attempts: int = 5) -> tuple[T, dict]:
     """JSON-object completion validated against a Pydantic model, with repair retries."""
     sys_msg = system.rstrip() + "\n\nReturn exactly one JSON object matching this JSON Schema, and nothing else:\n" + _schema_text(schema)
     messages = [{"role": "system", "content": sys_msg}, {"role": "user", "content": user}]
     last_err = ""
     for attempt in range(retries + 1):
         content, meta = chat(messages, model=model, reasoning=reasoning, temperature=temperature,
-                             max_tokens=max_tokens, json_mode=True, use_cache=use_cache and attempt == 0)
+                             max_tokens=max_tokens, json_mode=True, use_cache=use_cache and attempt == 0,
+                             timeout=timeout, attempts=attempts)
         try:
             parsed = schema.model_validate_json(_strip_fences(content))
             meta["attempts"] = attempt + 1

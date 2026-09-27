@@ -5,6 +5,7 @@ Response: {"answers": {qid: {"choice", "probabilities"} | {"score", "confidence"
 Limits (2026-09-26): 255 options per choice, 64k tokens per request, 1,200 requests/min."""
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from ..config import JEV, JEV_CONFIDENCE_CUTOFF, TYPESAFE_URL, settings
@@ -18,11 +19,11 @@ def ask(state: Any, questions: dict[str, dict], *, use_cache: bool = True, timeo
     body = {"model": JEV, "state": state, "questions": questions}
     key = cache_key("jev", body)
     if use_cache and (hit := cache_get(key)) is not None:
+        validate_answers(hit, questions)
         return hit
     out = post_json("jev", TYPESAFE_URL, settings().typesafe_api_key, body, timeout=timeout, attempts=attempts)
     answers = out.get("answers")
-    if not isinstance(answers, dict) or set(answers) != set(questions):
-        raise ProviderError("jev", None, "malformed_answers")
+    validate_answers(answers, questions)
     if use_cache:
         cache_put(key, "jev", JEV, answers)
     return answers
@@ -30,10 +31,46 @@ def ask(state: Any, questions: dict[str, dict], *, use_cache: bool = True, timeo
 
 def top(answer: dict) -> tuple[str, float]:
     """(top choice, its probability) for a choice answer."""
-    probs = answer.get("probabilities") or {}
+    if not isinstance(answer, dict):
+        raise ProviderError("jev", None, "malformed_choice")
+    probs = answer.get("probabilities")
     choice = answer.get("choice")
-    p = float(probs.get(choice, max(probs.values()) if probs else 0.0))
+    if (not isinstance(choice, str) or not isinstance(probs, dict) or choice not in probs
+            or not probs or any(not _number(v, 0, 1) for v in probs.values())):
+        raise ProviderError("jev", None, "malformed_choice")
+    p = float(probs[choice])
     return choice, p
+
+
+def _number(value: Any, low: float, high: float) -> bool:
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and low <= value <= high)
+
+
+def validate_answers(answers: Any, questions: dict[str, dict]) -> None:
+    """Fail closed before a malformed provider/cache value becomes a privacy decision."""
+    if not isinstance(answers, dict) or set(answers) != set(questions):
+        raise ProviderError("jev", None, "malformed_answers")
+    for key, q in questions.items():
+        answer = answers[key]
+        kind = q["type"]
+        if not isinstance(answer, dict) or answer.get("type") != kind:
+            raise ProviderError("jev", None, "malformed_answers")
+        if kind == "choice":
+            choice, _ = top(answer)
+            if choice not in q["criteria"] or set(answer["probabilities"]) != set(q["criteria"]):
+                raise ProviderError("jev", None, "malformed_choice")
+        elif kind == "noul":
+            if not _number(answer.get("noul"), 0, 1):
+                raise ProviderError("jev", None, "malformed_noul")
+        elif kind == "score":
+            levels = {str(i) for i in range(len(q["criteria"]))}
+            probs = answer.get("probabilities")
+            if (not _number(answer.get("score"), 0, len(levels) - 1) or not isinstance(probs, dict)
+                    or set(probs) != levels or any(not _number(v, 0, 1) for v in probs.values())):
+                raise ProviderError("jev", None, "malformed_score")
+        else:
+            raise ProviderError("jev", None, "unsupported_question_type")
 
 
 def tri_state(answer: dict, cutoff: float = JEV_CONFIDENCE_CUTOFF) -> tuple[str, str, float]:

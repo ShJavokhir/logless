@@ -164,7 +164,8 @@ def _run(run: Run, snapshot_id: str, node: dict) -> None:
                   else "one repair attempt with the validator's feedback")
         prompt = user if attempt == 1 else user + "\nYour previous story was rejected: " + "; ".join(problems) + ". Write a new one."
         try:
-            out, meta = glm.chat_json(SYSTEM, prompt, _StoryOut, reasoning="low", temperature=0.7, max_tokens=1200, use_cache=False)
+            out, meta = glm.chat_json(SYSTEM, prompt, _StoryOut, reasoning="low", temperature=0.7,
+                                      max_tokens=1200, use_cache=False, retries=0, timeout=30.0, attempts=1)
         except glm.GLMOutputError:
             out, meta = None, {}
         run.stage("writing", "done" if out else "failed", f"{meta.get('model', glm.GLM)} wrote a draft" if out else "no valid JSON from the model")

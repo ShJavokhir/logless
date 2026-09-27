@@ -36,6 +36,7 @@ MAX_VALUES = 20_000    # containers + scalars
 MAX_KEYS = 32
 MAX_STR = 64           # every allowlisted string (ids, plan words) is far shorter
 MAX_DIAGNOSTICS = 20   # per check; the rest are only counted
+MAX_COUNT = 2**53 - 1  # exact in the browser's JSON number representation
 SHARE_TOL = 1e-4
 
 # Check names shown in the UI's Run details (fixed vocabulary).
@@ -198,6 +199,8 @@ def shape_problem(doc: Any) -> str | None:
             stack.extend((v, depth + 1) for v in node)
         elif isinstance(node, str) and len(node) > MAX_STR:
             return f"a string is longer than {MAX_STR} characters"
+        elif type(node) is int and abs(node) > MAX_COUNT:
+            return "an integer exceeds the safe count range"
     return None
 
 
@@ -291,7 +294,11 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
 
     if not add(C_OUTPUT, output is not None, "a result file was produced" if output is not None else "the job produced no result file"):
         return v
-    size = len(output.encode("utf-8"))
+    try:
+        size = len(output.encode("utf-8"))
+    except UnicodeEncodeError:
+        add(C_PARSE, False, "the document is not valid UTF-8")
+        return v
     if not add(C_SIZE, size <= MAX_BYTES, f"{size:,} bytes" if size <= MAX_BYTES else "result exceeds 1 MiB"):
         return v
     try:
@@ -349,6 +356,8 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
     for i, r in enumerate(rows):
         if r["count"] > r["base"]:
             arith.add(f"rows[{i}].count exceeds its base")
+        if plan["signal"] is None and r["count"] != r["base"]:
+            arith.add(f"rows[{i}].count must equal its base without a signal filter")
         want = r["count"] / r["base"] if r["base"] else 0.0
         if abs(r["share"] - want) > SHARE_TOL:
             arith.add(f"rows[{i}].share is not count ÷ base")
@@ -357,6 +366,10 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
     tot = _Diag()
     if prog["total_count"] > prog["total_base"]:
         tot.add("total_count exceeds total_base")
+    if plan["signal"] is None and prog["total_count"] != prog["total_base"]:
+        tot.add("without a signal filter, total_count must equal total_base")
+    if not groups and (prog["total_count"] or prog["total_base"]):
+        tot.add("totals must be zero for an empty scope")
     if rows:
         if prog["total_base"] < max(r["base"] for r in rows) or prog["total_count"] < max(r["count"] for r in rows):
             tot.add("a total is smaller than one of its rows")
@@ -366,6 +379,9 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
                 tot.add("totals differ from the sum of all groups")
         elif additive and (prog["total_base"] < sum(r["base"] for r in rows) or prog["total_count"] < sum(r["count"] for r in rows)):
             tot.add("totals are smaller than the sum of the listed groups")
+        if not additive and len(rows) == len(groups) and (
+                prog["total_base"] > sum(r["base"] for r in rows) or prog["total_count"] > sum(r["count"] for r in rows)):
+            tot.add("distinct-people totals exceed the sum of all groups")
     add(C_TOTALS, not tot, _summarize(tot) if tot else "ok")
 
     ordered = [r["id"] for r in sorted(rows, key=sort_key(plan["rank_by"]))] == ids
@@ -451,6 +467,22 @@ def check_snapshot(result: dict, *, plan: dict, clusters: list[dict], nodes: dic
             tot.add("total_base differs from the category's published people")
     if derivable:
         checks.append(Check(map_check_name("totals = published scope totals"), not tot, _summarize(tot) if tot else "matches"))
+
+    # Checking only the submitted rows cannot detect a consistently wrong top-N selection.
+    # Compare membership/order with the public map whenever every ranking value is derivable;
+    # this does not inspect private rows or substitute a computed answer for sandbox output.
+    if (signal is None or measure == "conversations") and all(derivable_node(g) for g in groups):
+        ranked = []
+        for gid in groups:
+            node = nodes[gid]
+            base = node[field]
+            count = base if signal is None else (node["friction"]["conversations"] if signal == "any_friction"
+                                                else node["friction"]["signals"][signal])
+            ranked.append({"id": gid, "count": count, "base": base})
+        expected = [r["id"] for r in sorted(ranked, key=sort_key(plan["rank_by"]))[:plan["limit"]]]
+        matches = [r["id"] for r in rows] == expected
+        checks.append(Check(map_check_name("top groups = published ranking"), matches,
+                            "matches" if matches else "the selected groups differ from the published ranking"))
     return checks
 
 

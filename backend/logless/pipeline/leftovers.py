@@ -49,6 +49,7 @@ def run(build: util.Build) -> dict:
         rec = discover_round(build, other, rnd, k=k)
         props = _consolidate_leftovers(existing, rec["clusters"])
         by_name = {t["name"].lower(): t for t in existing}
+        used_names = set(by_name) | {"other or unclear"}
         valid_ids = {c["id"] for c in rec["clusters"]}
         share_of = {c["id"]: c["people_share"] for c in rec["clusters"]}
         new, updates = [], []
@@ -64,8 +65,13 @@ def run(build: util.Build) -> dict:
                     t["includes"] = ((t["includes"] or "") + "; " + extra).strip("; ")
                     updates.append(t)
             else:
-                if p["name"].lower() in by_name:
-                    p["name"] = f"{p['name']} (additional)"
+                base = p["name"].strip()
+                name, suffix = base, 2
+                while name.lower() in used_names:
+                    name = f"{base} ({suffix})"
+                    suffix += 1
+                p["name"] = name
+                used_names.add(name.lower())
                 p["people_share"] = sum(share_of[c] for c in cl)
                 p["clusters"] = cl
                 new.append(p)

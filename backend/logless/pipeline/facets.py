@@ -20,6 +20,7 @@ log = logging.getLogger("logless.pipeline.facets")
 FACETS_V = PROMPT_VERSIONS["facets"] + "+" + PII_QV
 PII_THRESHOLD = 0.5
 FAILED_FACET = "Unreadable or empty request. Goal: unknown."
+PRIVATE_FACET = "Help with a private request. Goal: receive assistance."
 
 EXTRA_SCHEMA = """
 CREATE TABLE IF NOT EXISTS facet_checks (
@@ -32,7 +33,27 @@ CREATE TABLE IF NOT EXISTS facet_checks (
 
 
 def ensure_schema() -> None:
-    db.private().executescript(EXTRA_SCHEMA)
+    con = db.private()
+    con.executescript(EXTRA_SCHEMA)
+    # Reapply today's deterministic boundary to every cached status. A legacy "ok"
+    # decision may predate a new rule, so its stored label alone cannot authorize egress.
+    with db.write(con):
+        rows = con.execute("SELECT f.conv_id, f.facet_text, c.status FROM facets f "
+                           "LEFT JOIN facet_checks c USING(conv_id)").fetchall()
+        flagged = [r["conv_id"] for r in rows if r["facet_text"] != PRIVATE_FACET and
+                   (r["status"] == "fallback" or safe_embedding_text(r["facet_text"]) != r["facet_text"])]
+        con.executemany("UPDATE facets SET facet_text=? WHERE conv_id=?", [(PRIVATE_FACET, cid) for cid in flagged])
+        con.executemany("INSERT INTO facet_checks(conv_id,status,version,created_at) VALUES (?,'fallback',?,?) "
+                        "ON CONFLICT(conv_id) DO UPDATE SET status='fallback'",
+                        [(cid, PII_QV, utcnow()) for cid in flagged])
+
+
+def safe_embedding_text(text: str | None) -> str:
+    """Only a generic constant may replace text failing the current deterministic rules."""
+    from .privacy import contact_hits, source_id_hits
+    if not isinstance(text, str) or not text.strip() or contact_hits(text) or source_id_hits(text):
+        return PRIVATE_FACET
+    return text
 
 
 def facet_text(f: Facets) -> str:
@@ -47,6 +68,9 @@ def _clean(f: Facets) -> Facets:
 
 
 def _pii(text: str) -> float:
+    from .privacy import contact_hits, source_id_hits
+    if contact_hits(text) or source_id_hits(text):
+        return 1.0
     ans = util.jev_ask({"facet": text}, PII_Q)
     return float(ans["identifying"]["noul"])
 
@@ -82,10 +106,10 @@ def extract_one(conv_id: str, text: str) -> tuple:
         p_after = _pii(ft2)
         f, ft, status = g, ft2, "rewritten"
         if p_after >= PII_THRESHOLD:
-            # keep only the generic domain + goal shape; the facet text never leaves the backend,
-            # but embeddings (Fireworks) must see generalized text only
+            # The model's domain is also untrusted text: it may contain the very identifier
+            # that failed both checks. Never interpolate it into a third-party embedding.
             status = "fallback"
-            ft = f"Help with a request about {g.domain}. Goal: {g.domain}."
+            ft = PRIVATE_FACET
     now = utcnow()
     con = db.private()
     with db.write(con):
@@ -127,7 +151,8 @@ def run(build: util.Build) -> dict:
     s = settings()
     ids = build.conv_ids
     con = db.private()
-    done_f = util.load_rows(ids, "SELECT conv_id FROM facets WHERE prompt_version = '" + FACETS_V + "' AND conv_id IN ({})")
+    done_f = util.load_rows(ids, "SELECT f.conv_id FROM facets f JOIN facet_checks c USING(conv_id) "
+                                "WHERE f.prompt_version = '" + FACETS_V + "' AND c.status != 'failed' AND f.conv_id IN ({})")
     done_x = {}
     for chunk in util.chunks(ids, 900):
         q = ("SELECT conv_id, COUNT(*) n FROM friction WHERE question_version = ? AND conv_id IN ({}) GROUP BY conv_id"

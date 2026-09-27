@@ -48,7 +48,9 @@ def scope(limit: int | None) -> list[str]:
     from ..intake import ensure_schema
     ensure_schema()
     con = db.private()
-    if limit:
+    if limit is not None and limit < 1:
+        raise ValueError("build limit must be positive")
+    if limit is not None:
         rows = con.execute("SELECT conv_id FROM conversations WHERE intake_batch IS NULL AND (is_fixture = 1 OR sample_rank < ?)"
                            " ORDER BY conv_id", (limit,)).fetchall()
     else:
@@ -143,6 +145,8 @@ def main(limit: int | None = None, from_stage: str | None = None, until: str | N
         b.stages = [s for s in b.stages if STAGE_NAMES.index(s["stage"]) < i] if b.stages else []
     else:
         b = util.Build(build_id=new_build_id(), limit=limit, conv_ids=scope(limit), started_at=utcnow())
+        if not b.conv_ids:
+            raise SystemExit("no conversations to build; seed or import a dataset first")
         b.save("scope", b.conv_ids)
         i = 0
         _save_build(b, "running")

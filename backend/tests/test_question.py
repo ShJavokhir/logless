@@ -153,12 +153,15 @@ class FakeGLM:
 
     def chat(self, messages, **kw):
         assert kw.get("use_cache") is False
+        assert kw.get("attempts") == 1 and kw.get("timeout") == analysis.MODEL_TIMEOUT_S
         prog = "A" if "Use pandas" in messages[0]["content"] else "B"
         self.prompts.append((f"code:{prog}", json.dumps(messages)))
         q = self.codes[prog]
         return f"```python\n{q.pop(0) if len(q) > 1 else q[0]}\n```", {"model": "glm-5.3"}
 
     def chat_json(self, system, user, schema, **kw):
+        assert kw.get("retries") == 0
+        assert kw.get("attempts") == 1 and kw.get("timeout") == analysis.MODEL_TIMEOUT_S
         self.prompts.append((schema.__name__, system + "\n" + user))
         if schema.__name__ == "Interpretation":
             return schema.model_validate(self.interpretation), {"model": "glm-5.3"}
@@ -199,7 +202,8 @@ def test_two_programs_agree_and_sandbox_output_is_served(tmp_data, monkeypatch):
     maps = [c for c in d["verdict"]["checks"] if c["name"].startswith("Consistent with the published map · ")]
     assert [c["name"].split(" · ", 1)[1] for c in maps] == ["base = published conversations",
                                                             "count = published friction conversations",
-                                                            "totals = published scope totals"]
+                                                            "totals = published scope totals",
+                                                            "top groups = published ranking"]
     assert all(c["detail"].startswith("A and B: ") for c in maps)
     assert [c["name"] for c in d["attempts_log"][0]["verdict"]["checks"]][-1] == "Matches the published map"
     assert [(a["attempt"], a["program"], a["repair_reason"]) for a in d["attempts_log"]] == [(1, "A", None), (1, "B", None)]

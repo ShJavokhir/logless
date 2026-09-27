@@ -24,7 +24,7 @@ from .stats import assignment_rows, clusters_for, reference_metrics
 log = logging.getLogger("logless.pipeline.publish")
 
 ATTRIBUTION = 'Zhao et al., "WildChat: 1M ChatGPT Interaction Logs in the Wild", ICLR 2024'
-CATS_RANGE, LEAVES_RANGE = (4, 8), (15, 35)
+CATS_RANGE, LEAVES_RANGE = (1, 8), (1, 35)
 
 
 class PublishError(RuntimeError):
@@ -35,7 +35,9 @@ class PublishError(RuntimeError):
 
 def scope_hash(conv_ids: list[str]) -> str:
     """Same construction as data.wildchat.dataset_hash(), restricted to the build's conversations."""
-    h = hashlib.sha256(DATASET_REVISION.encode())
+    from ..data.importer import metadata
+    source = metadata()
+    h = hashlib.sha256((source["source_sha256"] if source else DATASET_REVISION).encode())
     rows = util.load_rows(conv_ids, "SELECT conv_id, text FROM conversations WHERE conv_id IN ({})")
     for cid in sorted(rows):
         h.update(cid.encode())
@@ -85,11 +87,12 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
     scope_rows = util.load_rows(build.conv_ids, "SELECT conv_id, ts, is_fixture, language, user_id, intake_batch "
                                                 "FROM conversations WHERE conv_id IN ({})")
     real_ts = sorted(r["ts"][:10] for r in scope_rows.values() if not r["is_fixture"] and r["ts"])
-    kinds = Counter(r["kind"] for r in con.execute(
-        "SELECT kind FROM eval_fixtures WHERE conv_id IN (SELECT conv_id FROM conversations WHERE is_fixture = 1)"))
+    fixture_rows = util.load_rows(build.conv_ids, "SELECT conv_id, kind FROM eval_fixtures WHERE conv_id IN ({})")
+    kinds = Counter(r["kind"] for r in fixture_rows.values())
     n_real = sum(1 for r in scope_rows.values() if not r["is_fixture"] and not r["intake_batch"])
     n_intake = sum(1 for r in scope_rows.values() if r["intake_batch"])
-    fac_models = {r["model"] for r in con.execute("SELECT DISTINCT model FROM facets WHERE model IS NOT NULL")}
+    fac_rows = util.load_rows(build.conv_ids, "SELECT conv_id, model FROM facets WHERE conv_id IN ({})")
+    fac_models = {r["model"] for r in fac_rows.values() if r["model"]}
     facets_model = GLM_FLASH if fac_models <= {GLM_FLASH} else f"{GLM_FLASH} (rate-limit overflow: {GLM})"
     # roles the UI lists; analysis_code / explanation / story / relevance are the API's live features
     models = {"facets": facets_model, "friction": JEV, "embeddings": EMBEDDING_MODEL, "naming": GLM,
@@ -105,7 +108,7 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
             "attribution": ATTRIBUTION,
             "period_start": real_ts[0] if real_ts else "", "period_end": real_ts[-1] if real_ts else "",
             "conversations": len(scope_rows), "users": len({r["user_id"] for r in scope_rows.values()}),
-            "languages": len({r["language"] for r in scope_rows.values() if r["language"]}),
+            "languages": len({r["language"] for r in scope_rows.values() if r["language"] and r["language"] != "Unknown"}),
             "sample_note": SAMPLE_NOTE.format(real=n_real, shard_rows=SHARD_ROWS, canary=kinds.get("canary", 0),
                                               injection=kinds.get("injection", 0))
                            + (f" Plus {n_intake:,} further conversations from the same shard, ingested by live intake."
@@ -129,6 +132,17 @@ def build_snapshot(build: util.Build, st: dict, stats: dict, stages: list[dict],
                        for s in stages],
         },
     }
+    from ..data.importer import metadata
+    source = metadata()
+    if source:
+        snap["workspace"] = {"name": source["workspace_name"], "description": source["workspace_description"]}
+        snap["dataset"].update({key: source[key] for key in ("name", "source_url", "revision", "license", "attribution")})
+        truncated = sum(r["truncated"] for r in util.load_rows(
+            build.conv_ids, "SELECT conv_id, truncated FROM conversations WHERE conv_id IN ({})").values())
+        snap["dataset"]["sample_note"] = (
+            f"{n_real:,} imported text conversations from a validated JSONL export. "
+            f"{truncated:,} conversations truncated for model context limits. " + source["people_note"])
+        snap["intended_uses"] = list(source["intended_uses"])
     return snap
 
 

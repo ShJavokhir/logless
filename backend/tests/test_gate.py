@@ -118,6 +118,7 @@ def test_diagnostics_are_bounded():
 BASE_C = "Consistent with the published map · base = published conversations"
 BASE_P = "Consistent with the published map · base = published people"
 TOTAL = "Consistent with the published map · totals = published scope totals"
+RANKING = "Consistent with the published map · top groups = published ranking"
 
 
 def _snap_checks(doc, plan, df):
@@ -131,7 +132,7 @@ def test_consistency_checks_apply_where_derivable():
     conv = {"group_by": "category", "scope_category_id": None, "measure": "conversations", "signal": "complaint",
             "rank_by": "count", "limit": 10}
     got = _snap_checks(oracle_answer(df, conv), conv, df)
-    assert set(got) == {BASE_C, "Consistent with the published map · count = published complaint conversations", TOTAL} \
+    assert set(got) == {BASE_C, "Consistent with the published map · count = published complaint conversations", TOTAL, RANKING} \
         and all(c.passed for c in got.values())
     people = {"group_by": "leaf", "scope_category_id": "cat_bbbbbb", "measure": "people", "signal": "complaint",
               "rank_by": "count", "limit": 10}

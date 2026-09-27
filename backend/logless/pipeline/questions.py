@@ -49,6 +49,8 @@ def theme_question(themes: list[dict]) -> dict:
     """One Choice over all active themes (+ Other or unclear). Option names are theme names."""
     criteria: dict[str, dict | str] = {}
     for t in themes:
+        if t["name"] in criteria or t["name"] == OTHER_LABEL:
+            raise ValueError("theme choices require unique names distinct from the catch-all label")
         criteria[t["name"]] = {"description": t.get("description") or "",
                                "includes": t.get("includes") or "", "excludes": t.get("excludes") or ""}
     criteria[OTHER_LABEL] = {"description": "None of the other themes clearly fits what the user wants, the request is "

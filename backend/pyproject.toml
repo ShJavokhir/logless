@@ -22,11 +22,35 @@ dev = ["pytest>=8", "respx>=0.21"]
 logless = "logless.cli:main"
 
 [build-system]
-requires = ["hatchling"]
+# Pin the build backend and its Python 3.12 dependency closure as well as runtime uv.lock.
+requires = [
+  "hatchling==1.32.4",
+  "packaging==26.3",
+  "pathspec==1.1.1",
+  "pluggy==1.6.0",
+  "tomlkit==0.15.1",
+  "trove-classifiers==2026.9.21.13",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["logless"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"sandbox_tasks/destructive.py" = "logless/sandbox/tasks/destructive.py"
+"sandbox_tasks/followup.py" = "logless/sandbox/tasks/followup.py"
+"sandbox_tasks/leak_attempt.py" = "logless/sandbox/tasks/leak_attempt.py"
+"sandbox_tasks/runaway.py" = "logless/sandbox/tasks/runaway.py"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv]
+# Local non-editable builds must refresh when code/data changes, not only when metadata does.
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "logless/**/*.py" },
+  { file = "logless/eval/**/*.jsonl" },
+  { file = "logless/eval/**/*.md" },
+  { file = "sandbox_tasks/*.py" },
+]

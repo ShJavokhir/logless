@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import random
+import re
 import threading
 import time
 from typing import Any
@@ -56,6 +57,8 @@ def post_json(provider: str, url: str, key: str, body: dict, *, attempts: int = 
     """POST with retries on transient failures. Returns the parsed JSON body."""
     if not key:
         raise ProviderError(provider, None, "missing_api_key")
+    if attempts < 1:
+        raise ValueError("attempts must be positive")
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     last: ProviderError | None = None
     for attempt in range(attempts):
@@ -67,14 +70,22 @@ def post_json(provider: str, url: str, key: str, body: dict, *, attempts: int = 
         else:
             dt = time.monotonic() - t0
             if r.status_code < 400:
-                log.debug("%s ok status=%s %.2fs", provider, r.status_code, dt)
-                return r.json()
-            code = FATAL_STATUS.get(r.status_code) or _error_code(r)
-            last = ProviderError(provider, r.status_code, code)
-            log.warning("%s status=%s code=%s %.2fs attempt=%d", provider, r.status_code, last.code, dt, attempt + 1)
-            if r.status_code not in RETRY_STATUS:
-                raise last
-        time.sleep(min(30.0, (2 ** attempt) * 0.75 + random.random() * 0.5))
+                try:
+                    parsed = r.json()
+                except ValueError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    log.debug("%s ok status=%s %.2fs", provider, r.status_code, dt)
+                    return parsed
+                last = ProviderError(provider, r.status_code, "malformed_response")
+            else:
+                code = FATAL_STATUS.get(r.status_code) or _error_code(r)
+                last = ProviderError(provider, r.status_code, code)
+                log.warning("%s status=%s code=%s %.2fs attempt=%d", provider, r.status_code, last.code, dt, attempt + 1)
+                if r.status_code not in RETRY_STATUS:
+                    raise last
+        if attempt + 1 < attempts:
+            time.sleep(min(30.0, (2 ** attempt) * 0.75 + random.random() * 0.5))
     assert last is not None
     raise last
 
@@ -86,8 +97,10 @@ def _error_code(r: httpx.Response) -> str:
         return "non_json"
     err = data.get("error") if isinstance(data, dict) else None
     if isinstance(err, dict):
-        return str(err.get("code") or err.get("type") or "error")[:64]
-    return str(err or "error")[:64]
+        code = err.get("code") or err.get("type")
+        if isinstance(code, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", code):
+            return code
+    return "error"  # upstream error text may echo a private prompt or a credential
 
 
 # ---------------------------------------------------------------- cache

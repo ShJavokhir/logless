@@ -17,7 +17,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score, silhouette_score
 
 from .. import db
-from ..config import EMBEDDING_MODEL, GLM, settings
+from ..config import EMBEDDING_DIMS, EMBEDDING_MODEL, GLM, settings
 from ..ids import utcnow
 from ..providers import fireworks
 from . import util
@@ -41,6 +41,10 @@ def _key(text: str) -> str:
 
 def embed_texts(texts: list[str]) -> np.ndarray:
     """Embeddings with a private cache keyed by (model, text)."""
+    if not texts:
+        return np.empty((0, EMBEDDING_DIMS), dtype=np.float32)
+    from .facets import safe_embedding_text
+    texts = [safe_embedding_text(text) for text in texts]
     con = db.private()
     con.execute(EMB_SCHEMA)
     keys = [_key(t) for t in texts]
@@ -70,6 +74,8 @@ def load_facets(conv_ids: list[str]) -> dict[str, dict]:
 
 def build_embeddings(build: util.Build) -> tuple[list[str], np.ndarray]:
     """Embed every conversation in scope; saved as embeddings/<build_id>.npy + ids json."""
+    from .facets import ensure_schema
+    ensure_schema()  # sanitize legacy fallback rows even when resuming at discovery
     f = load_facets(build.conv_ids)
     ids = [c for c in build.conv_ids if c in f]
     X = embed_texts([f[c]["facet_text"] for c in ids])
@@ -132,8 +138,9 @@ def diagnostics(Xs: np.ndarray, base_k: int) -> dict:
             continue
         a, _ = fit_kmeans(Xs, k, SEEDS[0])
         b, _ = fit_kmeans(Xs, k, SEEDS[1])
-        out[str(k)] = {"ari_two_seeds": round(float(adjusted_rand_score(a, b)), 4),
-                       "silhouette": round(float(silhouette_score(Xs, a, metric="cosine")), 4)}
+        if 1 < len(set(a)) < len(Xs):
+            out[str(k)] = {"ari_two_seeds": round(float(adjusted_rand_score(a, b)), 4),
+                           "silhouette": round(float(silhouette_score(Xs, a, metric="cosine")), 4)}
     return out
 
 
@@ -164,9 +171,9 @@ def name_clusters(ids: list[str], X: np.ndarray, users: list[str], facets: dict[
     np.fill_diagonal(sims, -1)
     jobs = []
     for c in range(k):
-        nb = int(np.argmax(sims[c]))
+        nb = int(np.argmax(sims[c])) if k > 1 else None
         inside = _sample_people(members[c], users, 20, seed + c)
-        outside = _sample_people(members[nb], users, 10, seed + 1000 + c)
+        outside = _sample_people(members[nb], users, 10, seed + 1000 + c) if nb is not None else []
         ppl = len({users[i] for i in np.where(full_lab == c)[0]})
         jobs.append({"id": f"{prefix}{c:02d}", "c": c, "nb": nb, "inside": inside, "outside": outside,
                      "people_share": ppl / max(1, people_total), "conv_share": float(np.mean(full_lab == c)),
@@ -181,14 +188,15 @@ def name_clusters(ids: list[str], X: np.ndarray, users: list[str], facets: dict[
         return {**{k2: v for k2, v in j.items() if k2 not in ("inside", "outside")},
                 "name": util.clip_words(out.name, 10), "description": out.description,
                 "includes": out.includes, "excludes": out.excludes,
-                "neighbour": f"{prefix}{j['nb']:02d}"}
+                "neighbour": f"{prefix}{j['nb']:02d}" if j["nb"] is not None else None}
 
     named, errs = util.pmap(one, jobs, settings().glm_concurrency, "naming")
     result = []
     for j, r in zip(jobs, named):
         if r is None:  # naming failed twice: keep a placeholder so consolidation still sees the cluster
             r = {**{k2: v for k2, v in j.items() if k2 not in ("inside", "outside")}, "name": f"Unnamed cluster {j['id']}",
-                 "description": "", "includes": "", "excludes": "", "neighbour": f"{prefix}{j['nb']:02d}"}
+                 "description": "", "includes": "", "excludes": "", "neighbour":
+                     f"{prefix}{j['nb']:02d}" if j["nb"] is not None else None}
         result.append(r)
     return result
 
@@ -216,10 +224,10 @@ def fix_coverage(named: list[dict], themes: list[dict], dropped: list[str] | Non
     """Every input cluster in exactly one theme (or explicitly dropped); unique names; no empty themes."""
     valid = {c["id"] for c in named}
     seen: set[str] = set(dropped or [])
-    names: set[str] = set()
+    names: set[str] = {"other or unclear"}
     out = []
     for t in themes:
-        cl = [c for c in t.get("clusters", []) if c in valid and c not in seen]
+        cl = [c for c in dict.fromkeys(t.get("clusters", [])) if c in valid and c not in seen]
         if not cl:
             continue
         seen.update(cl)
@@ -271,10 +279,12 @@ def discover_round(build: util.Build, conv_ids: list[str], rnd: int, k: int | No
     facets = load_facets(ids)
     users = [facets[c]["user_id"] for c in ids]
     sub = capped_subset(users, X, seed=SEEDS[0] + rnd)
+    if not sub:
+        raise RuntimeError("discovery requires at least one conversation with extracted facets")
     Xs = X[sub]
     if k is None:
         k = choose_k(len(sub), full=build.limit is None)
-    k = max(2, min(k, len(sub) // 3))
+    k = max(1, min(k, max(1, len(sub) // 3)))
     diag = diagnostics(Xs, k) if with_diagnostics else {}
     labels, C = fit_kmeans(Xs, k, SEEDS[0])
     named = name_clusters(ids, X, users, facets, sub, labels, C, prefix=f"k{rnd}_", seed=SEEDS[0] + rnd)

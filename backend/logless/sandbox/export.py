@@ -74,6 +74,8 @@ def public_structure(clusters: list[dict]) -> list[dict]:
 
 
 def _validate_structure(clusters: list[dict]) -> tuple[list[dict], list[dict]]:
+    if any(c.get("level") not in (1, 2) for c in clusters):
+        raise ExportError("unknown cluster level")
     cats = [c for c in clusters if int(c["level"]) == 1]
     leaves = [c for c in clusters if int(c["level"]) == 2]
     cat_ids = {c["id"] for c in cats}
@@ -84,6 +86,17 @@ def _validate_structure(clusters: list[dict]) -> tuple[list[dict], list[dict]]:
             raise ExportError("leaf without a valid parent category")
     if len({c["id"] for c in clusters}) != len(clusters):
         raise ExportError("duplicate cluster ids")
+    if any(c.get("parent_id") is not None for c in cats):
+        raise ExportError("category cannot have a parent")
+    if sum(bool(c.get("is_other")) for c in leaves) > 1:
+        raise ExportError("multiple catch-all leaves")
+    themes = set()
+    for leaf in leaves:
+        for theme in leaf.get("theme_ids") or []:
+            key = str(theme)
+            if key in themes:
+                raise ExportError("theme belongs to more than one leaf or is repeated")
+            themes.add(key)
     return cats, leaves
 
 
@@ -159,10 +172,12 @@ def _load_frozen(snapshot_id: str) -> pd.DataFrame | None:
 
 def export_inputs(build_id: str, clusters: list[dict], snapshot_id: str | None = None) -> SandboxInputs:
     """Typed inputs for one sandbox job. `clusters`: [{id, parent_id, level, is_other, theme_ids}].
-    With `snapshot_id`, the rows frozen when that snapshot was published are used (falling back to
-    the live tables for snapshots published before freezing existed)."""
+    With `snapshot_id`, only the rows frozen when that snapshot was published may be used.
+    Historical snapshots without frozen inputs must be rebuilt before live analysis is available."""
     cats, leaves = _validate_structure(clusters)
     rows = _load_frozen(snapshot_id) if snapshot_id else None
+    if snapshot_id and rows is None:
+        raise ExportError("snapshot has no frozen sandbox inputs")
     if rows is None:
         rows = _load_rows(build_id)
     df, mapping = frame_from_rows(rows, clusters)
