@@ -1,0 +1,25 @@
+{
+  "name": "logless-walkthrough",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated, capture-based 30-second logless frontend walkthrough",
+  "scripts": {
+    "studio": "remotion studio src/index.ts --no-open",
+    "typecheck": "tsc --noEmit",
+    "render": "node scripts/render.mjs",
+    "passage": "remotion render src/index.ts Complete30 renders/proof-passage.mp4 --frames=420-674 --codec=h264 --audio-codec=aac --crf=17 --image-format=png --concurrency=4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/media": "4.0.529",
+    "@remotion/transitions": "4.0.529",
+    "remotion": "4.0.529",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,299 @@
+{
+  "frames": [
+    {
+      "height": 1080,
+      "path": "frames/frame-001.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.2,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.2,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.200",
+      "timestamp_seconds": 21.2,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-002.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.3,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.3,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.300",
+      "timestamp_seconds": 21.3,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-003.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.4,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.4,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.400",
+      "timestamp_seconds": 21.4,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-004.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.5,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.5,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.500",
+      "timestamp_seconds": 21.5,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-005.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.599999999999998,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.599999999999998,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.600",
+      "timestamp_seconds": 21.599999999999998,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-006.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.7,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.7,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.700",
+      "timestamp_seconds": 21.7,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-007.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.8,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.8,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.800",
+      "timestamp_seconds": 21.8,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-008.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 21.9,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 21.9,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:21.900",
+      "timestamp_seconds": 21.9,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-009.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 22.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 22.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:22.000",
+      "timestamp_seconds": 22.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-010.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 22.099999999999998,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 22.099999999999998,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:22.100",
+      "timestamp_seconds": 22.099999999999998,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-011.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 22.2,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 22.2,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:22.200",
+      "timestamp_seconds": 22.2,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-012.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 22.3,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 22.3,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:22.300",
+      "timestamp_seconds": 22.3,
+      "width": 1920
+    }
+  ],
+  "generated_at": "2026-09-27T02:00:59.710435+00:00",
+  "limitations": [
+    "Frames are discrete timestamp samples, not full-speed motion playback.",
+    "The contact sheet does not represent audio; listen to the source or extracted WAV.",
+    "Frames record requested positions separately from seek timestamps; non-endpoint seeks may quantize to nearby source frames.",
+    "The endpoint seek timestamp comes from ffprobe's last reported decodable frame PTS.",
+    "Contact-sheet thumbnails are reduced previews; inspect saved PNG dimensions before judging fine detail."
+  ],
+  "media_summary": {
+    "audio_codec": "aac",
+    "audio_duration_seconds": 30.0,
+    "audio_present": true,
+    "average_fps": 30.0,
+    "container_duration_seconds": 30.0,
+    "duration_seconds": 30.0,
+    "height": 1080,
+    "video_codec": "h264",
+    "video_duration_seconds": 30.0,
+    "width": 1920
+  },
+  "outputs": {
+    "audio": null,
+    "contact_sheet": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/review/transition-payoff/contact-sheet.jpg",
+    "contact_sheet_dimensions": {
+      "height": 952,
+      "width": 1970
+    },
+    "inventory": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/review/transition-payoff/inventory.json"
+  },
+  "sampling": {
+    "contact_sheet_thumbnail_max_width": 480,
+    "dense_range_seconds": [
+      21.2,
+      22.3
+    ],
+    "dense_sample_fps": 10.0,
+    "endpoint": {
+      "endpoint_seek_preroll_seconds": 5.555555553371505e-06,
+      "endpoint_seek_time_seconds": 29.96666111111111,
+      "gap_from_video_duration_seconds": 0.03333333333333499,
+      "last_decodable_frame_pts_seconds": 29.966666666666665,
+      "last_decodable_frame_time_seconds": 29.966666666666665,
+      "method": "ffprobe tail show_frames",
+      "stream_start_time_seconds": 0.0,
+      "stream_time_base_seconds": 1.1111111111111112e-05,
+      "video_duration_seconds": 30.0
+    },
+    "explicit_times_seconds": [],
+    "overview_samples_requested": 0,
+    "saved_frame_resolution": "native_decoded",
+    "saved_frame_width_requested": null,
+    "unique_frames_extracted": 12
+  },
+  "schema_version": 1,
+  "source": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/renders/complete-30s.mp4"
+}

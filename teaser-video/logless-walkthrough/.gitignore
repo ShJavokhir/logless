@@ -1,0 +1,8 @@
+node_modules/
+.remotion/
+
+# Reproducible frame dumps and the intermediate audio mux stay local.
+review/**/frames/
+review/*.log
+review/regenerated-transitions/
+renders/complete-remotion.mp4

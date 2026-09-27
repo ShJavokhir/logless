@@ -1,0 +1,46 @@
+{
+  "recordedAt": "2026-09-27T01:58:08.805Z",
+  "origin": "http://127.0.0.1:3000",
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      900,
+      900
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "checks": {
+    "completeLoop": true,
+    "searchMatches": 3,
+    "noMatches": true,
+    "clearSearch": true,
+    "geometryStableAcrossSearchAndMode": true,
+    "areaRatio108To18": 6,
+    "keyboardSelectionAndFocusReturn": true,
+    "keyboardStoryCompletionAndEscape": true,
+    "staleSearchIgnored": true,
+    "staleAnalysisIgnored": true,
+    "staleStoryIgnored": true,
+    "storyCacheLabeled": true,
+    "snapshotRetry": true,
+    "searchRetry": true,
+    "analysisRetry": true,
+    "storyRetry": true,
+    "emptyRecovery": true,
+    "horizontalOverflow": false,
+    "allVisibleButtonsNamed": true,
+    "runReceiptClearlySimulated": true
+  },
+  "console": [],
+  "limits": [
+    "Reduced-motion CSS reviewed; system preference not toggled.",
+    "Browser checks were performed manually through Codex browser tools; no Playwright runner was installed.",
+    "Only authored mock data and simulated runs were exercised."
+  ]
+}

@@ -1,0 +1,2 @@
+import React from 'react';
+export const Brand:React.FC<{size?:number}> = ({size=35}) => <div style={{display:'flex',alignItems:'center',gap:size*0.25,fontSize:size,fontWeight:600,letterSpacing:'-0.065em',lineHeight:1}}><svg width={size*1.18} height={size*1.18} viewBox="0 0 42 42" fill="none"><circle cx="17" cy="16" r="11" stroke="currentColor" strokeWidth="2.4"/><circle cx="26" cy="27" r="11" stroke="currentColor" strokeWidth="2.4"/></svg><span>logless</span></div>;

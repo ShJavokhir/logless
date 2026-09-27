@@ -1,0 +1,58 @@
+[
+  {
+    "file": "captures/01-overview.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "c1f2580bc66247c91c2605ec6df58463c6bb64ea6d3a08cff20a63e3a089c112"
+  },
+  {
+    "file": "captures/02-search.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "1fdc45f5509d29e99a8ed13c703c93a258864618fe3c1c55cb73fb30d61ce517"
+  },
+  {
+    "file": "captures/03-analysis-running.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "129b38c6fd5e0aa64168f4c45352d2cbcaa6b10730aee18a34fe5956465f6683"
+  },
+  {
+    "file": "captures/04-friction.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "ac4325ca2195276b22b4a40481784dbfa9a6b9840355f89704ffb58c08341e83"
+  },
+  {
+    "file": "captures/05-inspect.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "a387eeb02c51ec869871aa9d8e9fa744bef21724d90ffdf077736174c47ec8e8"
+  },
+  {
+    "file": "captures/06-story-loading.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "7085042466842ebd809227c982f28c11614e7837594ac2d33e5caeb47b476ddb"
+  },
+  {
+    "file": "captures/07-fictional-story.png",
+    "dimensions": [
+      1440,
+      900
+    ],
+    "sha256": "bbb58aa9b0dff1f0ebfc4ad9c3646f7cbc729a975236139fa3ed8ea15f4882ee"
+  }
+]

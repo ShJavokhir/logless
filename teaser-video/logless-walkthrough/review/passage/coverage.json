@@ -1,0 +1,802 @@
+{
+  "frames": [
+    {
+      "height": 1080,
+      "path": "frames/frame-001.png",
+      "reasons": [
+        "overview",
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 0.0,
+          "selection": "requested_time"
+        },
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 0.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 0.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:00.000",
+      "timestamp_seconds": 0.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-002.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 0.3333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 0.3333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:00.333",
+      "timestamp_seconds": 0.3333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-003.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 0.6666666666666666,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 0.6666666666666666,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:00.667",
+      "timestamp_seconds": 0.6666666666666666,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-004.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 0.7727272727272727,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 0.7727272727272727,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:00.773",
+      "timestamp_seconds": 0.7727272727272727,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-005.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 1.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 1.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:01.000",
+      "timestamp_seconds": 1.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-006.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 1.3333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 1.3333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:01.333",
+      "timestamp_seconds": 1.3333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-007.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 1.5454545454545454,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 1.5454545454545454,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:01.545",
+      "timestamp_seconds": 1.5454545454545454,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-008.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 1.6666666666666665,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 1.6666666666666665,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:01.667",
+      "timestamp_seconds": 1.6666666666666665,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-009.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 2.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 2.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:02.000",
+      "timestamp_seconds": 2.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-010.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 2.3181818181818183,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 2.3181818181818183,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:02.318",
+      "timestamp_seconds": 2.3181818181818183,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-011.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 2.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 2.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:02.333",
+      "timestamp_seconds": 2.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-012.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 2.6666666666666665,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 2.6666666666666665,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:02.667",
+      "timestamp_seconds": 2.6666666666666665,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-013.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 3.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 3.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:03.000",
+      "timestamp_seconds": 3.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-014.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 3.090909090909091,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 3.090909090909091,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:03.091",
+      "timestamp_seconds": 3.090909090909091,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-015.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 3.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 3.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:03.333",
+      "timestamp_seconds": 3.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-016.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 3.6666666666666665,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 3.6666666666666665,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:03.667",
+      "timestamp_seconds": 3.6666666666666665,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-017.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 3.8636363636363638,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 3.8636363636363638,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:03.864",
+      "timestamp_seconds": 3.8636363636363638,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-018.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 4.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 4.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:04.000",
+      "timestamp_seconds": 4.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-019.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 4.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 4.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:04.333",
+      "timestamp_seconds": 4.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-020.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 4.636363636363637,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 4.636363636363637,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:04.636",
+      "timestamp_seconds": 4.636363636363637,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-021.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 4.666666666666666,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 4.666666666666666,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:04.667",
+      "timestamp_seconds": 4.666666666666666,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-022.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 5.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 5.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:05.000",
+      "timestamp_seconds": 5.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-023.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 5.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 5.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:05.333",
+      "timestamp_seconds": 5.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-024.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 5.409090909090909,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 5.409090909090909,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:05.409",
+      "timestamp_seconds": 5.409090909090909,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-025.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 5.666666666666666,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 5.666666666666666,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:05.667",
+      "timestamp_seconds": 5.666666666666666,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-026.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 6.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 6.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:06.000",
+      "timestamp_seconds": 6.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-027.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 6.181818181818182,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 6.181818181818182,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:06.182",
+      "timestamp_seconds": 6.181818181818182,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-028.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 6.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 6.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:06.333",
+      "timestamp_seconds": 6.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-029.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 6.666666666666666,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 6.666666666666666,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:06.667",
+      "timestamp_seconds": 6.666666666666666,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-030.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 6.954545454545454,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 6.954545454545454,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:06.955",
+      "timestamp_seconds": 6.954545454545454,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-031.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 7.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 7.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:07.000",
+      "timestamp_seconds": 7.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-032.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 7.333333333333333,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 7.333333333333333,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:07.333",
+      "timestamp_seconds": 7.333333333333333,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-033.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 7.666666666666666,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 7.666666666666666,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:07.667",
+      "timestamp_seconds": 7.666666666666666,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-034.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 7.7272727272727275,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 7.7272727272727275,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:07.727",
+      "timestamp_seconds": 7.7272727272727275,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-035.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 8.0,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 8.0,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:08.000",
+      "timestamp_seconds": 8.0,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-036.png",
+      "reasons": [
+        "dense"
+      ],
+      "requests": [
+        {
+          "reason": "dense",
+          "requested_timestamp_seconds": 8.333333333333332,
+          "selection": "requested_time"
+        }
+      ],
+      "seek_timestamp_seconds": 8.333333333333332,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:08.333",
+      "timestamp_seconds": 8.333333333333332,
+      "width": 1920
+    },
+    {
+      "height": 1080,
+      "path": "frames/frame-037.png",
+      "reasons": [
+        "overview"
+      ],
+      "requests": [
+        {
+          "reason": "overview",
+          "requested_timestamp_seconds": 8.5,
+          "selection": "last_decodable_frame"
+        }
+      ],
+      "seek_timestamp_seconds": 8.466661111111112,
+      "thumbnail_height": 270,
+      "thumbnail_width": 480,
+      "timestamp": "00:08.467",
+      "timestamp_seconds": 8.466666666666667,
+      "width": 1920
+    }
+  ],
+  "generated_at": "2026-09-27T01:45:39.197558+00:00",
+  "limitations": [
+    "Frames are discrete timestamp samples, not full-speed motion playback.",
+    "The contact sheet does not represent audio; listen to the source or extracted WAV.",
+    "Frames record requested positions separately from seek timestamps; non-endpoint seeks may quantize to nearby source frames.",
+    "The endpoint seek timestamp comes from ffprobe's last reported decodable frame PTS.",
+    "Contact-sheet thumbnails are reduced previews; inspect saved PNG dimensions before judging fine detail."
+  ],
+  "media_summary": {
+    "audio_codec": "aac",
+    "audio_duration_seconds": 8.554667,
+    "audio_present": true,
+    "average_fps": 30.0,
+    "container_duration_seconds": 8.554667,
+    "duration_seconds": 8.5,
+    "height": 1080,
+    "video_codec": "h264",
+    "video_duration_seconds": 8.5,
+    "width": 1920
+  },
+  "outputs": {
+    "audio": null,
+    "contact_sheet": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/review/passage/contact-sheet.jpg",
+    "contact_sheet_dimensions": {
+      "height": 3150,
+      "width": 1970
+    },
+    "inventory": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/review/passage/inventory.json"
+  },
+  "sampling": {
+    "contact_sheet_thumbnail_max_width": 480,
+    "dense_range_seconds": null,
+    "dense_sample_fps": 3.0,
+    "endpoint": {
+      "endpoint_seek_preroll_seconds": 5.555555555147862e-06,
+      "endpoint_seek_time_seconds": 8.466661111111112,
+      "gap_from_video_duration_seconds": 0.033333333333333215,
+      "last_decodable_frame_pts_seconds": 8.466666666666667,
+      "last_decodable_frame_time_seconds": 8.466666666666667,
+      "method": "ffprobe tail show_frames",
+      "stream_start_time_seconds": 0.0,
+      "stream_time_base_seconds": 1.1111111111111112e-05,
+      "video_duration_seconds": 8.5
+    },
+    "explicit_times_seconds": [],
+    "overview_samples_requested": 12,
+    "saved_frame_resolution": "native_decoded",
+    "saved_frame_width_requested": null,
+    "unique_frames_extracted": 37
+  },
+  "schema_version": 1,
+  "source": "/Users/ohong/dev/logless/teaser-video/logless-walkthrough/renders/proof-passage.mp4"
+}

@@ -1,0 +1,8 @@
+{
+  "file": "renders/complete-30s.mp4",
+  "bytes": 3471581,
+  "sha256": "c3b3b6d7d617bde0a8bef892109538e3128f0c31c05a0b9d7ea1084f7dbdbb56",
+  "technical_report": "review/complete-30s.json",
+  "disclosure": "Frontend demo \u00b7 Mock data",
+  "audio_review": "Technical only; no listening capability"
+}

@@ -1,0 +1,163 @@
+<div id="logless-stage-storyboard">
+  <style>
+    #logless-stage-storyboard { color-scheme: light; --stage-paper:#fafaf9; --stage-ink:#222321; --stage-muted:#52544f; --stage-line:#d5d6d1; --stage-blue:#002fa7; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--stage-ink); }
+    #logless-stage-storyboard * { box-sizing:border-box; }
+    #logless-stage-storyboard .planner { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; background:#fff; padding:16px; border-bottom:1px solid var(--stage-line); }
+    #logless-stage-storyboard .planner-label { font-size:14px; font-weight:600; }
+    #logless-stage-storyboard .planner-controls { display:flex; align-items:center; gap:8px; }
+    #logless-stage-storyboard button, #logless-stage-storyboard select { font:inherit; font-size:14px; min-height:40px; background:#fff; color:var(--stage-ink); border:1px solid #bfc1ba; border-radius:5px; padding:8px 12px; }
+    #logless-stage-storyboard button:disabled { opacity:.45; }
+    #logless-stage-storyboard .projection { container-type:inline-size; background:var(--stage-paper); padding:0; }
+    #logless-stage-storyboard .frame { min-height:56.25cqw; padding:3.4cqw 5cqw 6cqw; display:flex; flex-direction:column; }
+    #logless-stage-storyboard .stage-header { display:flex; justify-content:space-between; align-items:center; gap:16px; font-size:max(11px,1.75cqw); color:var(--stage-muted); }
+    #logless-stage-storyboard .brand { color:var(--stage-ink); font-weight:650; font-size:max(17px,2.6cqw); letter-spacing:-.05em; }
+    #logless-stage-storyboard .stage-content { flex:1; padding-top:4.3cqw; }
+    #logless-stage-storyboard .eyebrow { font-size:max(12px,1.8cqw); margin:0 0 1.4cqw; color:var(--stage-muted); }
+    #logless-stage-storyboard h2 { font-size:max(25px,4.15cqw); line-height:1.12; letter-spacing:-.035em; font-weight:550; margin:0; max-width:22ch; }
+    #logless-stage-storyboard .opening { padding-top:5cqw; }
+    #logless-stage-storyboard .opening h2 { font-size:max(31px,5.55cqw); max-width:22ch; }
+    #logless-stage-storyboard .statement { font-size:max(15px,2.3cqw); line-height:1.35; margin:2cqw 0 0; max-width:52ch; }
+    #logless-stage-storyboard .quiet { color:var(--stage-muted); font-size:max(11px,1.8cqw); line-height:1.35; margin:2.5cqw 0 0; }
+    #logless-stage-storyboard .circle-map { display:flex; align-items:flex-end; justify-content:space-between; gap:2cqw; margin-top:2.6cqw; }
+    #logless-stage-storyboard .map-item { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:1.2cqw; }
+    #logless-stage-storyboard .circle-slot { height:20cqw; display:flex; align-items:center; justify-content:center; }
+    #logless-stage-storyboard .volume-circle { width:var(--diameter); height:var(--diameter); border-radius:50%; background:#e4e5df; display:flex; align-items:center; justify-content:center; font-size:max(20px,4.1cqw); font-weight:500; font-variant-numeric:tabular-nums; }
+    #logless-stage-storyboard .map-item:first-child .volume-circle { outline:3px solid var(--stage-blue); outline-offset:5px; }
+    #logless-stage-storyboard .map-label { font-size:max(12px,2cqw); line-height:1.25; text-align:center; }
+    #logless-stage-storyboard .search-line { margin:2.5cqw 0; border-bottom:2px solid var(--stage-blue); padding:1.7cqw 0; font-size:max(18px,3cqw); color:var(--stage-ink); }
+    #logless-stage-storyboard .workflow-row { display:flex; justify-content:space-between; gap:2cqw; padding:1.5cqw 0; border-bottom:1px solid var(--stage-line); font-size:max(15px,2.5cqw); }
+    #logless-stage-storyboard .workflow-row strong { font-variant-numeric:tabular-nums; font-weight:550; }
+    #logless-stage-storyboard .run-steps { display:flex; gap:3cqw; margin:5cqw 0 3cqw; align-items:center; font-size:max(17px,3cqw); }
+    #logless-stage-storyboard .run-active { color:var(--stage-blue); border-bottom:3px solid var(--stage-blue); padding-bottom:.5cqw; }
+    #logless-stage-storyboard .arrow { color:var(--stage-muted); font-size:max(15px,2.3cqw); }
+    #logless-stage-storyboard .metric { margin-top:3.6cqw; font-size:max(40px,8cqw); line-height:1.08; font-weight:550; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+    #logless-stage-storyboard .metric span { font-size:max(25px,4.5cqw); font-weight:400; letter-spacing:-.03em; }
+    #logless-stage-storyboard .metric-label { font-size:max(17px,2.7cqw); margin-top:1.1cqw; }
+    #logless-stage-storyboard .evidence-note { border-top:1px solid var(--stage-line); padding-top:2cqw; margin-top:2.8cqw; font-size:max(13px,2cqw); line-height:1.4; }
+    #logless-stage-storyboard .story-lines { margin-top:3cqw; display:grid; gap:2.6cqw; }
+    #logless-stage-storyboard .story-line { display:grid; grid-template-columns:13cqw 1fr; gap:2cqw; align-items:baseline; }
+    #logless-stage-storyboard .story-label { font-size:max(12px,1.9cqw); color:var(--stage-muted); }
+    #logless-stage-storyboard .story-value { font-size:max(22px,3.1cqw); letter-spacing:-.025em; line-height:1.18; }
+    #logless-stage-storyboard .target-label { display:inline-block; font-size:max(12px,1.8cqw); padding:.7cqw 1cqw; border:1px solid var(--stage-line); margin-bottom:2.3cqw; }
+    #logless-stage-storyboard .proof-rows { display:grid; gap:1.5cqw; margin-top:3cqw; font-size:max(18px,2.8cqw); }
+    #logless-stage-storyboard .proof-rows div { display:flex; justify-content:space-between; gap:2cqw; padding-bottom:1.2cqw; border-bottom:1px solid var(--stage-line); }
+    #logless-stage-storyboard .proof-rows small { font-size:max(12px,1.8cqw); align-self:center; color:var(--stage-muted); }
+    #logless-stage-storyboard .notes { background:#fff; display:grid; grid-template-columns:1.6fr 1fr; gap:24px; border-top:1px solid var(--stage-line); padding:22px; }
+    #logless-stage-storyboard .notes h3 { font-size:13px; line-height:1.4; color:var(--stage-muted); font-weight:500; margin:0 0 8px; }
+    #logless-stage-storyboard .notes p { font-size:15px; line-height:1.55; margin:0; }
+    #logless-stage-storyboard .scene-time { font-variant-numeric:tabular-nums; font-size:13px; color:var(--stage-muted); }
+    @container (max-width:600px) {
+      #logless-stage-storyboard .frame { min-height:390px; padding:22px 20px 36px; }
+      #logless-stage-storyboard .stage-header { align-items:flex-start; }
+      #logless-stage-storyboard .stage-header > span:last-child { max-width:19ch; text-align:right; }
+      #logless-stage-storyboard .stage-content { padding-top:28px; }
+      #logless-stage-storyboard .circle-map { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+      #logless-stage-storyboard .circle-slot { height:110px; }
+      #logless-stage-storyboard .volume-circle { width:calc(var(--diameter) * 1.4); height:calc(var(--diameter) * 1.4); }
+      #logless-stage-storyboard .map-label { font-size:14px; }
+      #logless-stage-storyboard .story-line { grid-template-columns:1fr; gap:5px; }
+      #logless-stage-storyboard .story-lines { gap:20px; }
+      #logless-stage-storyboard .proof-rows div { flex-direction:column; }
+      #logless-stage-storyboard .proof-rows small { align-self:flex-start; }
+    }
+    @media(max-width:600px) { #logless-stage-storyboard .notes { grid-template-columns:1fr; gap:20px; } #logless-stage-storyboard .planner-controls { flex-wrap:wrap; } }
+  </style>
+  <div class="planner">
+    <div><div class="planner-label">Proposed stage sequence</div><span class="scene-time" data-time></span></div>
+    <div class="planner-controls">
+      <button type="button" class="cursor-interaction" data-prev aria-label="Previous screen">←</button>
+      <select aria-label="Demo screen" data-scene>
+        <option value="0">1 · The problem</option><option value="1">2 · The usage map</option><option value="2">3 · Find the workflow</option><option value="3">4 · Run the analysis</option><option value="4">5 · Read the evidence</option><option value="5">6 · Understand the need</option><option value="6">7 · Prove the limit</option><option value="7">8 · The product decision</option>
+      </select>
+      <button type="button" class="cursor-interaction" data-next aria-label="Next screen">→</button>
+    </div>
+  </div>
+  <div class="projection">
+    <div class="frame">
+      <div class="stage-header"><span class="brand">logless</span><span>Design preview · Mock example</span></div>
+      <div class="stage-content" data-screen></div>
+    </div>
+  </div>
+  <div class="notes">
+    <div><h3>What you say · not projected</h3><p data-narration></p></div>
+    <div><h3>What must work behind it</h3><p data-build></p></div>
+  </div>
+  <div class="sr-only" aria-live="polite" data-announcement></div>
+  <script>
+    (() => {
+      const root = document.getElementById('logless-stage-storyboard');
+      const screens = [
+        {
+          time:'0:00–0:15 · Establish the problem',
+          html:'<div class="opening"><p class="eyebrow">Understand the need. Respect the conversation.</p><h2>How do you improve an assistant without reading private chats?</h2><p class="statement">Aggregate insights. Synthetic demo.</p></div>',
+          narration:'Personal assistants see some of our most private conversations. Product teams still need to know what to improve. Logless helps them find patterns without opening individual chats.',
+          build:'Only approved aggregate data reaches the browser. Do not claim provider-blind processing or a validated privacy guarantee.'
+        },
+        {
+          time:'0:15–0:40 · Explore one finding',
+          html:'<p class="eyebrow">600 synthetic conversations · Example figures</p><h2>What are people doing?</h2><div class="circle-map" role="img" aria-label="Mock category totals: coordination 234, everyday tasks 162, research 126, travel 78. Circle area represents conversation count."><div class="map-item"><div class="circle-slot"><div class="volume-circle" style="--diameter:20cqw">234</div></div><div class="map-label">Coordination</div></div><div class="map-item"><div class="circle-slot"><div class="volume-circle" style="--diameter:16.641cqw">162</div></div><div class="map-label">Everyday tasks</div></div><div class="map-item"><div class="circle-slot"><div class="volume-circle" style="--diameter:14.676cqw">126</div></div><div class="map-label">Research</div></div><div class="map-item"><div class="circle-slot"><div class="volume-circle" style="--diameter:11.547cqw">78</div></div><div class="map-label">Travel</div></div></div><p class="quiet">Final demo: a real snapshot, analyzed before the presentation.</p>',
+          narration:'This is a synthetic workspace. We analyzed these conversations before today. The circles show how people use the assistant. One workflow crosses messages and calendars: keeping a shared plan current as people change their minds.',
+          build:'Run real discovery and classification before the demo. Publish checked counts and safe descriptions. Replace these mock categories with the actual result.'
+        },
+        {
+          time:'0:40–0:55 · Search by meaning',
+          html:'<p class="eyebrow">Find a workflow</p><h2>Find the work behind the words.</h2><div class="search-line">coordinating with other people</div><div class="workflow-row"><span>Changing plans</span><strong>108</strong></div><div class="workflow-row"><span>Shared commitments</span><strong>78</strong></div><div class="workflow-row"><span>Closing the loop</span><strong>48</strong></div><p class="quiet">Conversations · Original counts stay unchanged</p>',
+          narration:'I can find that need in everyday language. Search highlights relevant published patterns. It does not open conversations or create new statistics.',
+          build:'Replace keyword matching with Jev relevance over published cluster descriptions. Validate IDs against the snapshot. Keep counts and layout stable.'
+        },
+        {
+          time:'0:55–1:35 · A real request and its result',
+          html:'<p class="eyebrow">Changing plans</p><h2>What’s not working?</h2><div class="run-steps"><span>Preparing</span><span class="arrow">→</span><span class="run-active">Running</span><span class="arrow">→</span><span>Checking</span></div><p class="statement">Measure friction in this workflow.</p><p class="quiet">Target behavior: progress follows the backend job.</p>',
+          narration:'Now I’ll measure where this workflow breaks down. The agent prepares an analysis, runs it in an isolated environment, and checks the result.',
+          build:'A generated program must execute in a fresh sandbox. Poll actual stages. Validate its artifact against trusted counts. Never complete a run from a frontend timer.'
+        },
+        {
+          time:'0:55–1:35 · Hold on the measured result',
+          html:'<p class="eyebrow">Changing plans · Mock figures</p><h2>Where coordination breaks down</h2><div class="metric">46 <span>of 108</span></div><div class="metric-label">conversations show observed friction · 42.6%</div><div class="evidence-note">Corrections, complaints, or unresolved action errors.<br>Other conversations are not automatically successes.</div>',
+          narration:'Here, 46 of 108 conversations show a correction, complaint, or unresolved action error. That does not mean the rest succeeded. The recurring problem is keeping the latest agreement intact.',
+          build:'These are layout examples. Use the actual result and denominator. Count the union of friction signals; overlapping signals cannot be added together.'
+        },
+        {
+          time:'1:35–2:10 · Make the need concrete',
+          html:'<p class="eyebrow">Fictional example · Not a customer quote</p><h2>Alex is keeping a shared plan current.</h2><div class="story-lines"><div class="story-line"><span class="story-label">The goal</span><span class="story-value">Keep everyone’s latest constraints together.</span></div><div class="story-line"><span class="story-label">What breaks</span><span class="story-value">An old constraint returns. Alex repeats the update.</span></div><div class="story-line"><span class="story-label">The need</span><span class="story-value">Carry the latest agreement into the next action.</span></div></div><p class="quiet">Illustrates aggregate evidence. Adds no new evidence.</p>',
+          narration:'A number tells us where to look. This fictional example makes the need concrete. Alex changes a shared plan, but an old constraint returns in the next step. Alex repeats the update. The opportunity is to carry the latest agreement into the next message and reminder.',
+          build:'Generate from approved evidence only. Validate the full story and three short stage fields. Do not project the entire paragraph or invent a real customer.'
+        },
+        {
+          time:'2:10–2:35 · Prove bounded execution',
+          html:'<div class="target-label">Target outcome · Runner not implemented here</div><h2>Faulty work has a limit.</h2><div class="proof-rows"><div><span>Execution limit reached</span><small>Actual elapsed time</small></div><div><span>Sandbox removed</span><small>Verified by the runner</small></div><div><span>App healthy</span><small>Checked after termination</small></div></div><p class="quiet">Fixed infinite-loop test · Two-second deadline</p>',
+          narration:'Because an agent can write faulty code, its work needs limits. This fixed test never finishes. The runner stops it, removes its environment, and verifies the app is still healthy.',
+          build:'Run the real fixture on the deployed VM. Enforce the deadline externally, verify removal, then check health. This proposed screen is not containment evidence.'
+        },
+        {
+          time:'2:35–2:50 · Close, then leave ten seconds of buffer',
+          html:'<div class="opening"><p class="eyebrow">A product hypothesis to test</p><h2>Keep the latest agreement through the next action.</h2><p class="statement">From a usage pattern to a specific improvement.</p><p class="quiet">Understand your users without opening their conversations.</p></div>',
+          narration:'That gives the product team a specific improvement to test. Vultr hosts the app and execution. GLM discovers and explains; Jev classifies and finds. The team sees the pattern without opening the conversation.',
+          build:'The product decision is a hypothesis. It must follow the actual finding. Keep technical architecture in your speech or Q&A, not as a dense closing diagram.'
+        }
+      ];
+      const select = root.querySelector('[data-scene]');
+      const previous = root.querySelector('[data-prev]');
+      const next = root.querySelector('[data-next]');
+      let index = 0;
+      const render = (save = false) => {
+        const scene = screens[index];
+        root.querySelector('[data-screen]').innerHTML = scene.html;
+        root.querySelector('[data-time]').textContent = scene.time;
+        root.querySelector('[data-narration]').textContent = scene.narration;
+        root.querySelector('[data-build]').textContent = scene.build;
+        root.querySelector('[data-announcement]').textContent = 'Screen ' + (index + 1) + ' of ' + screens.length + ': ' + select.options[index].text;
+        select.value = String(index);
+        previous.disabled = index === 0;
+        next.disabled = index === screens.length - 1;
+        if (save && window.openai?.setWidgetState) window.openai.setWidgetState({modelContent:{stage:index + 1},privateContent:{index}}).catch(() => {});
+      };
+      const restore = state => { const saved = state?.privateContent?.index; if (Number.isInteger(saved) && saved >= 0 && saved < screens.length) index = saved; render(); };
+      select.addEventListener('change', () => { index = Number(select.value); render(true); });
+      previous.addEventListener('click', () => { index = Math.max(0,index - 1); render(true); });
+      next.addEventListener('click', () => { index = Math.min(screens.length - 1,index + 1); render(true); });
+      window.addEventListener('openai:set_globals', event => { if (event.detail?.globals?.widgetState) restore(event.detail.globals.widgetState); });
+      restore(window.openai?.widgetState);
+    })();
+  </script>
+</div>

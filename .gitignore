@@ -7,3 +7,9 @@
 !.env.example
 *.pem
 *.key
+
+# Frontend build and local tooling
+node_modules/
+.next/
+out/
+*.tsbuildinfo
