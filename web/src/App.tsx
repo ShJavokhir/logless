@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { RotateCcw } from "lucide-react"
-import { api, describeError } from "@/lib/api"
+import { api, describeError, isPause } from "@/lib/api"
 import type { Health, Intent, Snapshot } from "@/lib/types"
 import { indexSnapshot } from "@/lib/snapshot"
 import { isRunActive } from "@/lib/runs"
@@ -84,7 +84,7 @@ export default function App() {
 
   // question runs
   const [runIds, setRunIds] = useState<Record<Intent, string | null>>({ usage: null, friction: null })
-  const [startError, setStartError] = useState<Record<Intent, string | null>>({ usage: null, friction: null })
+  const [startError, setStartError] = useState<Record<Intent, { message: string; paused: boolean } | null>>({ usage: null, friction: null })
   const [activeIntent, setActiveIntent] = useState<Intent | null>(null)
   const usage = useRun(runIds.usage)
   const friction = useRun(runIds.friction)
@@ -102,7 +102,7 @@ export default function App() {
         const { run_id } = await api.startAnalysis({ intent, snapshot_id: snapshot.snapshot_id })
         setRunIds((r) => ({ ...r, [intent]: run_id }))
       } catch (err) {
-        setStartError((e) => ({ ...e, [intent]: describeError(err, "The analysis could not start.") }))
+        setStartError((e) => ({ ...e, [intent]: { message: describeError(err, "The analysis could not start."), paused: isPause(err) } }))
       }
     },
     [snapshot],
@@ -159,7 +159,7 @@ export default function App() {
       <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 px-4 pb-3 lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)]">
         <section
           aria-label={view === "map" ? "Usage map" : "Workflow list"}
-          className="relative min-h-[440px] overflow-hidden rounded-xl border bg-card lg:min-h-0"
+          className="relative overflow-hidden rounded-xl border bg-card lg:min-h-0"
         >
           {!index ? (
             <MapSkeleton />
@@ -197,7 +197,8 @@ export default function App() {
               key={activeIntent}
               intent={activeIntent}
               run={activeRun}
-              error={startError[activeIntent] ?? runs[activeIntent].error}
+              error={startError[activeIntent]?.message ?? runs[activeIntent].error}
+              paused={!!startError[activeIntent]?.paused}
               index={index}
               selectedId={selectedId}
               onSelectCluster={(id) => {

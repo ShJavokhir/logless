@@ -15,6 +15,8 @@ type Props = {
   intent: Intent
   run: Run | null
   error: string | null
+  /** the run could not start for a "try later" reason (budget, rate limit, capacity) */
+  paused?: boolean
   index: SnapshotIndex
   selectedId: string | null
   onSelectCluster: (id: string) => void
@@ -24,7 +26,7 @@ type Props = {
   onClose: () => void
 }
 
-export function AnswerCard({ intent, run, error, index, selectedId, onSelectCluster, onPeek, onOpenDetails, onRunAgain, onClose }: Props) {
+export function AnswerCard({ intent, run, error, paused, index, selectedId, onSelectCluster, onPeek, onOpenDetails, onRunAgain, onClose }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const active = isRunActive(run) || (!run && !error)
   const steps = deriveSteps(run)
@@ -44,7 +46,7 @@ export function AnswerCard({ intent, run, error, index, selectedId, onSelectClus
         <h2 id="answer-h" className="min-w-0 flex-1 truncate text-[14px] font-semibold">
           {QUESTION[intent]}
         </h2>
-        <StatusChip run={run} error={error} duration={duration} />
+        <StatusChip run={run} error={error} paused={!!paused} duration={duration} />
         <Button variant="ghost" size="icon-xs" onClick={() => setCollapsed((c) => !c)} aria-expanded={!collapsed} aria-label={collapsed ? "Expand answer" : "Collapse answer"}>
           <ChevronDown className={cn("transition-transform duration-150", collapsed && "-rotate-90")} />
         </Button>
@@ -60,8 +62,14 @@ export function AnswerCard({ intent, run, error, index, selectedId, onSelectClus
           {active ? <LiveLine run={run} /> : null}
 
           {failed ? (
-            <div role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-[13px] leading-snug">
-              <p className="font-medium text-destructive">{run?.error?.message ?? error ?? "The analysis failed."}</p>
+            <div
+              role="alert"
+              className={cn(
+                "rounded-lg border px-3 py-2.5 text-[13px] leading-snug",
+                paused && !run ? "border-warn/30 bg-warn-soft" : "border-destructive/25 bg-destructive/5",
+              )}
+            >
+              <p className={cn("font-medium", paused && !run ? "text-foreground/85" : "text-destructive")}>{run?.error?.message ?? error ?? "The analysis failed."}</p>
               {run?.verdict && !run.verdict.passed ? (
                 <p className="mt-1 text-[12px] text-muted-foreground">
                   Failed gate checks: {run.verdict.checks.filter((c) => !c.passed).map((c) => c.name).join(", ")}. Nothing from the program's output reached this page.
@@ -101,7 +109,7 @@ export function AnswerCard({ intent, run, error, index, selectedId, onSelectClus
               {done || failed ? (
                 <Button variant="ghost" size="xs" onClick={onRunAgain}>
                   <RotateCcw />
-                  Run again
+                  {paused && !run ? "Try again" : "Run again"}
                 </Button>
               ) : null}
               <Button variant="outline" size="xs" onClick={onOpenDetails} disabled={!run}>
@@ -116,7 +124,7 @@ export function AnswerCard({ intent, run, error, index, selectedId, onSelectClus
   )
 }
 
-function StatusChip({ run, error, duration }: { run: Run | null; error: string | null; duration: number | null }) {
+function StatusChip({ run, error, paused, duration }: { run: Run | null; error: string | null; paused: boolean; duration: number | null }) {
   if (run?.state === "completed") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-ok-soft px-2 py-0.5 text-[11.5px] font-medium text-ok">
@@ -124,6 +132,9 @@ function StatusChip({ run, error, duration }: { run: Run | null; error: string |
         Verified · {fmtDuration(duration)}
       </span>
     )
+  }
+  if (error && !run && paused) {
+    return <span className="rounded-full bg-warn-soft px-2 py-0.5 text-[11.5px] font-medium text-warn">Paused</span>
   }
   if (run?.state === "failed" || (error && !run)) {
     return <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11.5px] font-medium text-destructive">Failed</span>

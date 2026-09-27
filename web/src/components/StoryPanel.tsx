@@ -4,6 +4,7 @@ import { api, describeError } from "@/lib/api"
 import type { Node as SnapshotNode, Story } from "@/lib/types"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { STORY_LABEL } from "@/lib/copy"
+import { splitCitations } from "@/lib/citations"
 import { fmtClock } from "@/lib/format"
 import { useRun } from "@/hooks/useRun"
 import { Button } from "@/components/ui/button"
@@ -136,7 +137,26 @@ function StoryCard({ story, leaf, onHoverCitation }: { story: Story; leaf: Snaps
         <h3 id="story-card-h" className="mb-1.5 text-[13.5px] font-medium">
           {story.first_name} <span className="font-normal text-muted-foreground">(invented)</span>
         </h3>
-        <p className="font-serif text-[14px] leading-[1.6] text-foreground/90">{story.text}</p>
+        <p className="font-serif text-[14px] leading-[1.6] text-foreground/90">
+          {splitCitations(story.text).map((part, i) =>
+            part.kind === "text" ? (
+              <span key={i}>{part.text}</span>
+            ) : (
+              <button
+                key={i}
+                type="button"
+                className="mr-px ml-1 rounded-[4px] align-[1px]"
+                onMouseEnter={() => onHoverCitation(part.id)}
+                onMouseLeave={() => onHoverCitation(null)}
+                onFocus={() => onHoverCitation(part.id)}
+                onBlur={() => onHoverCitation(null)}
+                aria-label={`Evidence ${part.id}`}
+              >
+                <EvidenceTag id={part.id} className={known.has(part.id) ? undefined : "line-through"} />
+              </button>
+            ),
+          )}
+        </p>
         <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <span>Draws on</span>
           {story.citations.map((c) => (

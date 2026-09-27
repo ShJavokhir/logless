@@ -20,11 +20,15 @@ pnpm gen:mock     # regenerate src/mocks/snapshot.json from scripts/gen-snapshot
 
 ```bash
 VITE_MOCK=0 pnpm dev      # dev server against the FastAPI backend on :8000
+VITE_MOCK=0 VITE_API_TARGET=https://144-202-110-2.sslip.io pnpm dev   # against a deployed API
 VITE_MOCK=1 pnpm build    # demo bundle with the mock (loaded as a separate chunk)
 ```
 
 Mock-only URL switches: `?sandbox=down` (health degraded, questions return
-`sandbox_unreachable`) and `?gate=fail` (analysis fails the egress gate twice).
+`sandbox_unreachable`), `?gate=fail` (analysis fails the egress gate twice),
+`?budget=out` (live features return `429 budget_exhausted`) and `?snapshot=real`
+(serve `src/mocks/real-snapshot.json`, a saved copy of the live snapshot:
+`curl -s https://…/api/snapshot > src/mocks/real-snapshot.json`).
 
 ## Layout
 

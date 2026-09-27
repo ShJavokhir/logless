@@ -104,7 +104,7 @@ export function EvalDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           )}
         </div>
         <p className="border-t px-5 py-3 text-[11.5px] leading-snug text-muted-foreground">
-          We report detected canary leaks, not "zero leaks": the canaries are 40 planted conversations with invented names, emails and phone numbers, searched for in everything the browser can receive.
+          We report detected canary leaks, not "zero leaks": canaries are planted conversations carrying invented names and contact details, searched for in everything the browser can receive. Checks without a target are informational.
         </p>
       </DialogContent>
     </Dialog>

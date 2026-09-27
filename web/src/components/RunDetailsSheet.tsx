@@ -68,6 +68,13 @@ export function RunDetailsSheet({
   )
 }
 
+/** "logless-analysis:1@sha256:91c87e…" → "logless-analysis:1 · 91c87e91" */
+function shortImage(image: string): string {
+  const [name, digest] = image.split("@")
+  const hash = digest?.replace(/^sha256:/, "")
+  return hash ? `${name} · ${hash.slice(0, 8)}` : name
+}
+
 function Section({ title, aside, children, id }: { title: string; aside?: ReactNode; children: ReactNode; id?: string }) {
   return (
     <section aria-labelledby={id}>
@@ -193,7 +200,7 @@ function ReceiptGrid({ receipt }: { receipt: Receipt }) {
       <div className="grid gap-x-6 sm:grid-cols-2">
         <dl>
           <Row k="Runtime" v={receipt.runtime === "runsc" ? "runsc (gVisor)" : `${receipt.runtime} (no gVisor)`} ok={receipt.runtime === "runsc"} />
-          <Row k="Image" v={receipt.image} />
+          <Row k="Image" v={<span title={receipt.image}>{shortImage(receipt.image)}</span>} />
           <Row k="Code sha256" v={receipt.code_sha256.slice(0, 12)} />
           <Row k="Exit code" v={receipt.exit_code === null ? "— (killed)" : receipt.exit_code} ok={receipt.exit_code === 0 ? true : undefined} />
           <Row k="Elapsed" v={fmtMs(receipt.elapsed_ms)} />
@@ -421,12 +428,16 @@ function ContainmentProgress({ run }: { run: Run }) {
               </div>
               {c?.leak_rejection_checks.length ? (
                 <ul className="mt-2.5 flex flex-col gap-1 pl-7.5">
-                  {c.leak_rejection_checks.map((chk) => (
-                    <li key={chk} className="flex items-center gap-2 font-mono text-[12px]">
-                      <X aria-hidden className="size-3.5 shrink-0 text-destructive" />
-                      {chk}
-                    </li>
-                  ))}
+                  {c.leak_rejection_checks.map((chk) => {
+                    const detail = run.verdict?.checks.find((v) => v.name === chk && !v.passed)?.detail
+                    return (
+                      <li key={chk} className="grid grid-cols-[0.875rem_1fr] gap-x-2 text-[12.5px]">
+                        <X aria-hidden className="mt-0.5 size-3.5 text-destructive" />
+                        <span className="font-medium">{chk}</span>
+                        {detail ? <span className="col-start-2 font-mono text-[11.5px] break-words text-muted-foreground">{detail}</span> : null}
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : null}
               <p className="mt-2 pl-7.5 text-[12px] text-muted-foreground">Nothing from that program's output left the sandbox host.</p>
@@ -444,7 +455,7 @@ function ContainmentProgress({ run }: { run: Run }) {
 
       {run.receipt ? (
         <p className="font-mono text-[11px] text-muted-foreground">
-          {run.run_id} · {run.receipt.runtime} · {run.receipt.image} · timed_out {String(run.receipt.timed_out)} · exit {run.receipt.exit_code ?? "—"}
+          {run.run_id} · {run.receipt.runtime} · {shortImage(run.receipt.image)} · timed_out {String(run.receipt.timed_out)} · exit {run.receipt.exit_code ?? "—"}
         </p>
       ) : null}
     </div>

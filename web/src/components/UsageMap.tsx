@@ -26,6 +26,7 @@ const CAT_FONT = 10.5
 const CAT_TRACKING = 0.9
 const CAT_BAND = 16 // px between a category rim and its leaves; holds the curved label
 const LEAF_MIN_LABEL_R = 22 // every leaf at least this big (on screen) gets a label
+const KEY_BELOW_WIDTH = 560 // narrower maps get a category key instead of straight labels
 
 type CategoryLabel =
   | { mode: "arc"; text: string; fontSize: number }
@@ -77,7 +78,9 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
       leaf.set(l.id, fit)
     }
     const cat = new Map<string, CategoryLabel>()
-    for (const c of layout.categories) {
+    const placed: { x: number; y: number; w: number; h: number }[] = []
+    // Larger categories claim label space first.
+    for (const c of [...layout.categories].sort((a, b) => b.r - a.r)) {
       const text = labelText(c.node)
       const labelR = (c.r - CAT_BAND / 2 + 0.5) * k
       const arcFont = [CAT_FONT, 9.5].find((f) => arcLabelFits(text, labelR, f, CAT_TRACKING, canvasMeasure))
@@ -85,16 +88,45 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
         cat.set(c.id, { mode: "arc", text: text.toUpperCase(), fontSize: arcFont })
         continue
       }
-      // Too small for a curved label: a straight label just outside the rim
-      // (below, or above when that would leave the viewport), kept on screen.
+      // Narrow maps show a category key instead of crowded straight labels.
+      if (width < KEY_BELOW_WIDTH) continue
+      // Too small for a curved label: a straight label just outside the rim.
+      // Try below/above (centred and nudged sideways) and keep the candidate
+      // that stays on screen and overlaps other category circles the least.
       const fs = 11
-      const w = canvasMeasure(text, fs, 560)
+      const w = canvasMeasure(text, fs, 560) + 6
+      const h = fs + 4
       const sx = c.x * k + tx
-      const sBottom = (c.y + c.r) * k + ty
-      const sTop = (c.y - c.r) * k + ty
-      const sy = sBottom + fs + 4 <= height - 2 ? sBottom + fs * 0.5 + 4 : sTop - fs * 0.5 - 4
-      const clampedX = Math.min(Math.max(sx, w / 2 + 4), width - w / 2 - 4)
-      cat.set(c.id, { mode: "outside", text, fontSize: fs, x: (clampedX - tx) / k, y: (sy - ty) / k })
+      const sy = c.y * k + ty
+      const sr = c.r * k
+      const others = layout.categories.filter((o) => o.id !== c.id).map((o) => ({ x: o.x * k + tx, y: o.y * k + ty, r: o.r * k }))
+      const overlap = (cx: number, cy: number) => {
+        let score = 0
+        for (const p of placed) {
+          if (Math.abs(cx - p.x) * 2 < w + p.w && Math.abs(cy - p.y) * 2 < h + p.h) score += 1000
+        }
+        for (const o of others) {
+          const nx = Math.max(cx - w / 2, Math.min(o.x, cx + w / 2))
+          const ny = Math.max(cy - h / 2, Math.min(o.y, cy + h / 2))
+          const d = Math.hypot(o.x - nx, o.y - ny)
+          if (d < o.r) score += o.r - d
+        }
+        return score
+      }
+      let best: { x: number; y: number; score: number } | null = null
+      for (const dy of [sr + h / 2 + 2, -(sr + h / 2 + 2)]) {
+        for (const shift of [0, -0.25, 0.25, -0.45, 0.45]) {
+          const cy = sy + dy
+          if (cy - h / 2 < 2 || cy + h / 2 > height - 2) continue
+          const cx = Math.min(Math.max(sx + shift * w, w / 2 + 4), width - w / 2 - 4)
+          const score = overlap(cx, cy) + Math.abs(shift) * 2
+          if (!best || score < best.score) best = { x: cx, y: cy, score }
+        }
+      }
+      // No clean spot (it would cover another label): leave it to the key/tooltip.
+      if (!best || best.score >= 1000) continue
+      placed.push({ x: best.x, y: best.y, w, h })
+      cat.set(c.id, { mode: "outside", text, fontSize: fs, x: (best.x - tx) / k, y: (best.y - ty) / k })
     }
     return { leaf, cat }
   }, [layout, k, tx, ty, width, height, fontsReady])
@@ -126,7 +158,7 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
 
   return (
     <div
-      className="flex h-full min-h-[420px] w-full flex-col select-none"
+      className="flex h-full w-full flex-col select-none lg:min-h-[420px]"
       onKeyDown={(e) => {
         if (e.key === "Escape" && focusId) {
           e.stopPropagation()
@@ -135,7 +167,7 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
       }}
     >
       <MapBar index={index} focusNode={focusNode ?? null} onFocusCategory={onFocusCategory} lens={lens} />
-      <div ref={boxRef} className="relative min-h-0 flex-1 overflow-hidden">
+      <div ref={boxRef} className="relative aspect-square min-h-0 w-full overflow-hidden lg:aspect-auto lg:flex-1">
       {layout ? (
         <svg
           width={width}
@@ -213,39 +245,6 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
                 </g>
               )
             })}
-
-            {/* straight labels for categories too small for a curved one; drawn
-                above every category circle so no neighbour paints over them */}
-            <g aria-hidden style={{ pointerEvents: "none" }}>
-              {layout.categories.map((c) => {
-                const lab = labels?.cat.get(c.id)
-                if (!lab || lab.mode !== "outside") return null
-                const outOfFocus = !!focusId && focusId !== c.id
-                if (outOfFocus) return null
-                const em = categoryEmphasis(highlight, c.id)
-                const pal = index.palette.get(c.id)!
-                return (
-                  <text
-                    key={c.id}
-                    className="map-anim"
-                    x={lab.x}
-                    y={lab.y}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={lab.fontSize / k}
-                    fontWeight={560}
-                    fill={lens === "friction" ? "oklch(0.4 0.008 285)" : pal.label}
-                    stroke="var(--card)"
-                    strokeWidth={3.5 / k}
-                    strokeLinejoin="round"
-                    paintOrder="stroke"
-                    style={{ opacity: em === "dim" ? 0.4 : 1 }}
-                  >
-                    {lab.text}
-                  </text>
-                )
-              })}
-            </g>
 
             {layout.leaves.map((l) => {
               const node = l.node
@@ -343,6 +342,38 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
                 </g>
               )
             })}
+            {/* straight labels for categories too small for a curved one; drawn
+                last so no circle paints over them; placement avoids other categories */}
+            <g aria-hidden style={{ pointerEvents: "none" }}>
+              {layout.categories.map((c) => {
+                const lab = labels?.cat.get(c.id)
+                if (!lab || lab.mode !== "outside") return null
+                const outOfFocus = !!focusId && focusId !== c.id
+                if (outOfFocus) return null
+                const em = categoryEmphasis(highlight, c.id)
+                const pal = index.palette.get(c.id)!
+                return (
+                  <text
+                    key={c.id}
+                    className="map-anim"
+                    x={lab.x}
+                    y={lab.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={lab.fontSize / k}
+                    fontWeight={560}
+                    fill={lens === "friction" ? "oklch(0.4 0.008 285)" : pal.label}
+                    stroke="var(--card)"
+                    strokeWidth={3.5 / k}
+                    strokeLinejoin="round"
+                    paintOrder="stroke"
+                    style={{ opacity: em === "dim" ? 0.4 : 1 }}
+                  >
+                    {lab.text}
+                  </text>
+                )
+              })}
+            </g>
           </g>
         </svg>
       ) : null}
@@ -350,8 +381,41 @@ export function UsageMap({ index, lens, highlight, selectedId, focusId, peekId, 
       {/* tooltip */}
       {hovered && layout ? <MapTooltip circle={hovered} k={k} tx={tx} ty={ty} width={width} height={height} total={total} lens={lens} /> : null}
       </div>
+      {width > 0 && width < KEY_BELOW_WIDTH ? <CategoryKey index={index} focusId={focusId} onFocusCategory={onFocusCategory} /> : null}
       <MapLegend lens={lens} />
     </div>
+  )
+}
+
+/** Compact category key for narrow maps, where curved labels rarely fit. */
+function CategoryKey({
+  index,
+  focusId,
+  onFocusCategory,
+}: {
+  index: SnapshotIndex
+  focusId: string | null
+  onFocusCategory: (id: string | null) => void
+}) {
+  return (
+    <ul aria-label="Categories" className="flex flex-wrap gap-1.5 px-3 pb-2">
+      {index.categories.map((c) => (
+        <li key={c.id}>
+          <button
+            type="button"
+            onClick={() => onFocusCategory(focusId === c.id ? null : c.id)}
+            aria-pressed={focusId === c.id}
+            className={cn(
+              "inline-flex h-6 items-center gap-1.5 rounded-full border px-2 text-[11.5px] transition-colors",
+              focusId === c.id ? "border-foreground/30 bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: index.palette.get(c.id)?.dot }} />
+            {labelText(c)}
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
 

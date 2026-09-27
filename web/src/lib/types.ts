@@ -34,7 +34,7 @@ export type Node = Metrics & {
   level: 1 | 2
   parent_id: string | null
   title: string // <= 8 words
-  short_title?: string // 1–3 words, <= 22 chars, for map labels; UI falls back to `title`
+  short_title: string // map label, 1–3 words (≤ 24 chars incl. server-side "…" fallback); UI still falls back to `title` if absent
   description: string // 1–2 sentences, generalized
   children?: string[] // categories only: leaf ids
   needs?: Need[] // leaves only

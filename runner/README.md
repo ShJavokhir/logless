@@ -9,16 +9,20 @@ container that is always destroyed afterwards. It holds **no API keys**: the onl
 
 | Method + path | Auth | Purpose |
 |---|---|---|
-| `POST /jobs` | bearer | `{job_id (uuid), kind: analysis\|aggregate\|containment, code (≤ 64 KiB), files: {name: content} (≤ 8 MiB; names from {assignments.csv, clusters.json, contract.json}), timeout_s (0.5–10), memory_mb (128–512)}` → `202 {job_id, state}`. Idempotent on `job_id` (a different job under the same id → 409). Queue full → 503. |
+| `POST /jobs` | bearer (checked on headers, before the body is read) | `{job_id (uuid), kind: analysis\|aggregate\|containment, code (≤ 64 KiB), files: {name: content} (≤ 8 MiB; names from {assignments.csv, clusters.json, contract.json}), timeout_s (0.5–10), memory_mb (128–512)}` → `202 {job_id, state}`. Idempotent on `job_id` (a different job under the same id → 409). Queue full → 503. |
 | `GET /jobs/{job_id}` | bearer | `{job_id, kind, state, exit_code, started_at, finished_at, elapsed_ms, timed_out, container_removed, runtime, image, output, output_bytes, stderr_tail, error, host, code_sha256, limits}`. Results are kept in memory for `RUNNER_RESULT_TTL_S` (15 min). |
-| `GET /health` | none | `{status: ok\|degraded, runtime, image, docker, queued}` — no config values. |
+| `GET /health` | none | `{status: ok\|degraded, quarantined, runtime, image, docker, queued}` — no config values. |
 
 `state` is `queued | running | succeeded | failed | timed_out`; a job becomes terminal only after
-its container has been removed and the removal verified. `error` is a fixed code
+its container has been removed and the removal verified. If removal cannot be verified, the job
+fails with `cleanup_failed` (never `succeeded`, no output) and the runner quarantines itself: new
+jobs get `503 quarantined`, queued jobs wait, `/health` reports `degraded` with `quarantined: n`,
+and a reconcile loop retries the removal every 5 s until docker confirms it. Labelled orphans that
+belong to no running job are swept every minute (and on startup). `error` is a fixed code
 (`timeout`, `nonzero_exit`, `oom_killed`, `no_output`, `output_too_large`,
 `output_not_regular_file`, `too_many_output_files`, `output_unreadable`, `not_utf8`, `bad_output_frame`,
 `container_create_failed`, `image_missing`, `image_digest_mismatch`, `runtime_unavailable`,
-`runner_error`). `stderr_tail` (≤ 2 KiB) is for the backend only and never reaches a browser.
+`runner_error`, `cleanup_failed`). `stderr_tail` (≤ 2 KiB) is for the backend only and never reaches a browser.
 
 ## How a job runs
 

@@ -29,6 +29,9 @@ for k in keep:
 print("LOGLESS_ENV=production")
 print("LOGLESS_DATA_DIR=/var/lib/logless")
 print("RUNNER_URL=http://10.20.0.4:8787")
+# Receipts show the sandbox image digest only if the runner reports exactly this id (the runner
+# itself refuses to run any other image; see /etc/logless-runner/env RUNNER_IMAGE_DIGEST).
+print("SANDBOX_IMAGE_DIGEST=" + env.get("SANDBOX_IMAGE_DIGEST", "sha256:91c87e91583edb8cbe9f63de89294f8f269e123d767078ac35f7023df7aefce9"))
 EOF
 
 if [[ $WITH_DATA == 1 ]]; then

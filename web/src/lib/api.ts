@@ -128,6 +128,13 @@ const FRIENDLY: Record<string, string> = {
   payload_too_large: "That request was too large.",
 }
 
+const PAUSE_CODES = new Set(["budget_exhausted", "rate_limited", "busy", "sandbox_unreachable", "model_unavailable"])
+
+/** True for "try later" conditions (quota, rate limit, capacity), as opposed to a failed run. */
+export function isPause(err: unknown): boolean {
+  return err instanceof ApiError && (PAUSE_CODES.has(err.code) || err.status === 429)
+}
+
 /** Human-readable, honest error message for UI surfaces. */
 export function describeError(err: unknown, fallback = "Something went wrong."): string {
   if (err instanceof ApiError) {

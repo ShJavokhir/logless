@@ -249,7 +249,7 @@ export function Footer({ snapshot, mock, onEval }: { snapshot: Snapshot | null; 
   const models = snapshot ? uniqueModelLabels(snapshot.provenance.models) : []
   return (
     <footer className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t bg-card px-4 py-2 text-[11px] text-muted-foreground lg:h-9 lg:flex-nowrap lg:py-0">
-      <span className="min-w-0 truncate">
+      <span className="min-w-0 lg:truncate">
         {snapshot ? (
           <>
             <span className="font-mono">Snapshot {snapshot.snapshot_id}</span> · built {fmtDate(snapshot.created_at)}
