@@ -17,7 +17,7 @@ import sys
 
 OUT = "/out/result.json"
 CAP = 1024 * 1024
-MAX_ENTRIES = 16  # /out is also mounted with nr_inodes=16, but gVisor's tmpfs ignores that option
+MAX_ENTRIES = 1  # the output contract permits only result.json (tmpfs inode limits alone are weaker)
 
 
 def _read_result():

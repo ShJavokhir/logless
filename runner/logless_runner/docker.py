@@ -30,7 +30,7 @@ class Docker:
         self.env = minimal_env()
 
     def run(self, args: list[str], timeout: float = 20.0) -> Result:
-        """Run a short docker command. Output is truncated to 64 KiB per stream."""
+        """Run a short docker command; refuse output beyond 64 KiB rather than trust a prefix."""
         try:
             p = subprocess.run([self.binary, *args], capture_output=True, timeout=timeout, env=self.env,
                                stdin=subprocess.DEVNULL, check=False)
@@ -38,7 +38,9 @@ class Docker:
             return Result(124, "", "timeout")
         except OSError as e:
             return Result(127, "", type(e).__name__)
-        return Result(p.returncode, p.stdout[:65536].decode(errors="replace"), p.stderr[:65536].decode(errors="replace"))
+        if len(p.stdout) > 65536 or len(p.stderr) > 65536:
+            return Result(125, "", "output_too_large")
+        return Result(p.returncode, p.stdout.decode(errors="replace"), p.stderr.decode(errors="replace"))
 
     def popen(self, args: list[str]) -> subprocess.Popen:
         """Start a long-running docker command with piped stdout/stderr (e.g. `start -a`)."""

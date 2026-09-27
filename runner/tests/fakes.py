@@ -5,6 +5,7 @@ import io
 import subprocess
 import threading
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from logless_runner.docker import Result
 
@@ -71,7 +72,7 @@ class FakeDocker:
                 return Result(self.create_rc, "", "create failed")
             name = args[args.index("--name") + 1]
             label = args[args.index("--label") + 1]
-            self.containers[name] = {"label": label, "args": list(args), "exit": None}
+            self.containers[name] = {"label": label, "args": list(args), "exit": None, "started_at": "0001-01-01T00:00:00Z"}
             return Result(0, "cid-" + name + "\n", "")
         if cmd == "kill":
             name = args[-1]
@@ -85,7 +86,10 @@ class FakeDocker:
                 return Result(1, "", "no such container")
             runtime = next((a.split("=", 1)[1] for a in c["args"] if a.startswith("--runtime=")), "runc")
             code = c["exit"] if c["exit"] is not None else 0
-            return Result(0, f"{code} {'true' if self.behavior.oom else 'false'} {runtime}\n", "")
+            started_at = c.get("started_at", "0001-01-01T00:00:00Z")
+            running = c["exit"] is None and not started_at.startswith("0001-")
+            return Result(0, f"{code} {'true' if self.behavior.oom else 'false'} {'true' if running else 'false'} "
+                            f"{runtime} {c['args'][-3]} {started_at}\n", "")
         if cmd == "rm":
             if not self.stuck_containers:
                 for name in args[2:]:
@@ -106,6 +110,7 @@ class FakeDocker:
         with self.lock:
             self.calls.append(list(args))
         name = args[-1]
+        self.containers[name]["started_at"] = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
         p = FakeProc(self, name, self.behavior)
         self.procs[name] = p
         return p

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from logless_runner import config
-from logless_runner.docker import Docker
+from logless_runner.docker import Docker, Result
 from logless_runner.supervisor import JobConflict, JobSpec, Quarantined, Supervisor, parse_frame
 
 from .fakes import Behavior, FakeDocker, frame
@@ -207,6 +207,53 @@ def test_orphans_reaped_on_start(tmp_path):
         assert list((tmp_path / "jobs").iterdir()) == []
     finally:
         sup.stop()
+
+
+def test_stuck_orphan_blocks_admission_and_health_until_verified_removed(tmp_path):
+    fake = FakeDocker(stuck_containers=True)
+    fake.containers["old"] = {"label": "logless.job=previous", "args": [], "exit": None}
+    sup = Supervisor(settings(tmp_path), docker=fake)
+    assert sup.reap_orphans() == 0
+    assert sup.health()["status"] == "degraded"
+    with pytest.raises(Quarantined):
+        sup.submit(spec())
+    fake.stuck_containers = False
+    assert sup.reconcile() == 0
+    assert sup.health()["status"] == "ok"
+
+
+def test_failed_orphan_inventory_blocks_admission_until_successful_sweep(tmp_path):
+    class FailedScan(FakeDocker):
+        fail_scan = True
+
+        def run(self, args, timeout=20.0):
+            if self.fail_scan and args[0] == "ps":
+                return Result(124, "", "timeout")
+            return super().run(args, timeout)
+
+    fake = FailedScan()
+    sup = Supervisor(settings(tmp_path), docker=fake)
+    assert sup.reap_orphans() == 0
+    assert sup.health()["status"] == "degraded"
+    with pytest.raises(Quarantined):
+        sup.submit(spec())
+    fake.fail_scan = False
+    assert sup.reap_orphans() == 0
+    assert sup.health()["status"] == "ok"
+
+
+def test_receipt_image_uses_digest_selected_after_health_refresh(tmp_path):
+    fake = FakeDocker(behavior=Behavior(stdout=frame(b"{}")))
+    sup = Supervisor(settings(tmp_path), docker=fake)
+    sup.refresh_health(force=True)
+    fake.image_id = "sha256:" + "cd" * 32
+    sup._health_at = 0
+    rec, _ = sup.submit(spec())
+    sup.q.get_nowait()
+    sup.execute(rec)
+    assert rec.view()["image"] == "logless-analysis:1@" + fake.image_id
+    create = next(c for c in fake.calls if c[0] == "create")
+    assert create[-3] == fake.image_id
 
 
 def test_worker_runs_queued_jobs(tmp_path):

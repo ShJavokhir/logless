@@ -18,14 +18,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import config
-from .supervisor import ALLOWED_INPUTS, JobConflict, JobSpec, Quarantined, QueueFull, Supervisor
+from .supervisor import ALLOWED_INPUTS, JobConflict, JobSpec, Quarantined, QueueFull, Stopping, Supervisor
 
 log = logging.getLogger("logless.runner")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,63}$")
 
 
 class JobIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(strict=True, extra="forbid")
     job_id: str
     kind: Literal["analysis", "aggregate", "containment"]
     code: str
@@ -96,33 +96,34 @@ class BodyLimit:
             if k == b"content-length":
                 if not v.isdigit():
                     return await _err(400, "bad_request", "bad content-length")(scope, receive, send)
-                if int(v) > self.limit:
+                if len(v) > 20 or int(v) > self.limit:
                     return await _err(413, "payload_too_large", "request body too large")(scope, receive, send)
-        seen = 0
-        too_big = False
-        started = False
-
-        async def limited():
-            nonlocal seen, too_big
+        # Validate the complete bounded body before the endpoint can queue work. Truncating an
+        # oversized final chunk can leave an earlier, valid JSON prefix that the app would execute
+        # even while the middleware replaces its response with 413.
+        body, seen = bytearray(), 0
+        while True:
             msg = await receive()
             if msg["type"] == "http.request":
                 seen += len(msg.get("body", b""))
                 if seen > self.limit:
-                    too_big = True  # stop reading; the app sees an empty, final chunk
-                    return {"type": "http.request", "body": b"", "more_body": False}
-            return msg
-
-        async def guarded_send(message):
-            nonlocal started
-            if too_big:
-                if not started:
-                    started = True
-                    await _err(413, "payload_too_large", "request body too large")(scope, receive, send)
+                    return await _err(413, "payload_too_large", "request body too large")(scope, receive, send)
+                body.extend(msg.get("body", b""))
+                if not msg.get("more_body", False):
+                    break
+            elif msg["type"] == "http.disconnect":
                 return
-            started = True
-            await send(message)
+        body = bytes(body)
+        delivered = False
 
-        await self.app(scope, limited, guarded_send)
+        async def buffered():
+            nonlocal delivered
+            if not delivered:
+                delivered = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+
+        await self.app(scope, buffered, send)
 
 
 class BearerAuth:
@@ -171,8 +172,11 @@ def create_app(settings: config.Settings | None = None, supervisor: Supervisor |
     async def _validation(_: Request, exc: RequestValidationError):
         # Never echo input values: report only the failing field path and a fixed reason.
         first = exc.errors()[0] if exc.errors() else {}
-        loc = ".".join(str(x) for x in first.get("loc", ())[1:]) or "body"
-        reason = str(first.get("ctx", {}).get("error", "")) or first.get("type", "invalid")
+        known_fields = {"job_id", "kind", "code", "files", "timeout_s", "memory_mb"}
+        loc = ".".join(str(x) if x in known_fields else "<field>" for x in first.get("loc", ())[1:]) or "body"
+        # Custom ValueError text and locations can contain input fragments (e.g. invalid Unicode
+        # or dictionary keys). Pydantic's error type is enough for this private protocol.
+        reason = first.get("type", "invalid")
         return _err(422, "invalid_request", f"{loc}: {reason}"[:200])
 
     @app.exception_handler(StarletteHTTPException)
@@ -201,6 +205,8 @@ def create_app(settings: config.Settings | None = None, supervisor: Supervisor |
             return _err(503, "busy", "runner queue is full")
         except Quarantined:
             return _err(503, "quarantined", "a previous container is not yet verified as removed; retry shortly")
+        except Stopping:
+            return _err(503, "stopping", "runner is stopping; retry shortly")
         if created:
             log.info("job %s kind=%s queued", spec.job_id, spec.kind)
         return JSONResponse({"job_id": spec.job_id, "state": rec.view()["state"]}, status_code=202)

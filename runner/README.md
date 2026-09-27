@@ -71,30 +71,56 @@ Concurrency is `RUNNER_CONCURRENCY` (2) workers over a bounded queue (16).
 
 ```bash
 cd runner
-uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[dev]"
+uv sync --locked --extra dev --python 3.12
 docker build -t logless-analysis:1 ../infra/sandbox-image
 RUNNER_TOKEN=$(grep ^RUNNER_TOKEN= ../.env | cut -d= -f2-) RUNNER_BIND=127.0.0.1:8787 RUNNER_RUNTIME=runc \
   RUNNER_WORK_DIR=$PWD/../var-dev/runner-jobs .venv/bin/logless-runner
-.venv/bin/pytest -q                       # unit tests (fake docker) + integration tests (real docker, runc)
-RUNNER_IT_RUNTIME=runsc .venv/bin/pytest -q tests/test_integration.py   # on the VM
+.venv/bin/pytest -q                       # offline tests; real Docker tests are skipped by default
 ```
+
+Real Docker integration tests require explicit opt-in on a **dedicated test daemon or test VM**.
+Never run them against the live demo daemon or alongside any production or development runner.
+The fixture starts its own supervisor, whose orphan cleanup can remove other `logless.job`
+containers. Preflight skips when any labelled container exists or inventory cannot be verified,
+but an empty inventory does not prevent a concurrent runner from creating a job afterward.
+Select the intended dedicated Docker context/host before opting in; do not stop or reset the live
+runner to make this check pass.
+
+```bash
+# Dedicated local test daemon, with no other runner using it:
+RUNNER_INTEGRATION=1 .venv/bin/pytest -q tests/test_integration.py
+# Dedicated gVisor test VM, never the live demo VM:
+RUNNER_INTEGRATION=1 RUNNER_IT_RUNTIME=runsc .venv/bin/pytest -q tests/test_integration.py
+```
+
+For this local setup, also start the backend with `SANDBOX_RUNTIME=runc`. The backend defaults to
+`runsc` and rejects unexpected runtimes, job kinds, limits, pinned image digests and inconsistent
+output byte counts. Its health is degraded if the runner reports a different runtime. The
+destructive demonstration still requires gVisor and refuses to run under runc.
+
+The bootstrap now accepts exactly one output file, `result.json`; extra output files fail the job
+even when the tmpfs inode cap permits them. Startup/periodic orphan removal is verified, and failed
+inventory or unverified removal prevents admission until a successful reconciliation.
 
 If `docker pull` hangs on macOS, the Docker Desktop credential helper is waiting on the keychain;
 build with `DOCKER_CONFIG=<dir with an empty config.json>` to skip it.
 
 ## Deploy (sandbox VM)
 
-The VM is egress-locked, so dependencies are shipped as a wheelhouse built on the operator's Mac:
+The VM is egress-locked. Build a hash-verified wheelhouse from `uv.lock`; the exact online/offline
+commands and cross-platform limits are in [Reproducible Python installs](../docs/DEPENDENCIES.md).
+The old unconstrained `fastapi>=...` download path must not be used for deployment.
 
 ```bash
-cd runner && rm -rf dist wheelhouse
-uv build --wheel -o dist
-uvx pip download --only-binary=:all: --platform manylinux2014_x86_64 --python-version 3.12 \
-  --implementation cp -d wheelhouse "fastapi>=0.115" "uvicorn>=0.32" "pydantic>=2.9" "pytest>=8"
-scp -F ../infra/ssh_config -r dist wheelhouse logless-runner.service README.md tests logless-sandbox:/root/runner-deploy/
+# First prepare dist/, wheelhouse/, and requirements-runtime.txt as described in DEPENDENCIES.md.
+cd runner
+scp -F ../infra/ssh_config -r dist wheelhouse requirements-runtime.txt logless-runner.service README.md tests logless-sandbox:/root/runner-deploy/
 # on the VM (as root):
 python3.12 -m venv /opt/logless-runner/.venv
-/opt/logless-runner/.venv/bin/pip install --no-index --find-links /root/runner-deploy/wheelhouse /root/runner-deploy/dist/*.whl
+/opt/logless-runner/.venv/bin/pip install --no-index --require-hashes \
+  --find-links /root/runner-deploy/wheelhouse -r /root/runner-deploy/requirements-runtime.txt
+/opt/logless-runner/.venv/bin/pip install --no-index --no-deps /root/runner-deploy/dist/*.whl
+/opt/logless-runner/.venv/bin/pip check
 install -d -o root -g runner -m 750 /etc/logless-runner   # env file: RUNNER_TOKEN, RUNNER_BIND, RUNNER_RUNTIME
 install -m 644 /root/runner-deploy/logless-runner.service /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now logless-runner

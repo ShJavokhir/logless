@@ -1,7 +1,10 @@
-"""Integration tests against a real docker daemon and the logless-analysis:1 image.
+"""Opt-in integration tests on a dedicated Docker test daemon/VM only.
 
-Skipped unless `docker` answers and the image exists. Runtime: RUNNER_IT_RUNTIME (default runc,
-so they run on macOS Docker Desktop; use runsc on the sandbox VM)."""
+RUNNER_INTEGRATION=1 is required before any Docker probe. Existing logless.job containers or
+uncertain inventory cause a skip. Never share this daemon with a production or concurrent runner:
+the preflight empty check cannot prevent another process from submitting work afterward, and
+Supervisor.start() reaps labelled containers. Runtime: RUNNER_IT_RUNTIME (default runc).
+"""
 from __future__ import annotations
 
 import json
@@ -22,25 +25,37 @@ IMAGE = os.environ.get("RUNNER_IMAGE", "logless-analysis:1")
 RUNTIME = os.environ.get("RUNNER_IT_RUNTIME", "runc")
 
 
-def _docker_ready() -> bool:
+def integration_docker() -> Docker:
+    """Fail closed before constructing a supervisor; return the same probed daemon adapter."""
+    if os.environ.get("RUNNER_INTEGRATION") != "1":
+        pytest.skip("real Docker tests require RUNNER_INTEGRATION=1 on a dedicated test daemon/VM")
     if not shutil.which("docker"):
-        return False
+        pytest.skip("docker is not available")
     d = Docker()
-    return d.run(["version", "--format", "{{.Server.Version}}"], timeout=10).rc == 0 and \
-        d.run(["image", "inspect", IMAGE], timeout=10).rc == 0
-
-
-pytestmark = pytest.mark.skipif(not _docker_ready(), reason="docker or the analysis image is not available")
+    if d.run(["version", "--format", "{{.Server.Version}}"], timeout=10).rc != 0:
+        pytest.skip("docker daemon is unavailable")
+    if d.run(["image", "inspect", IMAGE], timeout=10).rc != 0:
+        pytest.skip("the analysis image is unavailable")
+    try:
+        inventory = d.run(["ps", "-a", "-q", "--filter", "label=logless.job"], timeout=10)
+    except Exception:
+        pytest.skip("cannot verify the test daemon has no existing logless.job containers")
+    if inventory.rc != 0:
+        pytest.skip("cannot verify the test daemon has no existing logless.job containers")
+    if inventory.out.strip():
+        pytest.skip("existing logless.job containers found; use a dedicated idle test daemon/VM")
+    return d
 
 
 @pytest.fixture(scope="module")
 def sup(tmp_path_factory):
+    docker = integration_docker()  # immediately before startup, not a collection-time probe
     # Docker Desktop shares /private and /var/folders, so pytest's tmp dir can be bind-mounted.
     work = tmp_path_factory.mktemp("runner-jobs")
     s = config.Settings(token="it", bind="127.0.0.1:0", runtime=RUNTIME, image=IMAGE, image_digest="", work_dir=Path(work),
                         concurrency=2, result_ttl_s=900, docker_bin="docker", tmp_tmpfs=config.TMP_TMPFS,
                         out_tmpfs=config.OUT_TMPFS)
-    sv = Supervisor(s)
+    sv = Supervisor(s, docker=docker)
     sv.start()
     yield sv
     sv.stop()
@@ -113,10 +128,16 @@ def test_out_is_size_capped(sup):
 
 def test_out_inode_cap(sup):
     # runc enforces nr_inodes=16 (ENOSPC -> nonzero exit); gVisor's tmpfs ignores nr_inodes, so the
-    # bootstrap refuses to collect a result from an /out holding more than 16 entries.
+    # bootstrap enforces the stricter output contract: only result.json may exist in /out.
     v = run(sup, "for i in range(40):\n    open(f'/out/f{i}', 'w').close()\nopen('/out/result.json', 'w').write('{}')\n")
     assert v["state"] == "failed" and v["output"] is None
     assert v["error"] in ("nonzero_exit", "too_many_output_files")
+
+
+def test_extra_output_file_rejected(sup):
+    v = run(sup, "open('/out/extra.txt', 'w').write('unexpected')\nopen('/out/result.json', 'w').write('{}')\n")
+    assert v["state"] == "failed" and v["output"] is None
+    assert v["error"] == "too_many_output_files"
 
 
 def test_symlink_result_rejected(sup):

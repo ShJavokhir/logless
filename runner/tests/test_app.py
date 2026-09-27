@@ -1,6 +1,8 @@
 """Runner HTTP API tests (fake docker)."""
 from __future__ import annotations
 
+import asyncio
+import json
 import time
 import uuid
 from dataclasses import replace
@@ -9,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from logless_runner import config
-from logless_runner.app import create_app
+from logless_runner.app import BodyLimit, create_app
 from logless_runner.supervisor import Supervisor
 
 from .fakes import Behavior, FakeDocker, frame
@@ -79,6 +81,8 @@ def test_submit_poll_idempotent(client):
     {"files": {"notes.txt": "x"}},
     {"timeout_s": 11},
     {"timeout_s": 0},
+    {"timeout_s": True},
+    {"timeout_s": "5"},
     {"memory_mb": 4096},
     {"extra": 1},
 ])
@@ -109,6 +113,37 @@ def test_streamed_body_limit(client):
     assert r.status_code == 413 and r.json()["code"] == "payload_too_large"
 
 
+def test_oversized_stream_with_valid_json_prefix_never_reaches_endpoint():
+    """Previously the last chunk was dropped, so valid earlier JSON could queue a job behind 413."""
+    called, sent = [], []
+    prefix = json.dumps(job()).encode()
+    chunks = iter([
+        {"type": "http.request", "body": prefix, "more_body": True},
+        {"type": "http.request", "body": b" " * 1000, "more_body": False},
+    ])
+
+    async def receive():
+        return next(chunks)
+
+    async def send(message):
+        sent.append(message)
+
+    async def endpoint(scope, receive, send):
+        called.append(True)
+
+    asyncio.run(BodyLimit(endpoint, len(prefix) + 10)({"type": "http", "headers": []}, receive, send))
+    assert not called
+    assert sent[0]["status"] == 413
+
+
+@pytest.mark.parametrize("bad", [{"private-email@example.com": "secret"}, {"files": {"private-name": 1}}, {"code": "\ud800"}])
+def test_validation_does_not_echo_unknown_fields_or_unicode_fragments(client, bad):
+    raw = json.dumps(job(**bad)).encode()
+    response = client.post("/jobs", content=raw, headers={**AUTH, "Content-Type": "application/json"})
+    assert response.status_code == 422
+    assert "private-" not in response.text and "surrogates" not in response.text
+
+
 def test_auth_checked_before_body(client):
     # Unauthenticated requests are refused on headers alone, whatever the body.
     r = client.post("/jobs", content=b"x" * (config.MAX_REQUEST_BYTES + 1), headers={"Content-Type": "application/json"})
@@ -131,6 +166,16 @@ def test_quarantine_returns_503(client):
 def test_unknown_job(client):
     assert client.get(f"/jobs/{uuid.uuid4()}", headers=AUTH).status_code == 404
     assert client.get("/jobs/abc", headers=AUTH).status_code == 404
+
+
+def test_stopping_runner_refuses_new_jobs_without_creating_records(client):
+    sup = client.app.app.app.state.supervisor
+    sup.stop()
+    submitted = job()
+    response = client.post("/jobs", json=submitted, headers=AUTH)
+    assert response.status_code == 503 and response.json()["code"] == "stopping"
+    assert sup.get(submitted["job_id"]) is None
+    assert client.get("/health").json()["status"] == "degraded"
 
 
 def test_refuses_without_token(tmp_path):

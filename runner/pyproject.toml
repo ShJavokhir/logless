@@ -16,7 +16,15 @@ dev = ["pytest>=8", "httpx>=0.27"]
 logless-runner = "logless_runner.app:main"
 
 [build-system]
-requires = ["hatchling"]
+# Pin the build backend and its Python 3.12 dependency closure as well as runtime uv.lock.
+requires = [
+  "hatchling==1.32.4",
+  "packaging==26.3",
+  "pathspec==1.1.1",
+  "pluggy==1.6.0",
+  "tomlkit==0.15.1",
+  "trove-classifiers==2026.9.21.13",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -24,3 +32,7 @@ packages = ["logless_runner"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv]
+# Prevent a cached local wheel from masking lifecycle or isolation fixes.
+cache-keys = [{ file = "pyproject.toml" }, { file = "logless_runner/**/*.py" }]
