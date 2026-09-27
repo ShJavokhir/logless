@@ -1,4 +1,8 @@
-export type Route = { page: "explore" } | { page: "how-it-works" } | { page: "story"; step: number }
+export type Route =
+  | { page: "explore" }
+  | { page: "how-it-works" }
+  | { page: "story"; step: number }
+  | { page: "remote"; sessionId: string; token: string | null }
 
 export const STEPS = [
   { slug: "", label: "Intro" },
@@ -14,6 +18,11 @@ export function readRoute(hash: string): Route | null {
   const slug = hash.slice(2).split(/[/?]/)[0]
   if (slug === "how-it-works") return { page: "how-it-works" }
   if (slug === "explore") return { page: "explore" }
+  if (slug === "remote") {
+    // "#/remote/<session>/<token>" from the QR code; the phone page then drops the token from the address bar.
+    const [, sessionId, token] = hash.slice(2).split("/")
+    if (sessionId) return { page: "remote", sessionId, token: token || null }
+  }
   const step = STEPS.findIndex((s) => s.slug === slug)
   return { page: "story", step: step < 0 ? 0 : step }
 }

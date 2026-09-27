@@ -9,6 +9,7 @@ import { readRoute, type Route } from "./story/route"
 // Read ?presenter=<key> once and strip it from the URL before anything else runs.
 capturePresenterKey()
 const HowItWorks = lazy(() => import("./explainer/HowItWorks"))
+const RemoteChat = lazy(() => import("./remote/RemoteChat"))
 
 function Root() {
   const [route, setRoute] = useState<Route>(() => readRoute(window.location.hash) ?? { page: "story", step: 0 })
@@ -22,6 +23,7 @@ function Root() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
   if (route.page === "how-it-works") return <Suspense fallback={<p className="p-8">Loading the guide…</p>}><HowItWorks /></Suspense>
+  if (route.page === "remote") return <Suspense fallback={null}><RemoteChat key={route.sessionId} sessionId={route.sessionId} token={route.token} /></Suspense>
   return route.page === "explore" ? <App /> : <StoryApp step={route.step} />
 }
 

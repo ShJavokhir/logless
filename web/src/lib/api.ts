@@ -59,12 +59,14 @@ export const MOCK_MODE: boolean =
 const BASE = "/api"
 export const REQUEST_TIMEOUT_MS = 30_000
 
-async function request<T>(method: "GET" | "POST", path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+type Method = "GET" | "POST" | "DELETE"
+
+export async function request<T>(method: Method, path: string, body?: unknown, signal?: AbortSignal, headers?: Record<string, string>): Promise<T> {
   const timeout = new AbortController()
   const combined = signal ? AbortSignal.any([signal, timeout.signal]) : timeout.signal
   const timer = setTimeout(() => timeout.abort(), REQUEST_TIMEOUT_MS)
   try {
-    return await fetchJson<T>(method, path, body, combined)
+    return await fetchJson<T>(method, path, body, combined, headers)
   } catch (err) {
     if (timeout.signal.aborted && !signal?.aborted) throw new ApiError(0, "timeout", "The API took too long to respond. Try again.")
     throw err
@@ -73,12 +75,12 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown, 
   }
 }
 
-async function fetchJson<T>(method: "GET" | "POST", path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+async function fetchJson<T>(method: Method, path: string, body?: unknown, signal?: AbortSignal, headers?: Record<string, string>): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${BASE}${path}`, {
       method,
-      headers: { ...presenterHeaders(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+      headers: { ...presenterHeaders(), ...headers, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     })
@@ -179,6 +181,12 @@ const FRIENDLY: Record<string, string> = {
   brief_rejected: "The director's storyboard didn't pass the checks twice, so no new cut is shown.",
   story_rejected: "The story didn't pass the privacy check twice, so nothing is shown.",
   payload_too_large: "That request was too large.",
+  too_many_sessions: "Three remote sessions are already open. End one first.",
+  remote_unavailable: "Remote control isn't set up on this server (NetBird is not configured).",
+  netbird_failed: "NetBird could not provision a URL for this session. Try again.",
+  session_ended: "This remote session has ended. Scan a new code on the desktop.",
+  question_limit: "This session has used its 20 questions. Scan a new code for more.",
+  question_in_flight: "loggy is still answering the last question.",
 }
 
 const PAUSE_CODES = new Set(["budget_exhausted", "rate_limited", "busy", "sandbox_unreachable", "model_unavailable"])

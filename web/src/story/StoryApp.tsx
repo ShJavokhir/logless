@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Wordmark } from "@/components/Chrome"
+import { presenterKey } from "@/lib/presenter"
+import { RemoteButton } from "@/remote/RemoteButton"
 import { ASK_BEATS, EXPLORE_HREF, ORGANIZE_BEATS, STEPS, hrefOf } from "./route"
 import { Intro } from "./Intro"
 import { Organize } from "./Organize"
@@ -123,6 +125,7 @@ export function StoryApp({ step }: { step: number }) {
             ))}
           </nav>
           <a href="#/how-it-works" className="ml-auto text-[12.5px] text-muted-foreground hover:text-foreground">How it works</a>
+          {api.mode === "live" && presenterKey() ? <RemoteButton /> : null}
           <a
             href={EXPLORE_HREF}
             className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:ml-0"
