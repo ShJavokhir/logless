@@ -388,7 +388,7 @@ def _leaf_question(st: dict) -> tuple[dict, dict[str, str]]:
 def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) -> dict:
     """Drive one intake run to completion (raises IntakeError on refusal; failures after filing roll back)."""
     from .data import fixtures
-    from .pipeline import publish, stats, util
+    from .pipeline import lineage, publish, stats, util
     from .pipeline.gate import _items, deterministic
     from .pipeline.privacy import TokenScanner
     from .pipeline.questions import CARE, CARE_Q, CARE_QV, FRICTION_Q, FRICTION_QV, OTHER_LABEL, SIGNALS
@@ -523,6 +523,7 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
         secs = sum((build.info.get("stage_seconds") or {}).values()) + run.doc["_deciding_s"]
         new_snap = publish.build_snapshot(scope_build, st, {"snapshot_id": new_id, "metrics": metrics, "languages": langs},
                                           stages, secs)
+        lineage.carry(new_snap, snap)
         errs = publish.validate(new_snap, arows, clusters, strict_ranges=build.limit is None)
         scanner = TokenScanner(fixtures.load_tokens())
         sc = publish.scan(new_snap, scanner)
@@ -545,6 +546,7 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
         # ---- publishing (atomic flip) + live-question inputs
         run.set_stage("publishing", "running")
         stats.save_cluster_map(new_id, build_id, clusters)
+        lineage.copy(snap["snapshot_id"], new_id)
         with db.write(con):
             con.execute("UPDATE intake_batches SET status='ingested', ingested_snapshot_id=?, ingested_at=?, base_snapshot_id=?,"
                         " base_build_id=? WHERE batch_id=?", (new_id, utcnow(), base_snap, build_id, b["batch_id"]))

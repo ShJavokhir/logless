@@ -1,6 +1,7 @@
 import copy
 import json
 
+import numpy as np
 import pytest
 
 from logless import db
@@ -141,3 +142,60 @@ def test_scan_counts_tokens_in_payload():
     snap = {"clusters": [{"id": "cl_1", "title": "Write letters", "description": "Contact quillan.marrowby@fenwarp.net"}]}
     sc = publish.scan(snap, TokenScanner(["quillan.marrowby@fenwarp.net"]))
     assert sc["fixture_tokens"] == 1 and sc["contact"] >= 1
+
+
+def _embed(tmp_data, build_id, conv_ids, axis_of):
+    """Write a build's embeddings: each conversation is a unit vector on its theme's axis."""
+    d = tmp_data / "embeddings"
+    d.mkdir(exist_ok=True)
+    X = np.zeros((len(conv_ids), 5), dtype=np.float32)
+    for i, c in enumerate(conv_ids):
+        X[i, axis_of(c)] = 1.0
+    np.save(d / f"{build_id}.npy", X)
+    (d / f"{build_id}.ids.json").write_text(json.dumps(conv_ids))
+
+
+def test_rebuild_links_leaves_and_serves_the_diff(tmp_data, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from logless.api import app as appmod
+    b = _fake_build(tmp_data, monkeypatch)
+    con = db.private()
+    theme = {r[0]: r[1] for r in con.execute("SELECT conv_id, theme_id FROM assignments WHERE build_id='b_test'")}
+    axis = {"t1_00": 0, "t1_01": 1, "t1_02": 2, "other": 3}
+    _embed(tmp_data, "b_test", b.conv_ids, lambda c: axis[theme[c]])
+    stats.run(b)
+    publish.run(b)
+    first = publish.lineage.current()
+    assert first["previous_snapshot_id"] is None and all(l["previous_id"] is None for l in first["clusters"])
+
+    # A rebuild with new leaf ids: two themes return, "Fix code" becomes an unrelated theme.
+    new_theme = {c: {"t1_02": "t2_09"}.get(t, t) for c, t in theme.items()}
+    for c, t in new_theme.items():
+        con.execute("INSERT INTO assignments(build_id, conv_id, theme_id, p, round) VALUES ('b_two',?,?,0.9,1)", (c, t))
+    con.commit()
+    _embed(tmp_data, "b_two", b.conv_ids, lambda c: {**axis, "t2_09": 4}[new_theme[c]])
+    b2 = util.Build(build_id="b_two", limit=8, conv_ids=b.conv_ids, started_at=b.started_at, stages=b.stages, info=dict(b.info))
+    st = b.load("structure_final")
+    for l, (new_id, tid, title) in zip(st["leaves"], [("cl_aaaaaa", "t1_00", "Write emails"), ("cl_bbbbbb", "t1_01", "Write essays"),
+                                                       ("cl_cccccc", "t2_09", "Plan trips")]):
+        l.update(id=new_id, theme_ids=[tid], title=title, short_title=title)
+    b2.save("structure_final", st)
+    stats.run(b2)
+    publish.run(b2)
+    second = publish.lineage.current()
+    assert second["previous_snapshot_id"] == first["snapshot_id"]
+    assert {l["id"]: l["previous_id"] for l in second["clusters"]} == \
+        {"cl_aaaaaa": "cl_111111", "cl_bbbbbb": "cl_222222", "cl_cccccc": None, "cl_other": "cl_other"}
+
+    monkeypatch.setattr(appmod, "store", appmod.SnapshotStore())
+    with TestClient(appmod.create_app()) as c:
+        assert c.get("/api/snapshot").json()["clusters"][0]["previous_id"] in ("cl_111111", "cl_222222", None)
+        diff = c.get(f"/api/snapshots/{second['snapshot_id']}/diff").json()
+        assert diff["previous_snapshot_id"] == first["snapshot_id"]
+        by = {l["id"]: l for l in diff["leaves"]}
+        assert by["cl_aaaaaa"]["conversations_before"] == by["cl_aaaaaa"]["conversations_after"] == 3
+        assert by["cl_aaaaaa"]["share_change"] == 0.0 and by["cl_cccccc"]["previous_id"] is None
+        assert [g["id"] for g in diff["gone"]] == ["cl_333333"]
+        assert c.get(f"/api/snapshots/{first['snapshot_id']}/diff").json()["code"] == "no_previous_snapshot"
+        assert c.get("/api/snapshots/snap_nope/diff").status_code == 404

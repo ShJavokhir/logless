@@ -84,6 +84,7 @@ class Node(Metrics):
     problems: list[Problem] | None = None
     surprising: Surprising | None = None
     is_other: bool | None = None
+    previous_id: str | None = None   # leaves only: the leaf this one continues in previous_snapshot_id
 
 
 class Workspace(_Out):
@@ -131,6 +132,7 @@ class Provenance(_Out):
 
 class Snapshot(_Out):
     snapshot_id: str
+    previous_snapshot_id: str | None = None
     created_at: str
     workspace: Workspace
     dataset: Dataset

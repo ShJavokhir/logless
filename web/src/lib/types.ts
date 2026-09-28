@@ -43,6 +43,7 @@ export type Node = Metrics & {
   problems?: Problem[] // leaves only
   surprising?: { flag: boolean; score: number } // leaves only
   is_other?: boolean
+  previous_id?: string | null // leaves only: the leaf this one continues in previous_snapshot_id; null = new theme
 }
 
 export type ProvenanceStage = {
@@ -55,6 +56,7 @@ export type ProvenanceStage = {
 
 export type Snapshot = {
   snapshot_id: string
+  previous_snapshot_id?: string | null // the snapshot this one was linked to; null = not linked
   created_at: string
   workspace: { name: string; description: string }
   dataset: {
@@ -265,6 +267,24 @@ export type EvalCheck = {
   target: string
   passed: boolean | null
   detail: string
+}
+
+export type SnapshotDiff = {
+  snapshot_id: string
+  previous_snapshot_id: string
+  conversations_before: number
+  conversations_after: number
+  leaves: {
+    id: string
+    previous_id: string | null // null = new theme
+    title: string
+    conversations_before: number | null
+    conversations_after: number
+    share_before: number | null
+    share_after: number
+    share_change: number | null
+  }[]
+  gone: { id: string; title: string; conversations: number; share: number }[]
 }
 
 export type EvalReport = { snapshot_id: string; generated_at: string; checks: EvalCheck[] }

@@ -109,6 +109,7 @@ def test_engine_with_fake_jev(tmp_data, monkeypatch):
         assert c["conversations"] == sum(l["conversations"] for l in new["clusters"] if l["parent_id"] == c["id"])
     assert {l["id"]: l["title"] for l in new["clusters"]} == {l["id"]: l["title"] for l in base_snap["clusters"]}
     assert "ingested by live intake" in new["dataset"]["sample_note"]
+    assert new["previous_snapshot_id"] == base and all(l["previous_id"] == l["id"] for l in new["clusters"])
     # care decisions come from the same live Jev call: the landlord email is a sensitive situation
     assert new["totals"]["care"]["sensitive"] == base_snap["totals"]["care"]["sensitive"] + 1
     assert res["batch_size"] == len(ids) and res["other"] == 1 and res["base_snapshot_id"] == base

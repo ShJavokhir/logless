@@ -102,9 +102,11 @@ type Node = Metrics & {
   problems?: { id: string; text: string; signal: Signal | null; support: "observed" | "common" }[]; // leaves only
   surprising?: { flag: boolean; score: number };                // leaves only
   is_other?: boolean;
+  previous_id?: string | null;    // leaves only: the leaf this one continues in previous_snapshot_id; null = new theme
 };
 type Snapshot = {
   snapshot_id: string; created_at: string;
+  previous_snapshot_id?: string | null;   // the snapshot this one was linked to (null = not linked); absent on older snapshots
   workspace: { name: string; description: string };
   dataset: {
     name: "WildChat-1M"; source_url: string; revision: string; license: "ODC-BY-1.0"; attribution: string;
@@ -129,11 +131,14 @@ type Snapshot = {
 
 Invariants: leaf `conversations` sum to `totals.conversations`; a category's metrics are recomputed over its leaves' conversations (union); every leaf has exactly one parent. `support: "common"` requires the problem/need to be shown by conversations from >= 5 distinct people; otherwise `"observed"` ("an observed request"). Shares are recomputed by the backend and rounded to 4 decimals before publishing.
 
+**Leaf lineage:** leaf ids are new on every rebuild, so a leaf's `previous_id` names the leaf it continues in `previous_snapshot_id` (the snapshot that was current at publish time). Leaves are matched one-to-one, most similar first, by the cosine of their embedding centroids; pairs below 0.9 are not matched, and `cl_other` always continues `cl_other`. Centroids stay in private.db (`leaf_centroids`); snapshots from a different embedding model, or a build without embeddings on disk, are not linked (`previous_snapshot_id: null`). An intake snapshot continues its base snapshot under the same ids. Non-null `previous_id` values are unique.
+
 ## 6. Web API (FastAPI on the app VM, behind Caddy at `/api/*`)
 
 | Method + path | Body | Returns |
 |---|---|---|
 | GET `/api/snapshot` | — | `Snapshot` |
+| GET `/api/snapshots/{id}/diff` | — | `SnapshotDiff` for any published snapshot against its `previous_snapshot_id`, computed from the two served snapshots; `404 not_found` for an unknown id, `404 no_previous_snapshot` when not linked |
 | POST `/api/search` | `{query: string (<=200 chars), snapshot_id}` | `{snapshot_id, query, results: {cluster_id, relevance: "relevant"\|"unclear"\|"not_relevant", p: number}[], elapsed_ms}` |
 | POST `/api/analyses` | `{intent: "question", question: string (1–200), snapshot_id}` | `{run_id}` (a run already in flight for the same normalized question + snapshot returns its id). `usage`/`friction` → `422` (retired, §0) |
 | GET `/api/runs/{run_id}` | — | `Run` |
@@ -165,6 +170,10 @@ type Receipt = {
   limits: { cpus: number; memory_mb: number; pids: number; timeout_s: number; network: "none"; read_only_root: true };
   started_at: string; finished_at: string; host: string;
 };
+type SnapshotDiff = { snapshot_id: string; previous_snapshot_id: string; conversations_before: number; conversations_after: number;
+  leaves: { id: string; previous_id: string | null; title: string; conversations_before: number | null; conversations_after: number;
+            share_before: number | null; share_after: number; share_change: number | null }[];   // current leaves in snapshot order; previous_id null = new
+  gone: { id: string; title: string; conversations: number; share: number }[] };                // previous leaves no current leaf continues
 type Story = { cluster_id: string; snapshot_id: string; label: string; first_name: string; text: string; citations: string[]; model: string; generated_at: string };
 type EvalReport = { snapshot_id: string; generated_at: string; checks: { id: string; name: string; value: string; target: string; passed: boolean | null; detail: string }[] };
 ```

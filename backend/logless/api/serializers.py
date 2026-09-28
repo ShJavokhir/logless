@@ -131,6 +131,8 @@ def _node(n: dict, level: int) -> dict:
         } for x in n.get("problems") or []]
         if isinstance(n.get("surprising"), dict):
             out["surprising"] = {"flag": bool(n["surprising"].get("flag")), "score": _num(n["surprising"].get("score", 0))}
+    if level == 2 and "previous_id" in n:
+        out["previous_id"] = None if n["previous_id"] is None else _id(n["previous_id"], LEAF_ID)
     if "is_other" in n:
         out["is_other"] = bool(n["is_other"])
     return out
@@ -140,6 +142,8 @@ def serialize_snapshot(raw: dict) -> dict:
     ds, prov, ws = raw["dataset"], raw["provenance"], raw["workspace"]
     out = {
         "snapshot_id": _id(raw["snapshot_id"], SNAPSHOT_ID),
+        **({"previous_snapshot_id": None if raw["previous_snapshot_id"] is None else _id(raw["previous_snapshot_id"], SNAPSHOT_ID)}
+           if "previous_snapshot_id" in raw else {}),
         "created_at": _str(raw["created_at"], 40),
         "workspace": {"name": _str(ws["name"], 120), "description": _str(ws["description"], 600)},
         "dataset": {
@@ -183,6 +187,26 @@ def serialize_snapshot(raw: dict) -> dict:
         if found:
             log.warning("snapshot text field matched a contact pattern (node %s)", n["id"])
     return out
+
+
+def snapshot_diff(cur: dict, prev: dict) -> dict:
+    """Leaf-by-leaf change from `prev` to `cur`, computed from the two served snapshots alone.
+    A leaf continues the previous leaf its `previous_id` names; previous leaves no one continues are gone."""
+    before = {n["id"]: n for n in prev["clusters"]}
+    leaves, seen = [], set()
+    for n in cur["clusters"]:
+        o = before.get(n.get("previous_id"))
+        if o:
+            seen.add(o["id"])
+        leaves.append({"id": n["id"], "previous_id": o["id"] if o else None, "title": n["title"],
+                       "conversations_before": o["conversations"] if o else None, "conversations_after": n["conversations"],
+                       "share_before": o["share"] if o else None, "share_after": n["share"],
+                       "share_change": round(n["share"] - o["share"], 4) if o else None})
+    return {"snapshot_id": cur["snapshot_id"], "previous_snapshot_id": prev["snapshot_id"],
+            "conversations_before": prev["totals"]["conversations"], "conversations_after": cur["totals"]["conversations"],
+            "leaves": leaves,
+            "gone": [{"id": o["id"], "title": o["title"], "conversations": o["conversations"], "share": o["share"]}
+                     for o in prev["clusters"] if o["id"] not in seen]}
 
 
 # ---------------------------------------------------------------- runs

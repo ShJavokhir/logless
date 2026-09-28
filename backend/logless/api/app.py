@@ -186,6 +186,19 @@ def _require_snapshot(snapshot_id: str | None = None) -> dict:
     return snap
 
 
+def _published(snapshot_id: str) -> dict:
+    """Any published snapshot (current or earlier), served through the same allowlist serializer."""
+    row = None
+    if serializers.SNAPSHOT_ID.match(snapshot_id):
+        row = db.public().execute("SELECT json FROM snapshots WHERE snapshot_id=?", (snapshot_id,)).fetchone()
+    if row is None:
+        raise ApiError(404, "not_found", "No published snapshot has that id.")
+    try:
+        return serializers.serialize_snapshot(json.loads(row["json"]))
+    except serializers.Blocked:
+        raise ApiError(503, "snapshot_blocked", "That snapshot failed a publication check and is not served.")
+
+
 def _submit(fn: Callable[[], None], on_done: Callable[[], None] | None = None,
             *, run: runstore.Run | None = None) -> Future:
     global _active
@@ -432,6 +445,13 @@ def create_app() -> FastAPI:
         _require_snapshot()
         cur = store.current()
         return Response(cur[1], media_type="application/json")  # type: ignore[index]
+
+    @app.get("/api/snapshots/{snapshot_id}/diff")
+    def api_snapshot_diff(snapshot_id: str):
+        cur = _published(snapshot_id)
+        if cur.get("previous_snapshot_id") is None:
+            raise ApiError(404, "no_previous_snapshot", "That snapshot is not linked to an earlier snapshot.")
+        return serializers.snapshot_diff(cur, _published(cur["previous_snapshot_id"]))
 
     @app.post("/api/search")
     async def api_search(body: models.SearchIn, request: Request):

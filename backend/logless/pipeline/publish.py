@@ -15,7 +15,7 @@ from ..config import (DATASET_REVISION, DATASET_URL, EMBEDDING_MODEL, GLM, GLM_F
 from ..config_workspace import (INTENDED_USES, SAMPLE_NOTE, SHARD_ROWS, WORKSPACE_DESCRIPTION, WORKSPACE_NAME)
 from ..data import fixtures
 from ..ids import utcnow
-from . import util
+from . import lineage, util
 from .privacy import TokenScanner, contact_hits, source_id_hits, text_strings
 from .prompts import PROMPT_VERSIONS
 from .questions import CARE, QUESTION_VERSIONS, SIGNALS
@@ -171,7 +171,7 @@ def _pipeline_version() -> str:
 
 # ---------------------------------------------------------------- validation
 
-K_SNAP = {"snapshot_id", "created_at", "workspace", "dataset", "totals", "categories", "clusters", "intended_uses", "provenance"}
+K_SNAP = {"snapshot_id", "previous_snapshot_id", "created_at", "workspace", "dataset", "totals", "categories", "clusters", "intended_uses", "provenance"}
 K_WS = {"name", "description"}
 K_DS = {"name", "source_url", "revision", "license", "attribution", "period_start", "period_end", "conversations", "users",
         "languages", "sample_note", "fixtures"}
@@ -181,7 +181,7 @@ K_FR = {"conversations", "share", "unclear", "signals"}
 K_CARE = {*CARE, "unclear"}
 K_CONC = {"top_people_share", "conversations_per_person"}
 K_LANG = {"name", "conversations"}
-K_NODE = K_MET | {"id", "level", "parent_id", "title", "short_title", "description", "children", "needs", "problems", "surprising", "is_other"}
+K_NODE = K_MET | {"id", "level", "parent_id", "title", "short_title", "description", "children", "needs", "problems", "surprising", "is_other", "previous_id"}
 K_NEED = {"id", "text"}
 K_PROB = {"id", "text", "signal", "support"}
 K_SUR = {"flag", "score"}
@@ -267,6 +267,9 @@ def validate(snap: dict, rows: list[dict] | None = None, clusters_arg: list[dict
             errs.append(f"{l['id']}: evidence ids not unique")
         if "surprising" in l:
             _keys(l["surprising"], K_SUR, l["id"] + ".surprising", errs)
+    prev = [l.get("previous_id") for l in leaves if l.get("previous_id") is not None]
+    if len(prev) != len(set(prev)) or (prev and snap.get("previous_snapshot_id") is None):
+        errs.append("previous_id values are not unique or have no previous_snapshot_id")
     for c in cats:
         kids = [l["id"] for l in leaves if l["parent_id"] == c["id"]]
         if sorted(kids) != sorted(c.get("children", [])):
@@ -359,6 +362,8 @@ def run(build: util.Build) -> dict:
                                     "counts": {}, "models": []}]
     secs = sum(build.info.get("stage_seconds", {}).values())
     snap = build_snapshot(build, st, stats, stages, secs)
+    cents = lineage.centroids(build, st)
+    lineage.link(snap, cents, lineage.current())
     clusters = clusters_for(st)
     rows = assignment_rows(build.build_id, clusters)
     errs = validate(snap, rows, clusters, strict_ranges=build.limit is None)
@@ -376,6 +381,7 @@ def run(build: util.Build) -> dict:
     if errs:
         build.save("publish_errors", errs)
         raise PublishError(f"snapshot failed validation ({len(errs)} errors); previous snapshot stays live")
+    lineage.save(snap["snapshot_id"], cents)
     publish_snapshot(snap)
     build.save("snapshot", snap)
     build.info["snapshot_id"] = snap["snapshot_id"]
