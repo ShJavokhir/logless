@@ -75,6 +75,8 @@ def test_snapshot_builder_invariants(tmp_data, monkeypatch):
     assert leaves["cl_333333"]["care"] == {"refusal": 1, "sensitive": 0, "unclear": 0}
     assert leaves["cl_other"]["care"] == {"refusal": 0, "sensitive": 0, "unclear": 1}
     assert snap["totals"]["care"]["refusal"] == 1 and snap["totals"]["friction"]["conversations"] == 2
+    assert leaves["cl_111111"]["concentration"] == {"top_people_share": 1.0, "conversations_per_person": 1.5}  # u0, u1, u1
+    assert snap["totals"]["concentration"]["conversations_per_person"] == 2.0  # 8 conversations, 4 people
     assert "stats_source" not in snap["provenance"]
     assert snap["clusters"][-1]["id"] == "cl_other"
     assert all(sum(x["conversations"] for x in n["languages"]) == n["conversations"] for n in snap["clusters"])

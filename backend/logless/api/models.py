@@ -35,6 +35,11 @@ class Care(_Out):
     unclear: int
 
 
+class Concentration(_Out):
+    top_people_share: float | None
+    conversations_per_person: float | None
+
+
 class Language(_Out):
     name: str
     conversations: int
@@ -46,6 +51,7 @@ class Metrics(_Out):
     share: float
     friction: Friction
     care: Care | None = None   # absent on snapshots published before care signals existed
+    concentration: Concentration | None = None   # absent on snapshots published before it existed
     languages: list[Language]
 
 

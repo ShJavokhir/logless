@@ -86,7 +86,8 @@ type Metrics = {
     unclear: number;
     signals: Record<Signal, number>;
   };
-  care?: { refusal: number; sensitive: number; unclear: number }; // §3 care signals: conversations with the signal observed; unclear = none observed and >=1 unclear. Absent on snapshots published before care existed
+  care?: { refusal: number; sensitive: number; unclear: number };
+  concentration?: { top_people_share: number | null; conversations_per_person: number | null }; // share of the node's conversations from its 5 most active people, and conversations / people; null if 0 conversations. Recomputed from the same rows as `users`. Absent on older snapshots // §3 care signals: conversations with the signal observed; unclear = none observed and >=1 unclear. Absent on snapshots published before care existed
   languages: { name: string; conversations: number }[]; // top 5; a language is listed only with >= 5 conversations from >= 3 people, the rest fold into a final {name: "Other languages"} entry (present only when non-zero), so entries sum to `conversations`
 };
 type Node = Metrics & {

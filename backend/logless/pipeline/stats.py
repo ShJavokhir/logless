@@ -19,6 +19,7 @@ from .questions import CARE, CARE_QV, FRICTION_QV, SIGNALS
 log = logging.getLogger("logless.pipeline.stats")
 
 LANG_MIN_CONV, LANG_MIN_PEOPLE, LANG_TOP = 5, 3, 5
+TOP_PEOPLE = 5
 OTHER_LANGUAGES = "Other languages"
 
 
@@ -78,7 +79,18 @@ def metrics_of(rows: list[dict], total: int) -> dict:
         "friction": {"conversations": fc, "share": round(fc / n, 4) if n else None, "unclear": unclear,
                      "signals": {s: sum(1 for r in rows if r[s] == "observed") for s in SIGNALS}},
         "care": care_of(rows),
+        "concentration": concentration_of(rows),
     }
+
+
+def concentration_of(rows: list[dict]) -> dict:
+    """How much of a node a few people account for. A theme where the top 5 people wrote most of the
+    conversations describes those people, not a population, so readers need to see it."""
+    per = Counter(r["user_id"] for r in rows)
+    n = len(rows)
+    top = sum(c for _, c in per.most_common(TOP_PEOPLE))
+    return {"top_people_share": round(top / n, 4) if n else None,
+            "conversations_per_person": round(n / len(per), 2) if per else None}
 
 
 def care_of(rows: list[dict]) -> dict:

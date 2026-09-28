@@ -53,6 +53,7 @@ def _metrics(m: dict, langs: list[dict]) -> dict:
                          "unclear": int(f["unclear"]),
                          "signals": {s: int(f["signals"][s]) for s in SIGNALS}},
             "care": {k: int(m["care"][k]) for k in (*CARE, "unclear")},
+            "concentration": {k: None if v is None else float(v) for k, v in m["concentration"].items()},
             "languages": [{"name": str(l["name"]), "conversations": int(l["conversations"])} for l in langs]}
 
 
@@ -175,9 +176,10 @@ K_WS = {"name", "description"}
 K_DS = {"name", "source_url", "revision", "license", "attribution", "period_start", "period_end", "conversations", "users",
         "languages", "sample_note", "fixtures"}
 K_FIX = {"canary_conversations", "injection_conversations"}
-K_MET = {"conversations", "users", "share", "friction", "care", "languages"}
+K_MET = {"conversations", "users", "share", "friction", "care", "concentration", "languages"}
 K_FR = {"conversations", "share", "unclear", "signals"}
 K_CARE = {*CARE, "unclear"}
+K_CONC = {"top_people_share", "conversations_per_person"}
 K_LANG = {"name", "conversations"}
 K_NODE = K_MET | {"id", "level", "parent_id", "title", "short_title", "description", "children", "needs", "problems", "surprising", "is_other"}
 K_NEED = {"id", "text"}
@@ -200,6 +202,11 @@ def _check_metrics(m: dict, where: str, errs: list[str]) -> None:
     _keys(m["care"], K_CARE, where + ".care", errs)
     if any(not 0 <= v <= m["conversations"] for v in m["care"].values()):
         errs.append(f"{where}: care counts out of range")
+    c = m["concentration"]
+    _keys(c, K_CONC, where + ".concentration", errs)
+    if (c["top_people_share"] is None) != (m["conversations"] == 0) or \
+            (c["top_people_share"] is not None and not (0 < c["top_people_share"] <= 1 and c["conversations_per_person"] >= 1)):
+        errs.append(f"{where}: concentration out of range")
     for l in m["languages"]:
         _keys(l, K_LANG, where + ".languages", errs)
     if sum(l["conversations"] for l in m["languages"]) != m["conversations"]:
@@ -292,7 +299,7 @@ def validate(snap: dict, rows: list[dict] | None = None, clusters_arg: list[dict
             if (n["conversations"], n["users"], n["friction"]["conversations"], n["friction"]["unclear"],
                     n["friction"]["signals"]) != (r["conversations"], r["users"], r["friction"]["conversations"],
                                                   r["friction"]["unclear"], r["friction"]["signals"]) \
-                    or (has_care and n["care"] != r["care"]):
+                    or (has_care and n["care"] != r["care"]) or n["concentration"] != r["concentration"]:
                 errs.append(f"{n['id']}: metrics differ from the reference recomputation")
         if snap["totals"]["users"] != ref["total"]["users"]:
             errs.append("total users differ from the reference")

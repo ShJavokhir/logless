@@ -92,6 +92,9 @@ def _metrics(m: dict) -> dict:
         },
         "languages": [{"name": _str(x["name"], 60), "conversations": _int(x["conversations"])} for x in (m.get("languages") or [])][:6],
         **({"care": {k: _int(m["care"][k]) for k in (*CARE, "unclear")}} if isinstance(m.get("care"), dict) else {}),
+        **({"concentration": {k: None if m["concentration"].get(k) is None else round(_num(m["concentration"][k]), 4)
+                              for k in ("top_people_share", "conversations_per_person")}}
+           if isinstance(m.get("concentration"), dict) else {}),
     }
 
 
