@@ -64,6 +64,8 @@ Signals: `correction`, `repeat_request`, `assistant_limit`, `complaint`. Each de
 - Unclear (per conversation) = no signal `observed` and at least one `unclear`.
 - Signals overlap and are never summed.
 
+**Care signals** (`refusal`, `sensitive`, versioned `CARE_QV`) use the same tri-state and cutoff and are stored in the `friction` table under their own question version. `refusal`: the assistant declines all or part of a request on policy, safety or ethical grounds (declining for lack of ability is `assistant_limit`, not refusal). `sensitive`: the user brings up self-harm or a crisis, a medical or mental-health concern, legal trouble, abuse, or child safety (fiction and schoolwork don't count). They are asked in the same Jev call as the friction signals and never count toward friction. A resumed facets run asks only for the decision sets a conversation is missing.
+
 ## 4. Storage (app VM: `/var/lib/logless`, local dev: `./var`)
 
 - `private.db` (SQLite): `conversations`, `facets`, `friction`, `themes`, `assignments`, `builds`, `llm_cache`, plus pipeline-owned `facet_checks` (PII check per facet) and `embedding_cache` — backend only. Embeddings in `embeddings/<build_id>.npy` + ids json. Per-build private artifacts (structure, evidence ids, gate detail) in `artifacts/<build_id>/`. `builds.snapshot_id` maps a build to the snapshot it published.
@@ -84,6 +86,7 @@ type Metrics = {
     unclear: number;
     signals: Record<Signal, number>;
   };
+  care?: { refusal: number; sensitive: number; unclear: number }; // §3 care signals: conversations with the signal observed; unclear = none observed and >=1 unclear. Absent on snapshots published before care existed
   languages: { name: string; conversations: number }[]; // top 5; a language is listed only with >= 5 conversations from >= 3 people, the rest fold into a final {name: "Other languages"} entry (present only when non-zero), so entries sum to `conversations`
 };
 type Node = Metrics & {
@@ -301,8 +304,8 @@ Purpose: show the pipeline working on *new* conversations in real time, and real
 Friction and theme are not decided at this step. Other commands: `logless intake status` and `logless intake reset`.
 
 **Run:** `POST /api/intake/runs {}` requires a valid `X-Logless-Presenter` header and returns `{run_id}`. Errors: 403 `presenter_required`, 409 `intake_not_ready` or `intake_in_flight`. The run kind is `"intake"`. Stages:
-1. `deciding`: one Jev call per conversation with 5 questions, the 4 friction signals plus a theme Choice over the current snapshot's leaves and "Other or unclear". 24-way concurrency, cutoff 0.65.
-2. `filing`: store the assignments and friction decisions.
+1. `deciding`: one Jev call per conversation with 7 questions, the 4 friction signals and 2 care signals (§3) plus a theme Choice over the current snapshot's leaves and "Other or unclear". 24-way concurrency, cutoff 0.65.
+2. `filing`: store the assignments and the friction and care decisions.
 3. `gating`: the privacy gate plus invariants and leak scans on the updated snapshot. Texts come unchanged from the base build; only metrics change.
 4. `publishing`: freeze the sandbox inputs and save the intake metadata before atomically making the new snapshot current. Failures before that flip restore the batch to ready and remove its uncommitted decisions; failures after publication never erase the published snapshot's inputs.
 5. `evaluating`: the eval report for the new snapshot is regenerated in the background.
@@ -310,7 +313,7 @@ Friction and theme are not decided at this step. Other commands: `logless intake
 **Events:** `GET /api/intake/runs/{run_id}/events?after=<seq>` requires the presenter header and returns up to 200 events per call. The browser polls about every 300 ms. These are per-record routing diagnostics, not public aggregates.
 ```jsonc
 {"run_id": "run_…", "state": "running|completed|failed", "stage": "deciding|filing|gating|publishing|evaluating|done",
- "counters": {"total": 300, "decided": 187, "per_second": 46.2, "p50_ms": 241, "decisions_per_conversation": 5},
+ "counters": {"total": 300, "decided": 187, "per_second": 46.2, "p50_ms": 241, "decisions_per_conversation": 7},
  "events": [{"seq": 188, "t_ms": 3912, "leaf_id": "cl_…", "p": 0.93,
              "friction": {"correction": "observed", "repeat_request": "not_observed", "assistant_limit": "not_observed", "complaint": "not_observed"},
              "language": "Chinese", "turns": 3,
@@ -331,7 +334,7 @@ Friction and theme are not decided at this step. Other commands: `logless intake
 **Backend notes (as implemented, `backend/logless/intake.py` + `backend/logless/api/intake.py`):**
 - The events response also carries `intake` (the completion object above) once `state` is `completed`, and `error: {code, message}` if it failed. `stage` becomes `done` when the background evaluation finishes. Events live in the API process's memory; after a restart the endpoint serves the persisted Run record with no events.
 - The Run record is stored in `public.db.runs` with kind `"intake"` and the usual Run fields (`intake` set on completion). While it runs, `state` is `executing` (a valid RunState); the events payload uses `running`.
-- Batch decisions are stored like the pipeline's own: friction rows with `FRICTION_QV`, and assignments under the base snapshot's build with `round = 100`. A leaf's first private theme id is used; below the cutoff the theme is `other`. So `pipeline.stats` and the sandbox export (`save_cluster_map` freezes the rows for the new snapshot) cover base plus batch without special cases. A conversation whose Jev call fails twice is filed as Other with friction `unclear` (never guessed), and it emits no event.
+- Batch decisions are stored like the pipeline's own: friction rows with `FRICTION_QV` and care rows with `CARE_QV`, and assignments under the base snapshot's build with `round = 100`. A leaf's first private theme id is used; below the cutoff the theme is `other`. So `pipeline.stats` and the sandbox export (`save_cluster_map` freezes the rows for the new snapshot) cover base plus batch without special cases. A conversation whose Jev call fails twice is filed as Other with friction and care `unclear` (never guessed), and it emits no event.
 - Intake Jev calls bypass the response cache (no reads and no writes), so every rehearsal is live.
 - The gating stage re-runs the deterministic privacy checks on every published text (short titles included), with the corpus now including the batch. It also runs the publish invariants (strict ranges for full builds), the payload scans and the API `serialize_snapshot`. Any failure rolls back the batch's decisions, and the base snapshot stays live.
 - Startup recovers private intake staging only when its proposed snapshot was never inserted publicly and the original base is still current. Committed or unrelated snapshots are not reset. This recovery runs before requests are admitted in the single-process API.

@@ -16,6 +16,7 @@ from . import leakcheck, models
 
 log = logging.getLogger("logless.api")
 SIGNALS = ("correction", "repeat_request", "assistant_limit", "complaint")
+CARE = ("refusal", "sensitive")
 
 SNAPSHOT_ID = re.compile(r"^snap_\d{8}T\d{6}_[0-9a-f]{4}$")
 CATEGORY_ID = re.compile(r"^cat_[0-9a-f]{6}$")
@@ -90,6 +91,7 @@ def _metrics(m: dict) -> dict:
             "signals": {s: _int(f["signals"][s]) for s in SIGNALS},
         },
         "languages": [{"name": _str(x["name"], 60), "conversations": _int(x["conversations"])} for x in (m.get("languages") or [])][:6],
+        **({"care": {k: _int(m["care"][k]) for k in (*CARE, "unclear")}} if isinstance(m.get("care"), dict) else {}),
     }
 
 

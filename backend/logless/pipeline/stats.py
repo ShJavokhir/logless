@@ -14,7 +14,7 @@ from ..ids import snapshot_id as new_snapshot_id
 from . import util
 from .classify import OTHER
 from .hierarchy import load_structure
-from .questions import FRICTION_QV, SIGNALS
+from .questions import CARE, CARE_QV, FRICTION_QV, SIGNALS
 
 log = logging.getLogger("logless.pipeline.stats")
 
@@ -39,7 +39,8 @@ def clusters_for(st: dict) -> list[dict]:
 
 def assignment_rows(build_id: str, clusters: list[dict]) -> list[dict]:
     """One private row per conversation in the build: conv_id, user_id, language, leaf_id, category_id and
-    the four stored friction choices. Leaf/category come from the build's assignments via theme ids."""
+    the stored friction and care choices (a missing decision is "unclear"). Leaf/category come from the
+    build's assignments via theme ids."""
     t2leaf = {t: c["id"] for c in clusters if c["level"] == 2 for t in c["theme_ids"]}
     leaf2cat = {c["id"]: c["parent_id"] for c in clusters if c["level"] == 2}
     con = db.private()
@@ -48,16 +49,18 @@ def assignment_rows(build_id: str, clusters: list[dict]) -> list[dict]:
         "WHERE a.build_id = ? ORDER BY a.conv_id", (build_id,)).fetchall()
     fr: dict[str, dict[str, str]] = defaultdict(dict)
     ids = [r["conv_id"] for r in rows]
-    for chunk in util.chunks(ids, 900):
-        q = "SELECT conv_id, signal, choice FROM friction WHERE question_version = ? AND conv_id IN ({})".format(",".join("?" * len(chunk)))
-        for r in con.execute(q, [FRICTION_QV, *chunk]):
-            fr[r["conv_id"]][r["signal"]] = r["choice"]
+    for version, names in ((FRICTION_QV, SIGNALS), (CARE_QV, CARE)):
+        for chunk in util.chunks(ids, 900):
+            q = "SELECT conv_id, signal, choice FROM friction WHERE question_version = ? AND conv_id IN ({})".format(",".join("?" * len(chunk)))
+            for r in con.execute(q, [version, *chunk]):
+                if r["signal"] in names:
+                    fr[r["conv_id"]][r["signal"]] = r["choice"]
     out = []
     for r in rows:
         leaf = t2leaf.get(r["theme_id"]) or t2leaf.get(OTHER) or "cl_other"
         d = {"conv_id": r["conv_id"], "user_id": r["user_id"], "language": r["language"] or "Unknown",
              "leaf_id": leaf, "category_id": leaf2cat.get(leaf)}
-        for s in SIGNALS:
+        for s in SIGNALS + CARE:
             d[s] = fr[r["conv_id"]].get(s, "unclear")
         out.append(d)
     return out
@@ -74,7 +77,17 @@ def metrics_of(rows: list[dict], total: int) -> dict:
         "share": round(n / total, 4) if total else 0.0,
         "friction": {"conversations": fc, "share": round(fc / n, 4) if n else None, "unclear": unclear,
                      "signals": {s: sum(1 for r in rows if r[s] == "observed") for s in SIGNALS}},
+        "care": care_of(rows),
     }
+
+
+def care_of(rows: list[dict]) -> dict:
+    """Care counts: conversations with each care signal observed, and those with neither observed but at
+    least one unclear (rows from older data without care decisions count as unclear, never as absent)."""
+    out = {s: sum(1 for r in rows if r.get(s, "unclear") == "observed") for s in CARE}
+    out["unclear"] = sum(1 for r in rows if not any(r.get(s, "unclear") == "observed" for s in CARE)
+                         and any(r.get(s, "unclear") == "unclear" for s in CARE))
+    return out
 
 
 def reference_metrics(rows: list[dict], clusters: list[dict]) -> dict[str, dict]:

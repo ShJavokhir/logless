@@ -18,7 +18,7 @@ from ..ids import utcnow
 from . import util
 from .privacy import TokenScanner, contact_hits, source_id_hits, text_strings
 from .prompts import PROMPT_VERSIONS
-from .questions import QUESTION_VERSIONS, SIGNALS
+from .questions import CARE, QUESTION_VERSIONS, SIGNALS
 from .stats import assignment_rows, clusters_for, reference_metrics
 
 log = logging.getLogger("logless.pipeline.publish")
@@ -52,6 +52,7 @@ def _metrics(m: dict, langs: list[dict]) -> dict:
                          "share": None if f["share"] is None else round(float(f["share"]), 4),
                          "unclear": int(f["unclear"]),
                          "signals": {s: int(f["signals"][s]) for s in SIGNALS}},
+            "care": {k: int(m["care"][k]) for k in (*CARE, "unclear")},
             "languages": [{"name": str(l["name"]), "conversations": int(l["conversations"])} for l in langs]}
 
 
@@ -174,8 +175,9 @@ K_WS = {"name", "description"}
 K_DS = {"name", "source_url", "revision", "license", "attribution", "period_start", "period_end", "conversations", "users",
         "languages", "sample_note", "fixtures"}
 K_FIX = {"canary_conversations", "injection_conversations"}
-K_MET = {"conversations", "users", "share", "friction", "languages"}
+K_MET = {"conversations", "users", "share", "friction", "care", "languages"}
 K_FR = {"conversations", "share", "unclear", "signals"}
+K_CARE = {*CARE, "unclear"}
 K_LANG = {"name", "conversations"}
 K_NODE = K_MET | {"id", "level", "parent_id", "title", "short_title", "description", "children", "needs", "problems", "surprising", "is_other"}
 K_NEED = {"id", "text"}
@@ -195,6 +197,9 @@ def _check_metrics(m: dict, where: str, errs: list[str]) -> None:
     _keys(m, K_MET | K_NODE, where, errs)
     _keys(m["friction"], K_FR, where + ".friction", errs)
     _keys(m["friction"]["signals"], set(SIGNALS), where + ".friction.signals", errs)
+    _keys(m["care"], K_CARE, where + ".care", errs)
+    if any(not 0 <= v <= m["conversations"] for v in m["care"].values()):
+        errs.append(f"{where}: care counts out of range")
     for l in m["languages"]:
         _keys(l, K_LANG, where + ".languages", errs)
     if sum(l["conversations"] for l in m["languages"]) != m["conversations"]:
@@ -279,11 +284,15 @@ def validate(snap: dict, rows: list[dict] | None = None, clusters_arg: list[dict
             errs.append(f"{len(leaves)} leaves outside {LEAVES_RANGE}")
     if rows is not None and clusters_arg is not None:
         ref = reference_metrics(rows, clusters_arg)
+        # Frozen sandbox inputs (the eval's reconciliation source) hold friction only, so care is
+        # checked only when the rows carry it; the publish-time check always does.
+        has_care = all(s in r for r in rows for s in CARE)
         for n in cats + leaves:
             r = ref[n["id"]]
             if (n["conversations"], n["users"], n["friction"]["conversations"], n["friction"]["unclear"],
                     n["friction"]["signals"]) != (r["conversations"], r["users"], r["friction"]["conversations"],
-                                                  r["friction"]["unclear"], r["friction"]["signals"]):
+                                                  r["friction"]["unclear"], r["friction"]["signals"]) \
+                    or (has_care and n["care"] != r["care"]):
                 errs.append(f"{n['id']}: metrics differ from the reference recomputation")
         if snap["totals"]["users"] != ref["total"]["users"]:
             errs.append("total users differ from the reference")

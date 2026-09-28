@@ -30,6 +30,11 @@ def _fake_build(tmp_data, monkeypatch):
             choice = "observed" if (s == "correction" and i in (0, 3)) else ("unclear" if (s == "complaint" and i == 5) else "not_observed")
             con.execute("INSERT INTO friction(conv_id, signal, choice, raw_choice, p, question_version) VALUES (?,?,?,?,?,?)",
                         (cid, s, choice, choice, 0.9, "f1"))
+        if i < 7:  # the last conversation has no care decisions yet: it counts as unclear
+            for s in ("refusal", "sensitive"):
+                choice = "observed" if (s == "refusal" and i == 5) else "not_observed"
+                con.execute("INSERT INTO friction(conv_id, signal, choice, raw_choice, p, question_version) VALUES (?,?,?,?,?,?)",
+                            (cid, s, choice, choice, 0.9, "c1"))
     con.commit()
     b = util.Build(build_id="b_test", limit=8, conv_ids=convs, started_at="2026-09-27T00:00:00Z")
     b.info = {"discovery_rounds": 1, "stage_seconds": {"facets": 1.0}}
@@ -67,6 +72,9 @@ def test_snapshot_builder_invariants(tmp_data, monkeypatch):
     assert leaves["cl_111111"]["friction"]["signals"]["correction"] == 1
     assert cats["cat_aaaaaa"]["friction"]["conversations"] == 2
     assert leaves["cl_333333"]["friction"]["unclear"] == 1
+    assert leaves["cl_333333"]["care"] == {"refusal": 1, "sensitive": 0, "unclear": 0}
+    assert leaves["cl_other"]["care"] == {"refusal": 0, "sensitive": 0, "unclear": 1}
+    assert snap["totals"]["care"]["refusal"] == 1 and snap["totals"]["friction"]["conversations"] == 2
     assert "stats_source" not in snap["provenance"]
     assert snap["clusters"][-1]["id"] == "cl_other"
     assert all(sum(x["conversations"] for x in n["languages"]) == n["conversations"] for n in snap["clusters"])
@@ -96,6 +104,10 @@ def test_validate_catches_tampering(tmp_data, monkeypatch):
     bad = copy.deepcopy(snap)
     bad["clusters"][1]["id"] = bad["clusters"][0]["id"]
     assert any("unique" in e for e in publish.validate(bad, strict_ranges=False))
+    bad = copy.deepcopy(snap)
+    bad["clusters"][0]["care"]["refusal"] += 1
+    rows = stats.assignment_rows(b.build_id, stats.clusters_for(b.load("structure_final")))
+    assert any("reference" in e for e in publish.validate(bad, rows, stats.clusters_for(b.load("structure_final")), strict_ranges=False))
     bad = copy.deepcopy(snap)
     bad["categories"][0]["users"] = sum(l["users"] for l in bad["clusters"] if l["parent_id"] == bad["categories"][0]["id"])
     rows = stats.assignment_rows(b.build_id, stats.clusters_for(b.load("structure_final")))

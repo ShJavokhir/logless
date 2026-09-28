@@ -40,8 +40,8 @@ def fake_ask(state, questions):
         theme = _choice("Write essays", 0.4, opts)  # below the 0.65 cutoff -> cl_other
     tri = ["observed", "not_observed", "unclear"]
     ans = {"theme": theme}
-    for s in SIG:
-        obs = s == "correction" and "fix" in task
+    for s in (*SIG, "refusal", "sensitive"):
+        obs = (s == "correction" and "fix" in task) or (s == "sensitive" and "landlord" in task)
         ans[s] = _choice("observed" if obs else "not_observed", 0.9, tri)
     return ans
 
@@ -91,7 +91,7 @@ def test_engine_with_fake_jev(tmp_data, monkeypatch):
     run, res = _run(base, len(ids))
     page = run.page(0)
     assert page["state"] == "completed" and page["counters"]["total"] == len(ids) == page["counters"]["decided"]
-    assert page["counters"]["decisions_per_conversation"] == 5 and page["counters"]["per_second"] > 0
+    assert page["counters"]["decisions_per_conversation"] == 7 and page["counters"]["per_second"] > 0
     evs = page["events"]
     assert [e["seq"] for e in evs] == list(range(1, len(ids) + 1))
     assert all(set(e) == {"seq", "t_ms", "leaf_id", "p", "friction", "language", "turns", "summary"} for e in evs)
@@ -109,6 +109,8 @@ def test_engine_with_fake_jev(tmp_data, monkeypatch):
         assert c["conversations"] == sum(l["conversations"] for l in new["clusters"] if l["parent_id"] == c["id"])
     assert {l["id"]: l["title"] for l in new["clusters"]} == {l["id"]: l["title"] for l in base_snap["clusters"]}
     assert "ingested by live intake" in new["dataset"]["sample_note"]
+    # care decisions come from the same live Jev call: the landlord email is a sensitive situation
+    assert new["totals"]["care"]["sensitive"] == base_snap["totals"]["care"]["sensitive"] + 1
     assert res["batch_size"] == len(ids) and res["other"] == 1 and res["base_snapshot_id"] == base
     assert 1 <= len(res["deltas"]) <= 8 and all(d["conversations_after"] >= d["conversations_before"] for d in res["deltas"])
     assert publish.validate(new, strict_ranges=False) == []

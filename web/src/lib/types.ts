@@ -17,6 +17,7 @@ export type Metrics = {
     unclear: number
     signals: Record<Signal, number>
   }
+  care?: { refusal: number; sensitive: number; unclear: number } // policy refusals and sensitive situations; never friction
   languages: { name: string; conversations: number }[] // top 5 by count
 }
 

@@ -29,6 +29,12 @@ class Friction(_Out):
     signals: Signals
 
 
+class Care(_Out):
+    refusal: int
+    sensitive: int
+    unclear: int
+
+
 class Language(_Out):
     name: str
     conversations: int
@@ -39,6 +45,7 @@ class Metrics(_Out):
     users: int
     share: float
     friction: Friction
+    care: Care | None = None   # absent on snapshots published before care signals existed
     languages: list[Language]
 
 

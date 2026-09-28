@@ -117,13 +117,14 @@ def test_live_glm_timeout_and_attempts_reach_transport(tmp_data, monkeypatch):
 
 def test_failed_facets_are_retried_on_resume(tmp_data, monkeypatch):
     from logless import db
-    from logless.pipeline.questions import SIGNALS, FRICTION_QV
+    from logless.pipeline.questions import CARE, CARE_QV, SIGNALS, FRICTION_QV
     facets.ensure_schema()
     cid = "c_000000000001"
     con = db.private()
     con.execute("INSERT INTO conversations(conv_id, turn_identifier, user_id, text) VALUES (?,?,?,?)", (cid, 1, "person", "source"))
     con.executemany("INSERT INTO friction(conv_id, signal, choice, raw_choice, p, question_version) VALUES (?,?,?,?,?,?)",
-                    [(cid, s, "not_observed", "not_observed", 1.0, FRICTION_QV) for s in SIGNALS])
+                    [(cid, s, "not_observed", "not_observed", 1.0, FRICTION_QV) for s in SIGNALS]
+                    + [(cid, s, "not_observed", "not_observed", 1.0, CARE_QV) for s in CARE])
     con.commit()
     facets._mark_failed(cid)
     attempts = []
@@ -174,3 +175,29 @@ def test_outbound_embedding_guard_does_not_reuse_unsafe_text_cache_key(tmp_data,
     result = discover.embed_texts([private, private])
     assert seen == [facets.PRIVATE_FACET]
     assert np.array_equal(result, np.array([[1.0, 0.0], [1.0, 0.0]], dtype=np.float32))
+
+
+def test_resume_asks_jev_only_for_missing_decision_sets(tmp_data, monkeypatch):
+    """A conversation decided before care signals existed gets one Jev call with only the care questions."""
+    from logless import db
+    from logless.pipeline.questions import CARE, CARE_QV, SIGNALS, FRICTION_QV
+    facets.ensure_schema()
+    cid = "c_000000000001"
+    con = db.private()
+    con.execute("INSERT INTO conversations(conv_id, turn_identifier, user_id, text) VALUES (?,?,?,?)", (cid, 1, "person", "source"))
+    con.executemany("INSERT INTO friction(conv_id, signal, choice, raw_choice, p, question_version) VALUES (?,?,?,?,?,?)",
+                    [(cid, s, "observed", "observed", 1.0, FRICTION_QV) for s in SIGNALS])
+    con.commit()
+    asked = []
+    tri = lambda c: {"type": "choice", "choice": c, "probabilities": {"observed": 0.9 if c == "observed" else 0.05,
+                     "not_observed": 0.9 if c == "not_observed" else 0.05, "unclear": 0.05}}
+    def ask(state, questions):
+        asked.append(sorted(questions))
+        return {q: tri("observed" if q == "refusal" else "not_observed") for q in questions}
+    monkeypatch.setattr(util, "jev_ask", ask)
+    monkeypatch.setattr(facets, "extract_one", lambda conv_id, text: ("ok", "fake"))
+    counts = facets.run(util.Build("b_test", None, [cid], "now"))
+    assert asked == [sorted(CARE)]
+    got = dict(con.execute("SELECT signal, choice FROM friction WHERE conv_id = ? AND question_version = ?", (cid, CARE_QV)).fetchall())
+    assert got == {"refusal": "observed", "sensitive": "not_observed"}
+    assert counts["refusal_observed"] == 1 and counts["friction_observed"] == 1

@@ -30,6 +30,7 @@ from typing import Any, Callable
 from . import db
 from .config import JEV, JEV_CONFIDENCE_CUTOFF, settings
 from .ids import conversation_id, run_id as new_run_id, user_pseudonym, utcnow
+from .pipeline.questions import CARE, SIGNALS
 
 log = logging.getLogger("logless.intake")
 
@@ -342,7 +343,7 @@ class IntakeRun:
             return {"total": self.total, "decided": self.decided,
                     "per_second": round(self.decided / el, 1) if el > 0 else 0.0,
                     "p50_ms": int(1000 * statistics.median(self.latencies)) if self.latencies else 0,
-                    "decisions_per_conversation": 5}
+                    "decisions_per_conversation": len(SIGNALS) + len(CARE) + 1}
 
     def finish(self, intake: dict | None = None, error: tuple[str, str] | None = None) -> None:
         with self.lock:
@@ -390,7 +391,7 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
     from .pipeline import publish, stats, util
     from .pipeline.gate import _items, deterministic
     from .pipeline.privacy import TokenScanner
-    from .pipeline.questions import FRICTION_Q, FRICTION_QV, OTHER_LABEL, SIGNALS
+    from .pipeline.questions import CARE, CARE_Q, CARE_QV, FRICTION_Q, FRICTION_QV, OTHER_LABEL, SIGNALS
     from .pipeline.run import load_build
     from .providers import jev as jevmod
 
@@ -410,7 +411,7 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
                                "FROM conversations c LEFT JOIN facets f USING(conv_id) "
                                "LEFT JOIN facet_checks k USING(conv_id) WHERE c.conv_id IN ({})")
     theme_q, by_name = _leaf_question(st)
-    questions = {**FRICTION_Q, **theme_q}
+    questions = {**FRICTION_Q, **CARE_Q, **theme_q}
     leaf_theme = {lf["id"]: (lf["theme_ids"][0] if lf["theme_ids"] else "other") for lf in st["leaves"]}
 
     # ---- deciding (live, concurrent; one event per answer as it lands)
@@ -466,6 +467,9 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
                 stored, rawc, ps = jevmod.tri_state(ans[s_], JEV_CONFIDENCE_CUTOFF)
                 fr[s_] = stored
                 raw[s_] = (rawc, ps)
+            for s_ in CARE:
+                stored, rawc, ps = jevmod.tri_state(ans[s_], JEV_CONFIDENCE_CUTOFF)
+                raw[s_] = (stored, rawc, ps)
             decisions[cid] = {"leaf": leaf, "p": p, "friction": fr, "raw": raw}
             r = rows[cid]
             run.add_event({"leaf_id": leaf, "p": round(float(p), 3), "friction": fr,
@@ -496,6 +500,10 @@ def run_batch(run: IntakeRun, *, evaluate: Callable[[str], None] | None = None) 
                     rawc, ps = d["raw"][s_] if d else ("unclear", 0.0)
                     con.execute("INSERT OR REPLACE INTO friction(conv_id, signal, choice, raw_choice, p, model, question_version, created_at)"
                                 " VALUES (?,?,?,?,?,?,?,?)", (cid, s_, choice, rawc, float(ps), JEV, FRICTION_QV, now))
+                for s_ in CARE:
+                    choice, rawc, ps = d["raw"][s_] if d else ("unclear", "unclear", 0.0)
+                    con.execute("INSERT OR REPLACE INTO friction(conv_id, signal, choice, raw_choice, p, model, question_version, created_at)"
+                                " VALUES (?,?,?,?,?,?,?,?)", (cid, s_, choice, rawc, float(ps), JEV, CARE_QV, now))
         run.set_stage("filing", "done", f"{len(ids)} conversations filed")
 
         # ---- gating: updated snapshot = base build texts + metrics over base + batch

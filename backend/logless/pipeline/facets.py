@@ -13,7 +13,7 @@ from ..ids import utcnow
 from ..providers import jev
 from . import util
 from .prompts import FACET_REWRITE_SYS, FACET_SYS, PROMPT_VERSIONS, Facets
-from .questions import FRICTION_Q, FRICTION_QV, PII_Q, PII_QV, SIGNALS
+from .questions import CARE, CARE_Q, CARE_QV, FRICTION_Q, FRICTION_QV, PII_Q, PII_QV, SIGNALS
 
 log = logging.getLogger("logless.pipeline.facets")
 
@@ -120,15 +120,32 @@ def extract_one(conv_id: str, text: str) -> tuple:
     return status, model
 
 
-def friction_one(conv_id: str, text: str) -> dict:
-    ans = util.jev_ask({"conversation": text}, FRICTION_Q)
+# (questions, signal names, version): Jev decision sets asked together in one call per conversation
+DECISION_SETS = ((FRICTION_Q, SIGNALS, FRICTION_QV), (CARE_Q, CARE, CARE_QV))
+
+
+def decided(ids: list[str], names: tuple[str, ...], version: str) -> set[str]:
+    """Conversations that already have every decision of one set at its current version."""
+    con = db.private()
+    out: set[str] = set()
+    for chunk in util.chunks(ids, 900):
+        q = ("SELECT conv_id, COUNT(*) n FROM friction WHERE question_version = ? AND conv_id IN ({}) GROUP BY conv_id"
+             .format(",".join("?" * len(chunk))))
+        out.update(r["conv_id"] for r in con.execute(q, [version, *chunk]) if r["n"] == len(names))
+    return out
+
+
+def friction_one(conv_id: str, text: str, sets=DECISION_SETS) -> dict:
+    """One Jev call answering every missing decision set (friction and care) for a conversation."""
+    ans = util.jev_ask({"conversation": text}, {k: v for q, _, _ in sets for k, v in q.items()})
     now = utcnow()
     rows = []
     out = {}
-    for s in SIGNALS:
-        stored, raw, p = jev.tri_state(ans[s], JEV_CONFIDENCE_CUTOFF)
-        rows.append((conv_id, s, stored, raw, p, JEV, FRICTION_QV, now))
-        out[s] = stored
+    for _, names, version in sets:
+        for s in names:
+            stored, raw, p = jev.tri_state(ans[s], JEV_CONFIDENCE_CUTOFF)
+            rows.append((conv_id, s, stored, raw, p, JEV, version, now))
+            out[s] = stored
     con = db.private()
     with db.write(con):
         con.executemany("INSERT OR REPLACE INTO friction(conv_id, signal, choice, raw_choice, p, model, question_version, created_at)"
@@ -153,19 +170,17 @@ def run(build: util.Build) -> dict:
     con = db.private()
     done_f = util.load_rows(ids, "SELECT f.conv_id FROM facets f JOIN facet_checks c USING(conv_id) "
                                 "WHERE f.prompt_version = '" + FACETS_V + "' AND c.status != 'failed' AND f.conv_id IN ({})")
-    done_x = {}
-    for chunk in util.chunks(ids, 900):
-        q = ("SELECT conv_id, COUNT(*) n FROM friction WHERE question_version = ? AND conv_id IN ({}) GROUP BY conv_id"
-             .format(",".join("?" * len(chunk))))
-        for row in con.execute(q, [FRICTION_QV, *chunk]):
-            if row["n"] == len(SIGNALS):
-                done_x[row["conv_id"]] = True
-    if util.no_cache():  # fresh run: recompute every conversation's facets and friction
-        done_f, done_x = {}, {}
+    done_sets = [decided(ids, names, v) for _, names, v in DECISION_SETS]
+    if util.no_cache():  # fresh run: recompute every conversation's facets and decisions
+        done_f, done_sets = {}, [set() for _ in DECISION_SETS]
+
+    def missing(c: str) -> tuple:
+        return tuple(ds for ds, done in zip(DECISION_SETS, done_sets) if c not in done)
+
     need_f = [c for c in ids if c not in done_f]
-    need_x = [c for c in ids if c not in done_x]
+    need_x = [c for c in ids if missing(c)]
     texts = util.load_rows(sorted(set(need_f) | set(need_x)), "SELECT conv_id, text FROM conversations WHERE conv_id IN ({})")
-    log.info("facets: %d to extract (%d done), friction: %d to decide (%d done)", len(need_f), len(done_f), len(need_x), len(done_x))
+    log.info("facets: %d to extract (%d done), friction: %d to decide (%d done)", len(need_f), len(done_f), len(need_x), len(ids) - len(need_x))
 
     res: dict = {}
 
@@ -178,7 +193,7 @@ def run(build: util.Build) -> dict:
         res["facet_errors"] = errs
 
     def do_friction() -> None:
-        out, errs = util.pmap(lambda c: friction_one(c, texts[c]["text"]), need_x, s.jev_concurrency, "friction")
+        out, errs = util.pmap(lambda c: friction_one(c, texts[c]["text"], missing(c)), need_x, s.jev_concurrency, "friction")
         res["friction_errors"] = errs
 
     failed: list[BaseException] = []
@@ -199,16 +214,12 @@ def run(build: util.Build) -> dict:
     if failed:
         raise failed[0]
 
-    # retry friction failures once, sequentially-ish
-    still = []
-    for chunk in util.chunks(ids, 900):
-        q = ("SELECT conv_id, COUNT(*) n FROM friction WHERE question_version = ? AND conv_id IN ({}) GROUP BY conv_id"
-             .format(",".join("?" * len(chunk))))
-        have = {r["conv_id"] for r in con.execute(q, [FRICTION_QV, *chunk]) if r["n"] == len(SIGNALS)}
-        still.extend(c for c in chunk if c not in have)
+    # retry decision failures once, sequentially-ish
+    done_sets = [decided(ids, names, v) for _, names, v in DECISION_SETS]
+    still = [c for c in ids if missing(c)]
     if still:
         texts2 = util.load_rows(still, "SELECT conv_id, text FROM conversations WHERE conv_id IN ({})")
-        util.pmap(lambda c: friction_one(c, texts2[c]["text"]), still, 4, "friction-retry")
+        util.pmap(lambda c: friction_one(c, texts2[c]["text"], missing(c)), still, 4, "friction-retry")
 
     counts = _counts(ids)
     counts["facet_errors"] = int(res.get("facet_errors", 0))
@@ -233,4 +244,11 @@ def _counts(ids: list[str]) -> dict:
     for s in SIGNALS:
         c[f"{s}_observed"] = sum(1 for d in fr.values() if d.get(s) == "observed")
         c[f"{s}_unclear"] = sum(1 for d in fr.values() if d.get(s) == "unclear")
+    care: dict[str, dict] = {}
+    for chunk in util.chunks(ids, 900):
+        q = "SELECT conv_id, signal, choice FROM friction WHERE question_version = ? AND conv_id IN ({})".format(",".join("?" * len(chunk)))
+        for r in con.execute(q, [CARE_QV, *chunk]):
+            care.setdefault(r["conv_id"], {})[r["signal"]] = r["choice"]
+    for s in CARE:
+        c[f"{s}_observed"] = sum(1 for d in care.values() if d.get(s) == "observed")
     return c

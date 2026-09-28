@@ -30,6 +30,23 @@ FRICTION_Q: dict[str, dict] = {
                      "unclear": "Tone suggests dissatisfaction but it is not clearly aimed at the assistant"}},
 }
 
+# Care signals: what a safety or trust team needs per theme. They are stored in the friction table under
+# their own version and never count toward friction share (a policy refusal is not a product failure).
+CARE = ("refusal", "sensitive")
+CARE_QV = "c1"
+CARE_Q: dict[str, dict] = {
+    "refusal": {"type": "choice",
+        "instructions": "In `conversation`, does the assistant decline all or part of the request on policy, safety or ethical grounds?",
+        "criteria": {"observed": "The assistant refuses, partly refuses or redirects the request because it considers it harmful, unsafe, unethical or against its rules",
+                     "not_observed": "The assistant does the task; declining for lack of ability or access (no internet, cannot open files) does not count",
+                     "unclear": "The assistant may have declined on policy grounds but it cannot be told from the text"}},
+    "sensitive": {"type": "choice",
+        "instructions": "In `conversation`, does the user bring up a sensitive personal situation: self-harm or a crisis, a medical or mental-health concern, legal trouble, abuse, or the safety of a child?",
+        "criteria": {"observed": "The user describes such a situation affecting themselves or someone they know",
+                     "not_observed": "No such situation; fiction, schoolwork or general questions about these topics do not count",
+                     "unclear": "Such a situation is possible but cannot be told from the text"}},
+}
+
 PII_QV = "pii1"
 PII_Q: dict[str, dict] = {
     "identifying": {"type": "noul", "instructions": (
@@ -102,5 +119,5 @@ def surprise_questions(keys: list[str]) -> dict:
                 "criteria": SURPRISE_CRITERIA} for k in keys}
 
 
-QUESTION_VERSIONS = {"friction": FRICTION_QV, "pii": PII_QV, "classify": CLASSIFY_QV, "hierarchy_refile": HIERARCHY_QV,
+QUESTION_VERSIONS = {"friction": FRICTION_QV, "care": CARE_QV, "pii": PII_QV, "classify": CLASSIFY_QV, "hierarchy_refile": HIERARCHY_QV,
                      "identifiability": IDENT_QV, "surprising": SURPRISE_QV}

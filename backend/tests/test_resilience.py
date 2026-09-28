@@ -194,6 +194,6 @@ def test_facets_stage_surfaces_provider_unavailable(tmp_data, monkeypatch):
     b = _fake_build(tmp_data, monkeypatch)
     from logless.pipeline import facets
     monkeypatch.setattr(facets, "extract_one", lambda c, t: (_ for _ in ()).throw(ProviderError("glm", 402, "billing_error")))
-    monkeypatch.setattr(facets, "friction_one", lambda c, t: {})
+    monkeypatch.setattr(facets, "friction_one", lambda *a: {})
     with pytest.raises(util.ProviderUnavailable, match="glm unavailable: billing_error"):
         facets.run(b)
