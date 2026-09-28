@@ -43,8 +43,8 @@ TASKS_DIR = Path(__file__).resolve().parent / "tasks"
 if not TASKS_DIR.is_dir():
     TASKS_DIR = Path(__file__).resolve().parents[2] / "sandbox_tasks"
 # The fixed plan the follow-up and leak programs are checked against: conversations per category.
-FIXED_PLAN = {"group_by": "category", "scope_category_id": None, "measure": "conversations", "signal": None,
-              "rank_by": "count", "limit": 5}
+FIXED_PLAN = {"group_by": "category", "scope_category_id": None, "scope_leaf_id": None, "measure": "conversations",
+              "signal": None, "rank_by": "count", "limit": 5}
 
 
 def task_source(name: str) -> str:

@@ -1,6 +1,7 @@
 """Side layer — sub-themes: inside each published leaf theme, k-means sub-clusters (on the build's
 facet embeddings) with short, privacy-checked titles. Stored in public.db `subthemes` (one row per
-build) and served by GET /api/subthemes; the snapshot format is untouched.
+build) and served by GET /api/subthemes; the snapshot format is untouched. Which conversation fell in
+which sub-theme is kept in private.db `subtheme_members`, so live questions can group by sub-theme.
 
 Only ids, short titles (or null), integer counts and a `rest` flag are stored. Titles pass the same
 shape rules as map labels (labels.label_problems) and the same deterministic privacy checks + Jev
@@ -26,6 +27,9 @@ log = logging.getLogger("logless.pipeline.subthemes")
 
 SCHEMA = ("CREATE TABLE IF NOT EXISTS subthemes (build_id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL, "
           "created_at TEXT NOT NULL, json TEXT NOT NULL)")
+# Private: conversation -> sub-theme id (real sub-themes and `_rest` buckets alike), per build.
+MEMBERS_SCHEMA = ("CREATE TABLE IF NOT EXISTS subtheme_members (build_id TEXT NOT NULL, conv_id TEXT NOT NULL, "
+                  "subtheme_id TEXT NOT NULL, PRIMARY KEY (build_id, conv_id))")
 
 MIN_LEAF = 30          # leaves smaller than this get no sub-themes
 K_MIN, K_MAX, PER_K = 2, 6, 40
@@ -225,16 +229,14 @@ def _snapshot_for(build_id: str) -> dict:
     return json.loads(snap["json"])
 
 
-def run(build_id: str) -> dict:
+def _cluster(build_id: str):
+    """Deterministic part: k-means inside every published leaf, folded into sub-theme items. No model
+    calls. Returns (build, snapshot, leaves, items by leaf, members by leaf, missing embeddings)."""
     from .describe import leaf_members
-    from .discover import SEEDS, _sample_people, fit_kmeans, load_embeddings, load_facets
-    from .gate import IDENT_MAX, deterministic, jev_ident
+    from .discover import SEEDS, fit_kmeans, load_embeddings
     from .hierarchy import load_structure
-    from .privacy import TokenScanner
     from .run import load_build
 
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    util.USAGE.stage = "subthemes"
     build = load_build(build_id)
     snap = _snapshot_for(build.build_id)
     published = {c["id"]: int(c["conversations"]) for c in snap["clusters"]}
@@ -252,7 +254,6 @@ def run(build_id: str) -> dict:
     pos = {c: i for i, c in enumerate(ids)}
     user_of = {r["conv_id"]: r["user_id"] for r in util.load_rows(
         build.conv_ids, "SELECT conv_id, user_id FROM conversations WHERE conv_id IN ({})").values()}
-    facets = load_facets(build.conv_ids)
 
     out: dict[str, list[dict]] = {}
     sub_members: dict[str, dict[str, list[str]]] = {}
@@ -283,6 +284,56 @@ def run(build_id: str) -> dict:
     mism = check_sums(out, published)
     if mism:
         raise SystemExit("sub-theme counts do not match the snapshot:\n  " + "\n  ".join(mism))
+    return build, snap, leaves, out, sub_members, missing_total
+
+
+def save_members(build_id: str, sub_members: dict[str, dict[str, list[str]]]) -> int:
+    """Replace the build's private conversation -> sub-theme map. Returns the rows written."""
+    rows = [(build_id, c, sid) for mem in sub_members.values() for sid, convs in mem.items() for c in convs]
+    con = db.private()
+    con.execute(MEMBERS_SCHEMA)
+    with db.write(con):
+        con.execute("DELETE FROM subtheme_members WHERE build_id = ?", (build_id,))
+        con.executemany("INSERT INTO subtheme_members(build_id, conv_id, subtheme_id) VALUES (?,?,?)", rows)
+    return len(rows)
+
+
+def load_members(build_id: str) -> dict[str, str]:
+    """conv_id -> sub-theme id for one build (empty when the build has none stored)."""
+    con = db.private()
+    con.execute(MEMBERS_SCHEMA)
+    return {r["conv_id"]: r["subtheme_id"] for r in
+            con.execute("SELECT conv_id, subtheme_id FROM subtheme_members WHERE build_id = ?", (build_id,))}
+
+
+def backfill_members(build_id: str) -> dict:
+    """Store membership for a build whose sub-themes were published before membership was kept:
+    re-run the same seeded k-means (no model calls) and save it only if every item id and count
+    matches the stored sub-themes exactly."""
+    stored = load_for_build(build_id)
+    if stored is None:
+        raise SystemExit(f"build {build_id} has no stored sub-themes; run `logless subthemes --build {build_id}`")
+    build, _, _, out, sub_members, _ = _cluster(build_id)
+    want = {lid: [(x["id"], int(x["conversations"]), int(x["users"])) for x in items]
+            for lid, items in (stored.get("leaves") or {}).items()}
+    got = {lid: [(x["id"], int(x["conversations"]), int(x["users"])) for x in items] for lid, items in out.items()}
+    if want != got:
+        bad = sorted(lid for lid in set(want) | set(got) if want.get(lid) != got.get(lid))
+        raise SystemExit(f"re-clustering does not reproduce the stored sub-themes ({len(bad)} leaves differ); "
+                         f"run `logless subthemes --build {build_id}` to rebuild them")
+    n = save_members(build.build_id, sub_members)
+    return {"build_id": build.build_id, "members": n, "leaves_with_subthemes": sum(1 for v in out.values() if v)}
+
+
+def run(build_id: str) -> dict:
+    from .discover import SEEDS, _sample_people, load_facets
+    from .gate import IDENT_MAX, deterministic, jev_ident
+    from .privacy import TokenScanner
+
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    util.USAGE.stage = "subthemes"
+    build, snap, leaves, out, sub_members, missing_total = _cluster(build_id)
+    facets = load_facets(build.conv_ids)
 
     # names: one GLM call per leaf with >= 2 real sub-clusters
     leaf_by_id = {lf["id"]: lf for lf in leaves}
@@ -324,6 +375,7 @@ def run(build_id: str) -> dict:
                 x["short_title"] = titles[x["id"]]
 
     doc = {"build_id": build.build_id, "base_snapshot_id": snap["snapshot_id"], "leaves": out}
+    save_members(build.build_id, sub_members)
     con = db.public()
     con.execute(SCHEMA)
     with db.write(con):

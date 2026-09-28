@@ -309,8 +309,9 @@ export type FrictionResult = {
 export type PlanSignal = "any_friction" | Signal
 
 export type Plan = {
-  group_by: "leaf" | "category"
-  scope_category_id: string | null // restrict to one category (group_by must be "leaf")
+  group_by: "leaf" | "category" | "subtheme"
+  scope_category_id: string | null // restrict to one category (group_by "leaf" or "subtheme")
+  scope_leaf_id?: string | null // restrict to one workflow's sub-themes (group_by "subtheme"); absent on older runs
   measure: "conversations" | "people"
   signal: PlanSignal | null // null = no filter
   rank_by: "count" | "share" // share = count ÷ base (same measure, no signal filter, per group)
@@ -323,7 +324,7 @@ export type QuestionResult = {
   intent: "question"
   snapshot_id: string
   plan: Plan
-  rows: QuestionRow[] // rank_by desc, then id asc; at most `limit`
+  rows: QuestionRow[] // rank_by desc, then id asc; at most `limit`. ids are categories, workflows or sub-themes
   total_count: number // over the whole scope, excluding Other
   total_base: number
 }

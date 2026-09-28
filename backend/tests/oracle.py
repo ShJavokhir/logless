@@ -98,8 +98,10 @@ def question(df: pd.DataFrame, clusters: list[dict], plan: dict, snapshot_id: st
     `_all`: every in-scope group's row, which the gate uses for per-id checks."""
     groups, leaf_ids = question_scope(clusters, plan)
     in_scope = df["leaf_id"].isin(leaf_ids)
+    if plan["group_by"] == "subtheme":
+        in_scope &= df["subtheme_id"].isin(groups)
     sig = _signal_mask(df, plan["signal"])
-    key_col = "leaf_id" if plan["group_by"] == "leaf" else "category_id"
+    key_col = {"leaf": "leaf_id", "category": "category_id", "subtheme": "subtheme_id"}[plan["group_by"]]
     rows = []
     for gid in groups:
         g = in_scope & (df[key_col] == gid)

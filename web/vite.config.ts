@@ -1,11 +1,16 @@
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command, mode }) => ({
   plugins: [react(), tailwindcss()],
+  // The dev server is always in presenter mode: it takes PRESENTER_KEY from the repo's .env.
+  // Production builds never embed the key; the public site stays gated.
+  define: {
+    __DEV_PRESENTER_KEY__: JSON.stringify(command === 'serve' ? (loadEnv(mode, path.resolve(import.meta.dirname, '..'), '').PRESENTER_KEY ?? '') : ''),
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
@@ -22,4 +27,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

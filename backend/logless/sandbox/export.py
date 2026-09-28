@@ -1,11 +1,12 @@
 """Build the typed, text-free sandbox inputs of docs/CONTRACTS.md §7 for one build.
 
 The sandbox gets exactly: per-job integer pseudonyms (`row`, `user`) drawn from a fresh random
-permutation, the public leaf/category ids, and the four tri-state friction decisions. No
+permutation, the public leaf/category/sub-theme ids, and the four tri-state friction decisions. No
 conversation or user ids, no language, turn counts, timestamps or text."""
 from __future__ import annotations
 
 import json
+import logging
 import secrets
 from dataclasses import dataclass, field
 
@@ -15,8 +16,10 @@ import pandas as pd
 from .. import db
 from ..ids import utcnow
 
+log = logging.getLogger("logless.sandbox.export")
+
 SIGNALS = ("correction", "repeat_request", "assistant_limit", "complaint")
-COLUMNS = ["row", "user", "leaf_id", "category_id", *SIGNALS]
+COLUMNS = ["row", "user", "leaf_id", "category_id", "subtheme_id", *SIGNALS]
 CHOICES = {"observed", "not_observed", "unclear"}
 
 # One statement, run with con.execute(): a multi-statement script call would first COMMIT any
@@ -54,6 +57,7 @@ class SandboxInputs:
     clusters: list[dict] = field(default_factory=list)  # public structure (no theme ids)
     leaf_ids: list[str] = field(default_factory=list)
     category_ids: list[str] = field(default_factory=list)
+    subtheme_ids: list[str] = field(default_factory=list)
 
     @property
     def other_ids(self) -> frozenset[str]:
@@ -100,8 +104,22 @@ def _validate_structure(clusters: list[dict]) -> tuple[list[dict], list[dict]]:
     return cats, leaves
 
 
-def frame_from_rows(rows: pd.DataFrame, clusters: list[dict], rng: np.random.Generator | None = None) -> tuple[pd.DataFrame, dict]:
-    """rows: columns conv_id, user_id, theme_id, plus SIGNALS. Returns (sandbox df, private mapping)."""
+def subtheme_nodes(leaves: list[dict], doc: dict | None) -> list[dict]:
+    """Level-3 structure from a stored sub-themes document: one node per sub-theme of a published
+    leaf, parent_id = the leaf, is_other = the leaf's untitled remainder (`_rest`)."""
+    leaf_ids = {c["id"] for c in leaves}
+    return [{"id": str(x["id"]), "parent_id": lid, "level": 3, "is_other": bool(x.get("rest"))}
+            for lid, items in ((doc or {}).get("leaves") or {}).items() if lid in leaf_ids
+            for x in items or [] if str(x["id"]).startswith(lid + "_")]
+
+
+def frame_from_rows(rows: pd.DataFrame, clusters: list[dict], rng: np.random.Generator | None = None,
+                    subtheme_of: dict[str, str] | None = None, subthemes: list[dict] | None = None
+                    ) -> tuple[pd.DataFrame, dict]:
+    """rows: columns conv_id, user_id, theme_id, plus SIGNALS. `subtheme_of` maps conv ids to ids in
+    `subthemes` (level-3 nodes); a conversation keeps its sub-theme only if that sub-theme belongs to
+    the conversation's leaf, else (and when it has none) subtheme_id is empty. Returns (sandbox df,
+    private mapping)."""
     _, leaves = _validate_structure(clusters)
     theme_to_leaf: dict[str, str] = {}
     for leaf in leaves:
@@ -122,11 +140,15 @@ def frame_from_rows(rows: pd.DataFrame, clusters: list[dict], rng: np.random.Gen
     users = pd.unique(rows["user_id"])
     user_ints = dict(zip(users, (rng.permutation(len(users)) + 1).tolist()))
 
+    sub_parent = {c["id"]: c["parent_id"] for c in subthemes or []}
+    sub_col = rows["conv_id"].map(subtheme_of or {})
+    sub_col = sub_col.where(sub_col.map(sub_parent) == leaf_col, "").fillna("")
     df = pd.DataFrame({
         "row": row_ids.astype(int),
         "user": rows["user_id"].map(user_ints).astype(int).to_numpy(),
         "leaf_id": leaf_col.to_numpy(),
         "category_id": leaf_col.map(parent).to_numpy(),
+        "subtheme_id": sub_col.to_numpy(),
     })
     for s in SIGNALS:
         col = rows[s] if s in rows.columns else pd.Series(["unclear"] * n, index=rows.index)
@@ -170,23 +192,40 @@ def _load_frozen(snapshot_id: str) -> pd.DataFrame | None:
     return None if f.empty else f
 
 
+def _load_subthemes(build_id: str, leaves: list[dict]) -> tuple[list[dict], dict[str, str]]:
+    """The build's sub-theme nodes and private conv -> sub-theme map, or nothing when the build has no
+    sub-themes or they were stored before membership was kept (`logless subthemes --members-only`)."""
+    from ..pipeline.subthemes import load_for_build, load_members
+    doc = load_for_build(build_id)
+    members = load_members(build_id) if doc else {}
+    if not members:
+        if doc:
+            log.warning("sub-themes of build %s have no stored membership; questions cannot group by them", build_id)
+        return [], {}
+    return subtheme_nodes(leaves, doc), members
+
+
 def export_inputs(build_id: str, clusters: list[dict], snapshot_id: str | None = None) -> SandboxInputs:
     """Typed inputs for one sandbox job. `clusters`: [{id, parent_id, level, is_other, theme_ids}].
     With `snapshot_id`, only the rows frozen when that snapshot was published may be used.
-    Historical snapshots without frozen inputs must be rebuilt before live analysis is available."""
+    Historical snapshots without frozen inputs must be rebuilt before live analysis is available.
+    The build's sub-themes (if any) are added as level-3 nodes; rows the sub-themes don't cover
+    (e.g. conversations added by a later intake batch) get an empty subtheme_id."""
     cats, leaves = _validate_structure(clusters)
     rows = _load_frozen(snapshot_id) if snapshot_id else None
     if snapshot_id and rows is None:
         raise ExportError("snapshot has no frozen sandbox inputs")
     if rows is None:
         rows = _load_rows(build_id)
-    df, mapping = frame_from_rows(rows, clusters)
-    structure = public_structure(clusters)
+    subs, members = _load_subthemes(build_id, leaves)
+    df, mapping = frame_from_rows(rows, clusters, subtheme_of=members, subthemes=subs)
+    structure = public_structure(clusters + subs)
     return SandboxInputs(
         assignments_csv=df.to_csv(index=False, lineterminator="\n"),
         clusters_json=json.dumps(structure),
         df=df, mapping=mapping, clusters=structure,
         leaf_ids=sorted(c["id"] for c in leaves), category_ids=sorted(c["id"] for c in cats),
+        subtheme_ids=sorted(c["id"] for c in subs),
     )
 
 

@@ -29,6 +29,7 @@ import { EXAMPLE_QUESTIONS } from "@/lib/copy"
 import { crossChecks, PROGRAM_KIND, programTracks } from "@/lib/programs"
 import { cn } from "@/lib/utils"
 import { useRun } from "@/hooks/useRun"
+import { useGroupNames, type GroupNames } from "@/hooks/useSubthemeRefs"
 import { canSpeak, speak, stopSpeaking, useDictation } from "@/hooks/useVoice"
 import { Button } from "@/components/ui/button"
 import { Dot } from "@/components/common"
@@ -514,9 +515,10 @@ function TurnView({
     wasWorking.current = working
   }, [working, verified])
 
+  const names = useGroupNames(index)
   const plain = useMemo(
-    () => (verified && run?.explanation ? segmentsToString(fillTemplate(run.explanation.text, run.result, index.titleOf)) : null),
-    [verified, run, index.titleOf],
+    () => (verified && run?.explanation ? segmentsToString(fillTemplate(run.explanation.text, run.result, names.titleOf)) : null),
+    [verified, run, names.titleOf],
   )
   const spoken = useRef(false)
   useEffect(() => {
@@ -681,9 +683,10 @@ function useStream(n: number, msPer: number) {
 }
 
 function Answer({ run, result, index, onBuild }: { run: Run; result: QuestionResult; index: SnapshotIndex; onBuild: (t: Omit<BuildTarget, "question">) => void }) {
+  const names = useGroupNames(index)
   const tokens = useMemo(
-    () => (run.explanation ? tokenize(fillTemplate(run.explanation.text, run.result, index.titleOf)) : tokenize([{ kind: "text", text: "Here's what the verified numbers say:" }])),
-    [run, index.titleOf],
+    () => (run.explanation ? tokenize(fillTemplate(run.explanation.text, run.result, names.titleOf)) : tokenize([{ kind: "text", text: "Here's what the verified numbers say:" }])),
+    [run, names.titleOf],
   )
   // Whitespace tokens ride along with the word before them.
   const words = tokens.filter((t) => !(t.kind === "word" && /^\s+$/.test(t.text))).length
@@ -693,7 +696,7 @@ function Answer({ run, result, index, onBuild }: { run: Run; result: QuestionRes
   const byShare = result.plan.rank_by === "share"
   const rows = result.rows.slice(0, 5)
   const max = Math.max(byShare ? 0.0001 : 1, ...rows.map((r) => (byShare ? r.share : r.count)))
-  const targets = buildTargets(result, index)
+  const targets = buildTargets(result, index, names)
 
   let seen = 0
   return (
@@ -724,17 +727,26 @@ function Answer({ run, result, index, onBuild }: { run: Run; result: QuestionRes
       {textDone && rows.length ? (
         <ol className="flex animate-in flex-col gap-2.5 rounded-2xl border bg-card p-3.5 shadow-xs duration-300 fade-in-0 slide-in-from-bottom-2">
           {rows.map((r, i) => {
-            const node = index.byId.get(r.id)
             const value = byShare ? r.share : r.count
             return (
               <li key={r.id} className="grid animate-in grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 fill-mode-both duration-300 fade-in-0 slide-in-from-left-1" style={{ animationDelay: `${i * 90}ms` }}>
                 <span className="flex min-w-0 items-center gap-2 text-[13.5px]">
-                  <Dot color={index.paletteOf(r.id).dot} />
-                  <span className="truncate">{node ? proseName(node) : r.id}</span>
+                  <Dot color={names.paletteOf(r.id).dot} />
+                  <span className="truncate">{names.nameOf(r.id) ?? r.id}</span>
                 </span>
+                {/* Always numerator, denominator and share, so equal counts over different bases read correctly. */}
                 <span className="font-mono text-[12.5px] tabular-nums">
-                  <CountUp value={value} format={byShare ? fmtPct : fmtInt} delay={i * 90} />
-                  <span className="text-muted-foreground"> {byShare ? `of ${fmtInt(r.base)}` : `· ${fmtPct(r.share)}`}</span>
+                  {byShare ? (
+                    <>
+                      <CountUp value={value} format={fmtPct} delay={i * 90} />
+                      <span className="text-muted-foreground"> · {fmtInt(r.count)} of {fmtInt(r.base)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CountUp value={value} format={fmtInt} delay={i * 90} />
+                      <span className="text-muted-foreground"> of {fmtInt(r.base)} · {fmtPct(r.share)}</span>
+                    </>
+                  )}
                 </span>
                 <GrowBar value={value / max} delay={i * 90} className={result.plan.signal ? "bg-heat/70" : "bg-brand/70"} />
               </li>
@@ -802,11 +814,12 @@ function CountUp({ value, format, delay = 0, ms = 700 }: { value: number; format
   return <>{format(v)}</>
 }
 
-/** Up to three workflows worth building for: leaf rows as they are, category rows by their highest-friction workflow. */
-function buildTargets(result: QuestionResult, index: SnapshotIndex): Omit<BuildTarget, "question">[] {
+/** Up to three workflows worth building for: leaf rows as they are, sub-theme rows by their workflow,
+ * category rows by their highest-friction workflow. */
+function buildTargets(result: QuestionResult, index: SnapshotIndex, names: GroupNames): Omit<BuildTarget, "question">[] {
   const out: Omit<BuildTarget, "question">[] = []
   for (const r of result.rows) {
-    const node = index.byId.get(r.id)
+    const node = index.byId.get(names.subtheme(r.id)?.leafId ?? r.id)
     if (!node || node.is_other) continue
     const leaf =
       node.level === 2
@@ -841,6 +854,7 @@ const HOW = [
 
 function UnderTheHood({ run, question, index, onOpenDetails }: { run: Run | null; question: string | null; index: SnapshotIndex; onOpenDetails: () => void }) {
   const verified = hasVerifiedResult(run, index.snapshot.snapshot_id)
+  const names = useGroupNames(index)
   const active = isRunActive(run)
   const steps = run ? deriveSteps(run, true) : []
   const tracks = programTracks(run)
@@ -904,10 +918,7 @@ function UnderTheHood({ run, question, index, onOpenDetails }: { run: Run | null
             <div className="animate-in duration-300 fade-in-0 slide-in-from-bottom-1">
               <SubHead>Plan</SubHead>
               <div className="flex flex-wrap gap-1">
-                {planToPhrases(run.plan, (id) => {
-                  const n = index.byId.get(id)
-                  return n ? proseName(n) : undefined
-                }).map((p, i) => (
+                {planToPhrases(run.plan, names.nameOf).map((p, i) => (
                   <span key={p} className="loggy-pop rounded-md bg-muted px-2 py-0.5 text-[12.5px]" style={{ animationDelay: `${i * 60}ms` }}>
                     {p}
                   </span>

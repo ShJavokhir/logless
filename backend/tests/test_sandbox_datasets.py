@@ -72,6 +72,7 @@ def test_programs_and_gate_on_varied_unseen_datasets(case):
                      "category_id": leaf["parent_id"], **{s: rng.choice(choices) for s in SIGNALS}})
     group_by = "leaf" if case % 2 == 0 else "category"
     plan = {"group_by": group_by, "scope_category_id": rng.choice(categories)["id"] if case % 4 == 0 else None,
+            "scope_leaf_id": None,
             "measure": "people" if case % 3 == 0 else "conversations",
             "signal": [None, "any_friction", *SIGNALS][case % 6],
             "rank_by": "share" if case % 2 == 0 else "count", "limit": [1, 2, 10][case % 3]}

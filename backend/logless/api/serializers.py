@@ -68,6 +68,13 @@ def _node_id(v: Any) -> str:
     raise Blocked("bad id")
 
 
+def _group_id(v: Any) -> str:
+    """A question result row: a category, leaf or sub-theme id."""
+    if isinstance(v, str) and SUBTHEME_ID.match(v):
+        return v
+    return _node_id(v)
+
+
 # ---------------------------------------------------------------- snapshot
 
 def _metrics(m: dict) -> dict:
@@ -217,12 +224,12 @@ def _result(res: dict | None) -> dict | None:
     if res.get("intent") != "question":
         raise Blocked("bad result intent")
     return {"intent": "question", "snapshot_id": _id(res["snapshot_id"], SNAPSHOT_ID), "plan": _plan(res["plan"]),
-            "rows": [{"id": _node_id(r["id"]), "count": _int(r["count"]), "base": _int(r["base"]),
+            "rows": [{"id": _group_id(r["id"]), "count": _int(r["count"]), "base": _int(r["base"]),
                       "share": _share(r["share"])} for r in res["rows"]][:10],
             "total_count": _int(res["total_count"]), "total_base": _int(res["total_base"])}
 
 
-PLAN_ENUMS = {"group_by": ("leaf", "category"), "measure": ("conversations", "people"),
+PLAN_ENUMS = {"group_by": ("leaf", "category", "subtheme"), "measure": ("conversations", "people"),
               "signal": (None, "any_friction", "correction", "repeat_request", "assistant_limit", "complaint"),
               "rank_by": ("count", "share")}
 
@@ -236,11 +243,12 @@ def _plan(p: dict | None) -> dict | None:
             raise Blocked("bad plan")
         out[k] = p.get(k)
     out["scope_category_id"] = None if p.get("scope_category_id") is None else _id(p["scope_category_id"], CATEGORY_ID)
+    out["scope_leaf_id"] = None if p.get("scope_leaf_id") is None else _id(p["scope_leaf_id"], LEAF_ID)
     lim = _int(p["limit"])
     if not 1 <= lim <= 10:
         raise Blocked("bad plan")
     out["limit"] = lim
-    return {k: out[k] for k in ("group_by", "scope_category_id", "measure", "signal", "rank_by", "limit")}
+    return {k: out[k] for k in ("group_by", "scope_category_id", "scope_leaf_id", "measure", "signal", "rank_by", "limit")}
 
 
 def _attempts_log(log_: list | None) -> list[dict]:

@@ -35,7 +35,7 @@ If the question takes longer, spend less time browsing the map. Do not skip cont
 
 Use intake after rehearsing the main sequence comfortably within three minutes, or during Q&A. It changes the snapshot, so finish it **before** starting the question. Replace map browsing, not execution evidence.
 
-- On a screen at least 1024 px wide, **Live intake** arms the marble machine first and sends nothing yet. Marbles trickle to Jev's closed gate. Press **Space** (or click **Sort with Jev**) to start the live run; **Esc** cancels. Each marble is one conversation and drops the moment Jev's answer for it lands. Go fullscreen before arming.
+- On a screen at least 1024 px wide, **Live intake** arms the marble machine first and sends nothing yet. Marbles trickle to Jev's closed gate. Press **Space** (or click **Ultrasort**) to start the live run; **Esc** cancels. Each marble is one conversation and drops the moment Jev's answer for it lands. Go fullscreen before arming.
 - It uses a prepared WildChat batch. GLM facet extraction happened before the demo; Jev classification and four friction decisions happen live. Say that explicitly.
 - `/api/intake/status` must show `ready: true`. If consumed, an intentional presenter **Reset intake** restores its base snapshot; first verify no newer unrelated build needs to remain current. Never reset during another analysis.
 - The reviewed event feed is presenter-only routing metadata, with no conversation summaries. Each event is real, but the stream is **provisional** until gating and publication finish.

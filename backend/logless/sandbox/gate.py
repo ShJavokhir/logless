@@ -70,7 +70,7 @@ FIELDS = frozenset({"intent", "snapshot_id", "plan", "rows", "id", "count", "bas
                     "total_base", *PLAN_KEYS})
 # Names we may quote in a detail even though they are not allowed: our own schema, the input
 # columns and obvious per-record identifiers. Anything else is reported as "an unknown field".
-QUOTABLE = FIELDS | {"row", "user", "leaf_id", "category_id", "user_id", "conv_id", "conversation_id", "text", "name",
+QUOTABLE = FIELDS | {"row", "user", "leaf_id", "category_id", "subtheme_id", "user_id", "conv_id", "conversation_id", "text", "name",
                      "email", "content", "message", "level", "parent_id", "is_other", "correction", "repeat_request",
                      "assistant_limit", "complaint", "users", "conversations", "cluster_id"}
 
@@ -286,6 +286,7 @@ def canonicalize(doc: dict) -> dict:
 def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters: list[dict],
                   leaf_ids: list[str], category_ids: list[str]) -> Verdict:
     """Validate one program's output against the validated plan. No reference answer is used."""
+    plan = Plan.model_validate(plan).model_dump()
     v = Verdict(passed=False)
 
     def add(name: str, ok: bool, detail: str) -> bool:
@@ -314,7 +315,8 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
     if not add(C_SHAPE, problem is None, problem or f"depth <= {MAX_DEPTH}, strings <= {MAX_STR} chars"):
         return v
 
-    allowed = {"question", snapshot_id, *leaf_ids, *category_ids, *PLAN_STRINGS}
+    subtheme_ids = [c["id"] for c in clusters if int(c["level"]) == 3]
+    allowed = {"question", snapshot_id, *leaf_ids, *category_ids, *subtheme_ids, *PLAN_STRINGS}
     bad_fields, bad_strings = _Diag(), _Diag()
     _walk(doc, allowed, bad_fields, bad_strings)
     add(C_FIELDS, not bad_fields, _summarize(bad_fields) if bad_fields else "all field names are in the schema")
@@ -401,8 +403,11 @@ def check_program(output: str | None, *, snapshot_id: str, plan: dict, clusters:
 
 def check_snapshot(result: dict, *, plan: dict, clusters: list[dict], nodes: dict[str, dict]) -> list[Check]:
     """Cross-checks against the published snapshot's node metrics (computed by the pipeline's own
-    code), only where the plan makes them derivable. `nodes` maps published ids to snapshot nodes."""
+    code), only where the plan makes them derivable. `nodes` maps published ids to snapshot nodes
+    (sub-theme nodes carry only conversations and users)."""
     groups, leaves = question_scope(clusters, plan)
+    if plan["group_by"] == "subtheme":
+        return _check_subthemes(result, plan=plan, groups=groups, nodes=nodes)
     children: dict[str, list[str]] = {}
     for c in clusters:
         if int(c["level"]) == 2:
@@ -479,6 +484,39 @@ def check_snapshot(result: dict, *, plan: dict, clusters: list[dict], nodes: dic
             count = base if signal is None else (node["friction"]["conversations"] if signal == "any_friction"
                                                 else node["friction"]["signals"][signal])
             ranked.append({"id": gid, "count": count, "base": base})
+        expected = [r["id"] for r in sorted(ranked, key=sort_key(plan["rank_by"]))[:plan["limit"]]]
+        matches = [r["id"] for r in rows] == expected
+        checks.append(Check(map_check_name("top groups = published ranking"), matches,
+                            "matches" if matches else "the selected groups differ from the published ranking"))
+    return checks
+
+
+def _check_subthemes(result: dict, *, plan: dict, groups: list[str], nodes: dict[str, dict]) -> list[Check]:
+    """Sub-themes publish only conversations and people per sub-theme (no friction), so the base per
+    row, the conversation total and, without a signal filter, the ranking are derivable."""
+    checks: list[Check] = []
+    rows = result["rows"]
+    measure, signal = plan["measure"], plan["signal"]
+    field = "conversations" if measure == "conversations" else "users"
+    bad, checked = _Diag(), 0
+    for i, r in enumerate(rows):
+        if r["id"] in nodes:
+            checked += 1
+            if r["base"] != nodes[r["id"]][field]:
+                bad.add(f"rows[{i}].base differs from the published {field}")
+    if checked:
+        what = "base = published conversations" if field == "conversations" else "base = published people"
+        checks.append(Check(map_check_name(what), not bad, _summarize(bad) if bad else f"{checked} rows match"))
+    derivable = all(g in nodes for g in groups)
+    if measure == "conversations" and derivable:
+        tot = _Diag()
+        if result["total_base"] != sum(nodes[g]["conversations"] for g in groups):
+            tot.add("total_base differs from the published conversations in scope")
+        if signal is None and result["total_count"] != result["total_base"]:
+            tot.add("with no signal filter, total_count must equal total_base")
+        checks.append(Check(map_check_name("totals = published scope totals"), not tot, _summarize(tot) if tot else "matches"))
+    if signal is None and derivable:
+        ranked = [{"id": g, "count": nodes[g][field], "base": nodes[g][field]} for g in groups]
         expected = [r["id"] for r in sorted(ranked, key=sort_key(plan["rank_by"]))[:plan["limit"]]]
         matches = [r["id"] for r in rows] == expected
         checks.append(Check(map_check_name("top groups = published ranking"), matches,

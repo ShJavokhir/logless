@@ -32,7 +32,7 @@ LEAVES = sorted(c["id"] for c in CL if c["level"] == 2)
 CATS = sorted(c["id"] for c in CL if c["level"] == 1)
 PARENT = {c["id"]: c["parent_id"] for c in CL if c["level"] == 2}
 TITLES = {c["id"]: f"Title {c['id']}" for c in CL}
-PLAN = {"group_by": "leaf", "scope_category_id": "cat_bbbbbb", "measure": "people", "signal": "repeat_request",
+PLAN = {"group_by": "leaf", "scope_category_id": "cat_bbbbbb", "scope_leaf_id": None, "measure": "people", "signal": "repeat_request",
         "rank_by": "share", "limit": 2}
 
 

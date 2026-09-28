@@ -42,7 +42,7 @@ def snapshot():
                            "stages": [{"stage": "facets", "started_at": "a", "finished_at": "b", "counts": {"n": 1}, "models": ["glm"]}]}}
 
 
-PLAN_Q = {"group_by": "leaf", "scope_category_id": None, "measure": "conversations", "signal": "complaint",
+PLAN_Q = {"group_by": "leaf", "scope_category_id": None, "scope_leaf_id": None, "measure": "conversations", "signal": "complaint",
           "rank_by": "count", "limit": 3}
 
 

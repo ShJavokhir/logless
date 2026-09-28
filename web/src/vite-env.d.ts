@@ -8,3 +8,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** PRESENTER_KEY from the repo's .env on the dev server; empty in production builds. */
+declare const __DEV_PRESENTER_KEY__: string | undefined

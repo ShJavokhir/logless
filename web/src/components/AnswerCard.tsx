@@ -7,7 +7,7 @@ import { hasVerifiedResult, isRunActive, runDurationMs } from "@/lib/runs"
 import { fillTemplate, resolvePath } from "@/lib/template"
 import { fmtDuration, fmtInt, fmtPct } from "@/lib/format"
 import { planShareNote, planToPhrases } from "@/lib/plan"
-import { proseName } from "@/lib/labels"
+import { useGroupNames } from "@/hooks/useSubthemeRefs"
 import { ASK_LABEL, ASK_SCOPE_NOTE, EXAMPLE_QUESTIONS } from "@/lib/copy"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -222,10 +222,7 @@ function Unsupported({ reason, title, onAsk }: { reason: string; title?: string;
 
 function PlanLine({ run, index }: { run: Run; index: SnapshotIndex }) {
   const plan = run.plan!
-  const titleOf = (id: string) => {
-    const n = index.byId.get(id)
-    return n ? proseName(n) : undefined
-  }
+  const titleOf = useGroupNames(index).nameOf
   return (
     <div className="rounded-lg bg-muted/60 px-3 py-2">
       <div className="text-[10.5px] font-medium tracking-[0.06em] text-muted-foreground uppercase">Interpreted as</div>
@@ -305,12 +302,15 @@ function Explanation({
   onSelect: (id: string) => void
   onFocusCategory: (id: string) => void
 }) {
+  const names = useGroupNames(index)
   if (!run.explanation) {
     return <p className="text-[13px] text-muted-foreground">No explanation was published for this run; the ranking below comes straight from the validated result.</p>
   }
-  const segs = fillTemplate(run.explanation.text, run.result, index.titleOf)
-  const open = (id: unknown) => {
-    if (typeof id !== "string" || !index.byId.has(id)) return
+  const segs = fillTemplate(run.explanation.text, run.result, names.titleOf)
+  const open = (raw: unknown) => {
+    if (typeof raw !== "string") return
+    const id = names.subtheme(raw)?.leafId ?? raw // a sub-theme opens its workflow
+    if (!index.byId.has(id)) return
     if (index.byId.get(id)!.level === 1) onFocusCategory(id)
     else onSelect(id)
   }
@@ -353,6 +353,7 @@ function QuestionRanking({
   onFocusCategory,
   onPeek,
 }: { result: QuestionResult } & Pick<Props, "index" | "selectedId" | "onSelectCluster" | "onFocusCategory" | "onPeek">) {
+  const names = useGroupNames(index)
   const plan = result.plan
   const byShare = plan.rank_by === "share"
   const max = Math.max(byShare ? 0.0001 : 1, ...result.rows.map((r) => (byShare ? r.share : r.count)))
@@ -370,17 +371,19 @@ function QuestionRanking({
       </div>
       <ol className="flex flex-col">
         {result.rows.map((r, i) => {
-          const node = index.byId.get(r.id)
+          const sub = names.subtheme(r.id)
+          const target = sub?.leafId ?? r.id // a sub-theme row selects its workflow
+          const node = index.byId.get(target)
           const isCat = node?.level === 1
-          const pal = index.paletteOf(r.id)
+          const pal = names.paletteOf(r.id)
           return (
             <li key={r.id}>
               <button
                 type="button"
-                onClick={() => (isCat ? onFocusCategory(r.id) : onSelectCluster(r.id))}
-                onMouseEnter={() => !isCat && onPeek(r.id)}
+                onClick={() => (isCat ? onFocusCategory(target) : onSelectCluster(target))}
+                onMouseEnter={() => !isCat && onPeek(target)}
                 onMouseLeave={() => onPeek(null)}
-                onFocus={() => !isCat && onPeek(r.id)}
+                onFocus={() => !isCat && onPeek(target)}
                 onBlur={() => onPeek(null)}
                 aria-current={selectedId === r.id ? "true" : undefined}
                 className={cn(
@@ -391,7 +394,7 @@ function QuestionRanking({
                 <span className="font-mono text-[11px] text-subtle tabular-nums">{i + 1}</span>
                 <span className="flex min-w-0 items-center gap-1.5 text-[13px]">
                   <Dot color={pal.dot} />
-                  <span className="truncate">{node?.title ?? r.id}</span>
+                  <span className="truncate">{sub?.name ?? node?.title ?? r.id}</span>
                 </span>
                 <span className="font-mono text-[12px] tabular-nums">
                   <span className={cn(!byShare && "font-medium")}>{fmtInt(r.count)}</span>

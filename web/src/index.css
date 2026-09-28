@@ -312,3 +312,40 @@
   from { transform: scaleY(0.2); }
   to { transform: scaleY(1); }
 }
+
+/* ---------------------------------------------------------- Architecture */
+
+.arch-edge {
+  transition: stroke 200ms ease, stroke-opacity 200ms ease, stroke-width 200ms ease, opacity 200ms ease;
+}
+.arch-dash {
+  stroke-dasharray: 6 6;
+  animation: arch-dash 0.7s linear infinite;
+}
+.arch-dash-rev {
+  stroke-dasharray: 6 6;
+  animation: arch-dash 0.7s linear infinite reverse;
+}
+@keyframes arch-dash {
+  to { stroke-dashoffset: -12; }
+}
+.arch-node {
+  outline: none;
+  cursor: pointer;
+}
+.arch-node .focus-ring {
+  opacity: 0;
+}
+.arch-node:focus-visible .focus-ring {
+  opacity: 1;
+}
+.arch-progress {
+  transform-origin: left center;
+  animation-name: arch-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes arch-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}

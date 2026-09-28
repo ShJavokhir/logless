@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Plan } from "./types"
 import { planShareNote, planToPhrases, planToWords } from "./plan"
 
-const titles: Record<string, string> = { cat_soft: "Build software" }
+const titles: Record<string, string> = { cat_soft: "Build software", cl_code: "Debug code" }
 const titleOf = (id: string) => titles[id]
 const plan = (p: Partial<Plan>): Plan => ({ group_by: "leaf", scope_category_id: null, measure: "conversations", signal: null, rank_by: "count", limit: 5, ...p })
 
@@ -26,5 +26,12 @@ describe("planToWords", () => {
     expect(planShareNote(plan({ measure: "people", signal: "assistant_limit" }))).toBe(
       "Share = distinct people hitting assistant limits ÷ all distinct people in that workflow.",
     )
+  })
+  it("handles sub-theme grouping within one workflow", () => {
+    expect(planToWords(plan({ group_by: "subtheme", scope_leaf_id: "cl_code", signal: "complaint" }), titleOf)).toBe(
+      "Conversations · with complaints · within Debug code · by sub-theme · top 5 by count",
+    )
+    expect(planToWords(plan({ group_by: "subtheme" }), titleOf)).toBe("Conversations · across all sub-themes · by sub-theme · top 5 by count")
+    expect(planShareNote(plan({ group_by: "subtheme" }))).toBe("Share = count ÷ all conversations in that sub-theme.")
   })
 })

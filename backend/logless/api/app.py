@@ -130,6 +130,25 @@ def _subthemes_for(snapshot_id: str) -> dict | None:
     return load_for_build(build_id) if build_id else None
 
 
+def _subtheme_nodes(snap: dict, titles: dict[str, str]) -> tuple[dict[str, str], dict[str, dict]]:
+    """Titles and published counts of the snapshot's sub-themes, as GET /api/subthemes serves them
+    (an untitled sub-theme is named after its workflow). Empty when there are none."""
+    try:
+        raw = _subthemes_for(snap["snapshot_id"])
+        pub = serializers.serialize_subthemes(snap["snapshot_id"], raw) if raw else None
+    except serializers.Blocked:
+        log.warning("sub-themes of %s failed serialization; questions will not see them", snap["snapshot_id"])
+        pub = None
+    sub_titles: dict[str, str] = {}
+    sub_nodes: dict[str, dict] = {}
+    for lid, items in ((pub or {}).get("leaves") or {}).items():
+        leaf = titles.get(lid, lid)
+        for x in items:
+            sub_titles[x["id"]] = x["short_title"] or (f"Rest of {leaf}" if x.get("rest") else f"Unnamed part of {leaf}")
+            sub_nodes[x["id"]] = {"id": x["id"], "level": 3, "conversations": x["conversations"], "users": x["users"]}
+    return sub_titles, sub_nodes
+
+
 def runner() -> RunnerClient:
     global _runner
     if _runner is None:
@@ -450,6 +469,8 @@ def create_app() -> FastAPI:
         presenter = request.state.presenter
         titles = {n["id"]: n["title"] for n in snap["clusters"] + snap["categories"]}
         nodes = {n["id"]: n for n in snap["clusters"] + snap["categories"]}
+        sub_titles, sub_nodes = _subtheme_nodes(snap, titles)
+        titles, nodes = {**titles, **sub_titles}, {**nodes, **sub_nodes}
         sid = snap["snapshot_id"]
         raw_q = body.question.strip()
         if not raw_q:

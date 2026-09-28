@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, Keyboard, Radio, ShieldCheck } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Check, Radio, ShieldCheck } from "lucide-react"
 import type { useIntake } from "@/hooks/useIntake"
+import { UltrasortButton } from "@/components/UltrasortButton"
 import { useElementSize } from "@/hooks/useElementSize"
 import { flowRows, flowStep } from "@/lib/intakeFlow"
 import { observedSignals } from "@/lib/intake"
@@ -9,10 +10,13 @@ import { fmtInt } from "@/lib/format"
 import { signalName } from "@/lib/colors"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import type { IntakeEvent, Signal } from "@/lib/types"
+import { GLM_BASELINE, binSampler, glmEtaLabel, glmPaceLabel, glmRate, resultLine } from "@/lib/ultrasort"
 import { cn } from "@/lib/utils"
 
 type Intake = ReturnType<typeof useIntake>
 
+/** Marbles drawn per run, whatever the real batch size; counts shown stay real. */
+const VISUAL_MARBLES = 300
 const STEPS = ["Read by GLM (earlier)", "Jev sorts", "Privacy gate", "Publish"]
 const observed = (event: IntakeEvent) => Object.values(event.friction).includes("observed")
 const hueOf = (color: string) => {
@@ -27,7 +31,7 @@ const hasWebGL = () => {
   }
 }
 
-/** One marble = one real conversation in the prepared batch; it drops the moment Jev's answer for it lands. */
+/** The run is drawn as VISUAL_MARBLES marbles spread over the real batch; each conversation's share drops the moment Jev's answer for it lands. */
 export function MarbleMachine({ intake, index, armed, onSort, action }: { intake: Intake; index: SnapshotIndex; armed: boolean; onSort: () => void; action?: React.ReactNode }) {
   const [base] = useState(index)
   const [webgl] = useState(hasWebGL)
@@ -38,7 +42,6 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
   const rows = useMemo(() => flowRows(base, intake.landedEvents), [base, intake.landedEvents])
   const total = intake.counters?.total ?? intake.status?.batch_size ?? 0
   const filed = intake.landedEvents.length
-  const friction = intake.landedEvents.filter(observed).length
   const step = armed ? 1 : flowStep(intake.stage, intake.published)
   const running = !armed && !intake.published
   // bins follow flowRows' order (Other last); fixed for the machine's lifetime
@@ -53,6 +56,37 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
     live.current = { armed, filed: intake.landedEvents, visual: intake.visual }
   })
 
+  // Race clock: from the press to the moment the last real event lands. Jev's time is only ever this measurement.
+  const [race, setRace] = useState<{ start: number; end: number | null; n: number } | null>(null)
+  const [clock, setClock] = useState(0)
+  const landed = useRef({ n: 0, at: 0 })
+  const sort = useCallback(() => {
+    sceneRef.current?.ultrasort()
+    setRace((r) => r ?? { start: performance.now(), end: null, n: 0 })
+    onSort()
+  }, [onSort])
+  // a start from elsewhere (the toolbar) still clears the GLM drip and starts the clock
+  const wasArmed = useRef(armed)
+  useEffect(() => {
+    if (wasArmed.current && !armed) {
+      sceneRef.current?.ultrasort()
+      setRace((r) => r ?? { start: performance.now(), end: null, n: 0 })
+    }
+    wasArmed.current = armed
+  }, [armed])
+  useEffect(() => {
+    if (!race || race.end !== null) return
+    if (filed > landed.current.n) landed.current = { n: filed, at: performance.now() }
+    const done = (total > 0 && filed >= total) || intake.published || intake.phase === "failed"
+    if (done) setRace({ ...race, end: filed ? landed.current.at : performance.now(), n: filed })
+  }, [race, filed, total, intake.published, intake.phase])
+  useEffect(() => {
+    if (!race || race.end !== null) return
+    const id = window.setInterval(() => setClock(performance.now()), 100)
+    return () => window.clearInterval(id)
+  }, [race])
+  const raceSeconds = race ? Math.max(0, ((race.end ?? clock) - race.start) / 1000) : 0
+
   // Space sorts (the "snap"); ignored while typing.
   useEffect(() => {
     if (!armed) return
@@ -61,12 +95,12 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
       if (e.code === "Space" || e.key === "Enter") {
         e.preventDefault()
-        onSort()
+        sort()
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [armed, onSort])
+  }, [armed, sort])
 
   // The scene animates each marble from the moment it is pushed, so events are
   // filed with the hook as soon as the scheduler releases them and the marble
@@ -74,23 +108,50 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !webgl) return
-    const scene = createMarbleScene(canvas, { capacity: Math.max(1, total), bins: bins.spec, armed: live.current.armed, reducedMotion: live.current.visual.reducedMotion })
+    const marbles = total > 0 ? VISUAL_MARBLES : 1
+    const scene = createMarbleScene(canvas, {
+      capacity: marbles,
+      countScale: total / marbles,
+      bins: bins.spec,
+      armed: live.current.armed,
+      reducedMotion: live.current.visual.reducedMotion,
+      dripCapacity: 3000,
+      dripHold: GLM_BASELINE.secondsPerCall,
+    })
     sceneRef.current = scene
+    // GLM drip while armed: glmRate() conversations/s, in marbles of the same size as the real ones
+    const dripPerSecond = total > 0 ? (glmRate() * marbles) / total : 0
+    const sampleBin = binSampler(bins.spec.map((b) => b.weight))
+    let dripStart = -1
+    let dripped = 0
     const other = Math.max(0, bins.ids.findIndex((id) => base.byId.get(id)?.is_other))
     const binOf = (event: IntakeEvent) => {
       const i = bins.ids.indexOf(base.parentOf(event.leaf_id)?.id ?? "")
       return i < 0 ? other : i
     }
     const pushed = new Set<number>()
+    let released = 0
     const drop = (event: IntakeEvent) => {
       if (pushed.has(event.seq)) return
       pushed.add(event.seq)
-      scene.push(binOf(event), observed(event))
+      // this conversation's share of the marbles, rounded cumulatively so the run ends exactly on `marbles`
+      const upTo = Math.round((pushed.size * marbles) / Math.max(1, total))
+      const bin = binOf(event)
+      const friction = observed(event)
+      for (; released < upTo; released++) scene.push(bin, friction)
     }
     for (const event of live.current.filed) drop(event)
     let raf = 0
     const frame = () => {
       const { armed, filed, visual } = live.current
+      if (armed && dripPerSecond > 0) {
+        const t = performance.now()
+        if (dripStart < 0) dripStart = t
+        const due = Math.floor(((t - dripStart) / 1000) * dripPerSecond) + 1
+        // after a paused (hidden) tab, resume the pace instead of dumping the backlog
+        dripped = Math.max(dripped, due - 4)
+        for (; dripped < due; dripped++) scene.drip(sampleBin())
+      }
       if (!armed) {
         scene.open()
         visual.heartbeat()
@@ -162,33 +223,34 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
           </ol>
           {armed ? (
             <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                onClick={onSort}
-                className="group pointer-events-auto inline-flex items-center gap-3 rounded-xl bg-brand px-5 py-3 text-[15px] font-semibold text-white shadow-md transition hover:brightness-110"
-              >
-                <span className="relative flex size-2.5">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-white" />
+              <UltrasortButton onPress={sort} pressed={!armed} reducedMotion={intake.visual.reducedMotion} />
+              <p className="max-w-[380px] text-[12px] leading-snug text-muted-foreground">
+                <span data-testid="glm-estimate" className="block font-medium text-foreground">
+                  {glmPaceLabel()}
+                  {total > 0 ? ` · ${glmEtaLabel(total)}` : null}
                 </span>
-                Sort with Jev
-                <kbd className="inline-flex items-center gap-1 rounded-md bg-white/20 px-1.5 py-0.5 font-mono text-[11px] font-medium">
-                  <Keyboard className="size-3" />
-                  space
-                </kbd>
-              </button>
-              <p className="max-w-[360px] text-[12px] leading-snug text-muted-foreground">
-                Jev makes {intake.counters?.decisions_per_conversation ?? 5} decisions per conversation: its workflow, plus friction signals. Each marble drops the moment its real answer lands.
+                The drip is GLM's estimated pace and is never counted. Ultrasort hands the batch to Jev: {intake.counters?.decisions_per_conversation ?? 5} decisions per conversation, each marble dropping the moment its real answer lands.
                 <span className="mt-1 block text-subtle">Esc to cancel</span>
               </p>
             </div>
           ) : (
-            <dl className="grid max-w-[720px] grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
-              <Stat label="Sorted" value={`${fmtInt(filed)} / ${fmtInt(total)}`} testId="flow-filed" />
-              <Stat label="Jev decisions" value={fmtInt(jevDecisions)} />
-              <Stat label="Conversations / s" value={intake.counters?.per_second ? intake.counters.per_second.toFixed(0) : "—"} />
-              <Stat label="Median Jev call" value={intake.counters?.p50_ms ? `${fmtInt(intake.counters.p50_ms)} ms` : "—"} />
-            </dl>
+            <div className="flex max-w-[720px] flex-col gap-2">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+                <Stat label="Sorted" value={`${fmtInt(filed)} / ${fmtInt(total)}`} testId="flow-filed" />
+                <Stat label="Jev decisions" value={fmtInt(jevDecisions)} />
+                <Stat label="Conversations / s" value={intake.counters?.per_second ? intake.counters.per_second.toFixed(0) : "—"} />
+                <Stat label="Median Jev call" value={intake.counters?.p50_ms ? `${fmtInt(intake.counters.p50_ms)} ms` : "—"} />
+              </dl>
+              {race ? (
+                <p data-testid="ultrasort-clock" data-seconds={race.end === null ? undefined : raceSeconds.toFixed(3)} className="font-mono text-[13px] font-medium tabular-nums">
+                  {race.end === null
+                    ? `Jev ${raceSeconds.toFixed(1)} s · ${glmEtaLabel(total)}`
+                    : race.n > 0 && intake.phase !== "failed"
+                      ? resultLine(race.n, raceSeconds)
+                      : "The run stopped before Jev sorted the batch."}
+                </p>
+              ) : null}
+            </div>
           )}
           {!armed ? (
             <div aria-live="off" className="max-w-[720px]">
@@ -200,10 +262,11 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
                     const signals = observedSignals(ev)
                     return (
                       <li key={ev.seq} className={cn("flex items-center gap-2 truncate text-[12.5px] transition-opacity", i === 0 ? "opacity-100" : i === 1 ? "opacity-60" : "opacity-35")}>
-                        <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: signals.length ? "var(--heat)" : base.paletteOf(ev.leaf_id).dot }} />
+                        {/* same colour as the marble: the workflow, not friction */}
+                        <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: base.paletteOf(ev.leaf_id).dot }} />
                         <span className="font-medium">{node?.short_title ?? node?.title ?? "Other or unclear"}</span>
-                        <span className="font-mono text-muted-foreground">p={ev.p.toFixed(2)}</span>
-                        {signals.length ? <span className="text-heat">{signals.map((s) => signalName(s as Signal)).join(", ")}</span> : <span className="text-muted-foreground">no friction</span>}
+                        <span className="text-muted-foreground tabular-nums">{Math.round(ev.p * 100)}% sure</span>
+                        {signals.length ? <span className="text-heat">friction: {signals.map((s) => signalName(s as Signal).toLowerCase()).join(", ")}</span> : <span className="text-muted-foreground">no friction</span>}
                         <span className="text-subtle">{ev.language} · {ev.turns} turns</span>
                       </li>
                     )
@@ -230,8 +293,7 @@ export function MarbleMachine({ intake, index, armed, onSort, action }: { intake
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t px-5 py-2 text-[11.5px] text-muted-foreground">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span>One marble = one conversation, coloured by the workflow Jev chose</span>
-          <span className="font-mono tabular-nums text-heat">{fmtInt(friction)} with friction</span>
+          <span>{fmtInt(VISUAL_MARBLES)} marbles drawn for {fmtInt(total)} conversations, coloured by the workflow Jev chose</span>
           {webgl ? <span className="text-subtle">Scroll to zoom · drag to orbit · double-click to reset</span> : null}
         </span>
         <span role="status" className={cn("flex items-center gap-1.5", intake.published && "text-ok")}>

@@ -29,6 +29,9 @@ def main(argv: list[str] | None = None) -> int:
 
     stp = sub.add_parser("subthemes", help="sub-cluster each published leaf theme and store titled sub-themes")
     stp.add_argument("--build", required=True, help="build id whose published snapshot gets sub-themes")
+    stp.add_argument("--members-only", action="store_true",
+                     help="no model calls: re-derive and store which conversation is in which stored sub-theme "
+                          "(for sub-themes published before membership was kept; needed for live questions)")
 
     it = sub.add_parser("intake", help="live intake batch (docs/CONTRACTS.md §11)")
     itsub = it.add_subparsers(dest="intake_cmd", required=True)
@@ -91,7 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "subthemes":
         import json as _json
         from .pipeline import subthemes
-        print(_json.dumps(subthemes.run(args.build), indent=1))
+        out = subthemes.backfill_members(args.build) if args.members_only else subthemes.run(args.build)
+        print(_json.dumps(out, indent=1))
         return 0
     if args.cmd == "eval":
         from .eval import report

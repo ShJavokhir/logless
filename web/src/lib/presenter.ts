@@ -34,6 +34,8 @@ export function presenterKey(): string | null {
   } catch {
     cached = null
   }
+  // The dev server is always a presenter (vite.config.ts injects the key from .env).
+  if (!cached && typeof __DEV_PRESENTER_KEY__ === "string" && __DEV_PRESENTER_KEY__) cached = __DEV_PRESENTER_KEY__
   return cached
 }
 

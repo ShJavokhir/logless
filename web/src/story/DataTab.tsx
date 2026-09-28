@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react"
-import { ArrowUpRight, RotateCcw } from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import type { useIntake } from "@/hooks/useIntake"
 import type { SnapshotIndex } from "@/lib/snapshot"
 import { orderedLanguages } from "@/lib/snapshot"
 import { fmtDateRange, fmtInt } from "@/lib/format"
 import { fixtureCount } from "@/lib/copy"
 import { NO_HIGHLIGHT } from "@/lib/search"
-import { Button } from "@/components/ui/button"
-import { MarbleMachine } from "@/components/MarbleMachine"
+import { DatasetReplay } from "@/components/DatasetReplay"
 import { IntakeFlow } from "@/components/IntakeFlow"
 import { UsageMap, type Lens } from "@/components/UsageMap"
 
@@ -15,32 +14,9 @@ type Intake = ReturnType<typeof useIntake>
 
 export function DataTab({ index, intake, active }: { index: SnapshotIndex; intake: Intake; active: boolean }) {
   const wide = useWide()
-  const ready = !!intake.status?.ready
-  // The marble machine needs a presenter key and a prepared batch; everyone sees the classified map below it.
-  // It always comes up armed: a batch that was already sorted is reset first, then sorted again.
-  const hasBatch = (intake.status?.batch_size ?? 0) > 0
-  const marbles = wide && intake.presenter && (intake.phase !== "idle" || hasBatch)
-  const armed = active && intake.phase === "idle" && hasBatch
-  const sort = async () => {
-    if (!ready) await intake.reset()
-    await intake.start()
-  }
-  const action =
-    intake.phase === "failed" ? (
-      <>
-        <span className="max-w-[260px] truncate text-[12px] text-destructive" title={intake.error ?? undefined}>
-          {intake.error ?? "The intake failed."}
-        </span>
-        <Button size="sm" variant="outline" onClick={intake.close}>
-          Close
-        </Button>
-      </>
-    ) : intake.published ? (
-      <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => void intake.reset()}>
-        <RotateCcw />
-        Reset
-      </Button>
-    ) : null
+  // The marble machine replays how Jev sorted the published map: presenter-only, no batch needed, nothing
+  // sent or published, so the map and Loggy never change. Everyone sees the classified map below it.
+  const marbles = wide && intake.presenter
 
   return (
     // A centred column: edge-to-edge on a wide monitor is hard to read.
@@ -49,9 +25,9 @@ export function DataTab({ index, intake, active }: { index: SnapshotIndex; intak
         <DatasetCard index={index} />
         {/* The live intake sits above the map; the map stays, and grows when a run publishes. */}
         {marbles || intake.flowVisible ? (
-          <section aria-label="Live intake" className="relative h-[620px] shrink-0 overflow-hidden rounded-xl border bg-card">
+          <section aria-label={marbles ? "Dataset replay" : "Live intake"} className="relative h-[620px] shrink-0 overflow-hidden rounded-xl border bg-card">
             {marbles ? (
-              <MarbleMachine key={intake.runId ?? "ready"} intake={intake} index={index} armed={armed} onSort={() => void sort()} action={action} />
+              <DatasetReplay key={index.snapshot.snapshot_id} index={index} active={active} />
             ) : (
               <IntakeFlow intake={intake} index={index} />
             )}

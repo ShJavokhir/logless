@@ -14,6 +14,7 @@ import { EXPLORE_HREF, TABS, hrefOf, type Tab } from "./route"
 import { DataTab } from "./DataTab"
 import { LoggyTab } from "./LoggyTab"
 import { BuildTab, type BuildTarget } from "./BuildTab"
+import { ArchitectureTab } from "./ArchitectureTab"
 
 type Load = { status: "loading" } | { status: "ready"; snapshot: Snapshot } | { status: "error"; message: string }
 
@@ -83,12 +84,13 @@ export function StoryApp({ tab }: { tab: Tab }) {
                 href={hrefOf(t.id)}
                 aria-current={t.id === tab ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13.5px] font-medium transition-colors",
+                  "inline-flex h-8 items-center gap-2 rounded-full px-2.5 text-[13.5px] font-medium transition-colors sm:px-3.5",
                   t.id === tab ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <span className={cn("font-mono text-[11px] tabular-nums", t.id === tab ? "text-brand" : "text-subtle")}>{i + 1}</span>
-                {t.label}
+                <span className={cn("hidden font-mono text-[11px] tabular-nums sm:inline", t.id === tab ? "text-brand" : "text-subtle")}>{i + 1}</span>
+                <span className="sm:hidden">{t.short}</span>
+                <span className="hidden sm:inline">{t.label}</span>
               </a>
             ))}
           </nav>
@@ -139,6 +141,9 @@ export function StoryApp({ tab }: { tab: Tab }) {
               </TabPanel>
               <TabPanel active={tab === "build"}>
                 <BuildTab index={index} target={buildTarget} />
+              </TabPanel>
+              <TabPanel active={tab === "arch"}>
+                <ArchitectureTab active={tab === "arch"} />
               </TabPanel>
             </>
           )}

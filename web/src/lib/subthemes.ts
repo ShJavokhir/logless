@@ -3,7 +3,7 @@
 // the leaf the same way whatever its current (possibly intake-updated) size.
 
 import { packEnclose, packSiblings } from "d3-hierarchy"
-import type { Subtheme } from "./types"
+import type { Subtheme, SubthemesResponse } from "./types"
 
 export type SubCircle = { item: Subtheme; x: number; y: number; r: number; share: number }
 
@@ -36,4 +36,21 @@ export function packSubthemes(leaf: { x: number; y: number; r: number }, items: 
     y: cy + (padded[i].y - enc.y) * scale,
     r: Math.max(0, (padded[i].r - pad) * scale),
   }))
+}
+
+/** A question result row can be a sub-theme: its display name and the workflow it belongs to. */
+export type SubthemeRef = { name: string; leafId: string }
+
+/** Sub-theme id -> name and workflow. Untitled sub-themes are named after their workflow, the same
+ * way the backend names them for the model. */
+export function subthemeRefs(resp: SubthemesResponse | null, leafName: (leafId: string) => string | undefined): Map<string, SubthemeRef> {
+  const out = new Map<string, SubthemeRef>()
+  for (const [leafId, items] of Object.entries(resp?.leaves ?? {})) {
+    const leaf = leafName(leafId) ?? "this workflow"
+    for (const s of items) {
+      const name = s.short_title?.trim() || (s.rest ? `Rest of ${leaf}` : `Unnamed part of ${leaf}`)
+      out.set(s.id, { name, leafId })
+    }
+  }
+  return out
 }

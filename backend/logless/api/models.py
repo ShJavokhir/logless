@@ -175,8 +175,9 @@ class Verdict(_Out):
 
 
 class Plan(_Out):
-    group_by: Literal["leaf", "category"]
+    group_by: Literal["leaf", "category", "subtheme"]
     scope_category_id: str | None
+    scope_leaf_id: str | None = None
     measure: Literal["conversations", "people"]
     signal: Literal["any_friction", "correction", "repeat_request", "assistant_limit", "complaint"] | None
     rank_by: Literal["count", "share"]

@@ -105,13 +105,19 @@ export function questionResult(s: Snapshot, plan: Plan): QuestionResult {
 
 export function questionExplanation(r: QuestionResult): { text: string; metric_refs: string[] } {
   if (!r.rows.length) return { text: "No workflow in this scope matched the plan.", metric_refs: [] }
-  const text =
-    r.plan.rank_by === "share"
+  // Every share is shown with its count and base; a tie on the ranking key is never called a lead.
+  const [a, b] = r.rows
+  const tied = !!b && (r.plan.rank_by === "share" ? a.count * b.base === b.count * a.base : a.count === b.count)
+  const second = `{{rows.1.id}} with {{rows.1.count}} of {{rows.1.base}} ({{rows.1.share}})`
+  const text = tied
+    ? `{{rows.0.id}} with {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}}) is level with ${second}. ` +
+      `Across the whole scope it is {{total_count}} of {{total_base}}.`
+    : r.plan.rank_by === "share"
       ? `{{rows.0.id}} has the highest share at {{rows.0.share}} ({{rows.0.count}} of {{rows.0.base}})` +
-        (r.rows.length > 1 ? `, ahead of {{rows.1.id}} at {{rows.1.share}}. ` : ". ") +
+        (b ? `, ahead of {{rows.1.id}} at {{rows.1.share}} ({{rows.1.count}} of {{rows.1.base}}). ` : ". ") +
         `Across the whole scope it is {{total_count}} of {{total_base}}.`
       : `{{rows.0.id}} leads with {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}})` +
-        (r.rows.length > 1 ? `, followed by {{rows.1.id}} with {{rows.1.count}}. ` : ". ") +
+        (b ? `, followed by ${second}. ` : ". ") +
         `Across the whole scope it is {{total_count}} of {{total_base}}.`
   const refs = [...text.matchAll(/\{\{([^}]+)\}\}/g)].map((m) => m[1])
   return { text, metric_refs: [...new Set(refs)] }

@@ -129,12 +129,12 @@ def _snap_checks(doc, plan, df):
 
 def test_consistency_checks_apply_where_derivable():
     df = df_for(4)
-    conv = {"group_by": "category", "scope_category_id": None, "measure": "conversations", "signal": "complaint",
+    conv = {"group_by": "category", "scope_category_id": None, "scope_leaf_id": None, "measure": "conversations", "signal": "complaint",
             "rank_by": "count", "limit": 10}
     got = _snap_checks(oracle_answer(df, conv), conv, df)
     assert set(got) == {BASE_C, "Consistent with the published map · count = published complaint conversations", TOTAL, RANKING} \
         and all(c.passed for c in got.values())
-    people = {"group_by": "leaf", "scope_category_id": "cat_bbbbbb", "measure": "people", "signal": "complaint",
+    people = {"group_by": "leaf", "scope_category_id": "cat_bbbbbb", "scope_leaf_id": None, "measure": "people", "signal": "complaint",
               "rank_by": "count", "limit": 10}
     got = _snap_checks(oracle_answer(df, people), people, df)
     # people per signal are not published: only bases and the scoped category's people are checkable
@@ -198,7 +198,7 @@ def test_frame_from_rows_pseudonymizes_and_maps_themes():
         "correction": ["observed", None, "unclear", "not_observed", "bogus", "observed"],
     })
     df, mapping = frame_from_rows(rows, H_CLUSTERS)
-    assert list(df.columns) == ["row", "user", "leaf_id", "category_id", "correction", "repeat_request", "assistant_limit", "complaint"]
+    assert list(df.columns) == ["row", "user", "leaf_id", "category_id", "subtheme_id", "correction", "repeat_request", "assistant_limit", "complaint"]
     assert sorted(df["row"]) == [1, 2, 3, 4, 5, 6] and df["user"].nunique() == 3
     by_conv = {mapping["row"][r]: rec for r, rec in zip(df["row"], df.to_dict("records"))}
     assert by_conv["c_000000000000"]["leaf_id"] == "cl_111111" and by_conv["c_000000000000"]["category_id"] == "cat_aaaaaa"

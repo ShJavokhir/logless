@@ -59,7 +59,7 @@ STORY = ("Maya is organising a weekend away with friends and wants the assistant
          "it for outlines and comparisons, but treats every detail about cost as a guess until she has confirmed it herself.")
 
 
-Q_PLAN = {"group_by": "category", "scope_category_id": None, "measure": "people", "signal": "complaint",
+Q_PLAN = {"group_by": "category", "scope_category_id": None, "scope_leaf_id": None, "measure": "people", "signal": "complaint",
           "rank_by": "count", "limit": 3}
 
 

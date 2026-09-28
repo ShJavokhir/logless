@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { packSubthemes, SUB_DROP, SUB_FILL } from "./subthemes"
+import { packSubthemes, SUB_DROP, SUB_FILL, subthemeRefs } from "./subthemes"
 import type { Subtheme } from "./types"
 
 const item = (id: string, conversations: number, rest = false): Subtheme => ({ id, short_title: rest ? null : id, conversations, users: 5, rest })
@@ -35,5 +35,22 @@ describe("packSubthemes", () => {
   it("draws nothing for fewer than two sub-themes", () => {
     expect(packSubthemes(leaf, [item("a", 40)])).toEqual([])
     expect(packSubthemes(leaf, [])).toEqual([])
+  })
+})
+
+describe("subthemeRefs", () => {
+  it("names sub-themes, falling back to their workflow when untitled", () => {
+    const refs = subthemeRefs(
+      {
+        snapshot_id: "s",
+        base_snapshot_id: "s",
+        leaves: { cl_aaaaaa: [item("cl_aaaaaa_s1", 20), { ...item("cl_aaaaaa_s2", 10), short_title: null }, item("cl_aaaaaa_rest", 5, true)] },
+      },
+      (id) => (id === "cl_aaaaaa" ? "Cover letters" : undefined),
+    )
+    expect(refs.get("cl_aaaaaa_s1")).toEqual({ name: "cl_aaaaaa_s1", leafId: "cl_aaaaaa" })
+    expect(refs.get("cl_aaaaaa_s2")?.name).toBe("Unnamed part of Cover letters")
+    expect(refs.get("cl_aaaaaa_rest")?.name).toBe("Rest of Cover letters")
+    expect(subthemeRefs(null, () => undefined).size).toBe(0)
   })
 })

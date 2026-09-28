@@ -139,6 +139,36 @@ def test_validate_explanation_rules():
     assert any("only the first row" in p for p in bad)
 
 
+def test_explanation_shows_numerator_and_denominator():
+    vocab = analysis.result_paths(oracle_answer(df_for(3), PLAN))
+    ok = "{{rows.0.id}} has {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}}); across all workflows {{total_count}} of {{total_base}}."
+    assert analysis.validate_explanation(ok, vocab) == []
+    # the text behind the bug report: a bare share, an "all conversations" scope, and a lead over a tie
+    seen = ("Across all conversations, {{total_count}} of {{total_base}} show some friction. The most affected workflow is "
+            "{{rows.0.id}} with {{rows.0.count}} of {{rows.0.base}} ({{rows.0.share}}), followed by {{rows.1.id}} at {{rows.1.share}}.")
+    problems = analysis.validate_explanation(seen, vocab, tied_top=True)
+    assert any("rows.1.share" in p for p in problems)
+    assert any("exclude Other" in p for p in problems)
+    assert any("tied" in p for p in problems)
+    assert any("{{total_base}}" in p for p in analysis.validate_explanation("{{rows.0.id}}: {{total_count}}.", vocab))
+    assert not any("tied" in p for p in analysis.validate_explanation(ok.replace("has", "has the most:"), vocab))
+
+
+def test_top_tied_and_tie_aware_fallback():
+    row = lambda i, c, b: {"id": f"cl_{i}", "count": c, "base": b, "share": round(c / b, 4)}
+    by_count = {"plan": {"rank_by": "count"}, "rows": [row(0, 89, 681), row(1, 89, 381)]}
+    by_share = {"plan": {"rank_by": "share"}, "rows": [row(0, 2, 4), row(1, 3, 6)]}
+    assert analysis.top_tied(by_count) and analysis.top_tied(by_share)
+    assert not analysis.top_tied({"plan": {"rank_by": "share"}, "rows": by_count["rows"]})
+    assert not analysis.top_tied({"plan": {"rank_by": "count"}, "rows": [row(0, 89, 681)]})
+    text = analysis.fallback_explanation(by_count)
+    assert "first" not in text and "level" in text
+    vocab = analysis.result_paths(by_count) | {"total_count", "total_base"}
+    assert analysis.validate_explanation(text, vocab, tied_top=True) == []
+    untied = analysis.fallback_explanation({**by_count, "rows": [row(0, 90, 681), row(1, 89, 381)]})
+    assert analysis.validate_explanation(untied, vocab) == []
+
+
 # ---------------------------------------------------------------- the run (fake GLM, programs run locally)
 
 class FakeGLM:
@@ -180,7 +210,7 @@ def run_q(monkeypatch, question, fake, df=None, runner=None):
     return load(run.id), runner
 
 
-CONV_PLAN = {"group_by": "leaf", "scope_category_id": None, "measure": "conversations", "signal": "any_friction",
+CONV_PLAN = {"group_by": "leaf", "scope_category_id": None, "scope_leaf_id": None, "measure": "conversations", "signal": "any_friction",
              "rank_by": "count", "limit": 5}
 
 

@@ -1,7 +1,8 @@
 export const TABS = [
-  { id: "data", label: "Dataset" },
-  { id: "loggy", label: "Loggy" },
-  { id: "build", label: "Build" },
+  { id: "data", label: "Dataset", short: "Data" },
+  { id: "loggy", label: "Loggy", short: "Loggy" },
+  { id: "build", label: "Build", short: "Build" },
+  { id: "arch", label: "Architecture", short: "Arch" },
 ] as const
 
 export type Tab = (typeof TABS)[number]["id"]
