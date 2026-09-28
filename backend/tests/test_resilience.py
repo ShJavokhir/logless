@@ -197,3 +197,18 @@ def test_facets_stage_surfaces_provider_unavailable(tmp_data, monkeypatch):
     monkeypatch.setattr(facets, "friction_one", lambda *a: {})
     with pytest.raises(util.ProviderUnavailable, match="glm unavailable: billing_error"):
         facets.run(b)
+
+
+def test_gate_floor_rolls_up_small_leaves_smallest_first(tmp_data, monkeypatch):
+    # fixture leaves: 111111 = u0,u1,u1 (2 people, 3 conversations); 222222 = u0,u2 (2, 2); 333333 = u3,u3 (1, 2)
+    monkeypatch.setenv("MIN_LEAF_PEOPLE", "2")
+    monkeypatch.setenv("MIN_LEAF_CONVERSATIONS", "3")
+    from logless import config
+    config.settings.cache_clear()
+    b = _fake_build(tmp_data, monkeypatch)
+    st = b.load("structure_final")
+    out = gate.size_rollup(b, st)
+    assert [r["leaf"] for r in out] == ["cl_333333", "cl_222222"]
+    alive = {lf["id"] for lf in st["leaves"]}
+    assert alive == {"cl_111111", "cl_other"} and all(r["into"] in alive for r in out)
+    assert {c["id"] for c in st["categories"]} == {lf["parent_id"] for lf in st["leaves"]}

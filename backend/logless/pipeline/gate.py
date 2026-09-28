@@ -7,7 +7,8 @@ verbatim in the raw text of 1..3 conversations), plus a no-numbers rule; (e) a G
 (identifying combinations, unsupported specifics, translated paraphrases) that rewrites; (f) Jev
 identifiability Score 0–3 (>= 2 → rewrite). A text still failing after 2 rewrites is replaced with a
 more general wording (needs/problems) or its leaf is rolled up into the nearest sibling leaf
-(titles/descriptions). Clusters dominated by one person (> 50% of conversations) get a strict audit.
+(titles/descriptions). Before any text check, leaves below the people/conversation minimum (settings)
+are rolled up the same way. Clusters dominated by one person (> 50% of conversations) get a strict audit.
 Outcomes are recorded as counts in the build record; per-text detail stays in private artifacts."""
 from __future__ import annotations
 
@@ -97,7 +98,7 @@ REASON_TEXT = {
     "distinctive_phrase": "copies a distinctive phrase verbatim from a few source conversations",
     "number": "states a number, count or proportion",
     "too_long": "is too long for its role",
-    "identifiability": "is specific enough that it could point to a small group of people",
+    "identifiability": "is specific enough that it could point to a small group (fewer than about 1,000 people)",
 }
 
 
@@ -180,6 +181,7 @@ def glm_rewrite(items: list[dict], reasons: dict[str, list[str]]) -> dict[str, s
 def run(build: util.Build) -> dict:
     st = build.load("structure_described")
     priv = build.load("describe_private")
+    small = size_rollup(build, st)   # before any text check: a leaf too small to publish needs no audit
     dominated = set(priv.get("dominated", []))
     scanner = TokenScanner(fixtures.load_tokens())
     corpus = [r["text"] for r in util.load_rows(build.conv_ids, "SELECT conv_id, text FROM conversations WHERE conv_id IN ({})").values()]
@@ -323,13 +325,13 @@ def run(build: util.Build) -> dict:
     build.save("evidence", evidence)
     build.save("structure_final", st)
     build.save("gate_private", {"items": [{k: it.get(k) for k in ("key", "role", "status", "rewrites", "ident", "reasons_seen")}
-                                          for it in items], "rolled_up": rolled, "dominated": sorted(dominated)})
+                                          for it in items], "rolled_up": rolled, "rolled_up_small": small, "dominated": sorted(dominated)})
     counts = {
         "texts_checked": len(items),
         "passed_first": sum(1 for it in items if it["status"] == "passed" and it["rewrites"] == 0),
         "rewritten": sum(1 for it in items if it["rewrites"] > 0 and it["status"] == "passed"),
         "failed_after_rewrites": sum(1 for it in items if it["status"] == "failed"),
-        "replaced_general": fallback, "dropped": dropped, "rolled_up": len(rolled),
+        "replaced_general": fallback, "dropped": dropped, "rolled_up": len(rolled), "rolled_up_small": len(small),
         "dominated_clusters": len(dominated),
         **{f"initial_{k}": v for k, v in initial.items()},
     }
@@ -337,13 +339,37 @@ def run(build: util.Build) -> dict:
     return counts
 
 
-def rollup(build: util.Build, st: dict, leaf_ids: list[str]) -> list[dict]:
+def size_rollup(build: util.Build, st: dict) -> list[dict]:
+    """Roll up every leaf with fewer than settings().min_leaf_people distinct people or
+    min_leaf_conversations conversations, smallest first and one at a time, so a leaf that absorbs a
+    small one is measured again with its new members. The catch-all leaf is exempt (it has no own text)."""
+    s = settings()
+    user_of = {c: r["user_id"] for c, r in
+               util.load_rows(build.conv_ids, "SELECT conv_id, user_id FROM conversations WHERE conv_id IN ({})").items()}
+    out: list[dict] = []
+    while True:
+        members = leaf_members(build, st["leaves"])
+        small = sorted((len({user_of[c] for c in members[lf["id"]]}), len(members[lf["id"]]), lf["id"])
+                       for lf in st["leaves"] if not lf["is_other"])
+        small = [x for x in small if x[0] < s.min_leaf_people or x[1] < s.min_leaf_conversations]
+        if not small:
+            break
+        out += rollup(build, st, [small[0][2]], cap=False)
+    into = {r["leaf"]: r["into"] for r in out}   # follow chains across the one-at-a-time calls
+    for r in out:
+        while r["into"] in into:
+            r["into"] = into[r["into"]]
+    return out
+
+
+def rollup(build: util.Build, st: dict, leaf_ids: list[str], *, cap: bool = True) -> list[dict]:
     """Merge each failing leaf into its nearest sibling (same category, centroid cosine); if it has no
-    sibling, into cl_other. Metrics are computed later (stats stage) from the merged theme ids."""
+    sibling, into cl_other. Metrics are computed later (stats stage) from the merged theme ids.
+    `cap=False` for size roll-ups, which are a property of the data, not a sign of a broken provider."""
     if not leaf_ids:
         return []
     real = [lf for lf in st["leaves"] if not lf["is_other"]]
-    if len(leaf_ids) > max(2, ROLLUP_MAX_SHARE * len(real)):
+    if cap and len(leaf_ids) > max(2, ROLLUP_MAX_SHARE * len(real)):
         raise RuntimeError(f"gate would roll up {len(leaf_ids)} of {len(real)} leaves; refusing (check the model providers)")
     members = leaf_members(build, st["leaves"])
     cents = leaf_centroids(build, members)

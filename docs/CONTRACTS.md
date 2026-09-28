@@ -41,6 +41,8 @@ The pinned WildChat adapter is the demo source. `logless import <conversations.j
 
 This does not support arbitrary tabular, image or audio datasets. Rendering/truncation limits apply to imported conversations too. Model classification quality must be evaluated for each domain. The WildChat live-intake adapter refuses imported workspaces. Hierarchy size is data-driven within resource caps: 1–8 categories and 1–35 leaves, including Other; it does not manufacture a minimum number of topics for a small dataset.
 
+**Publish floor:** every published leaf except Other has at least `MIN_LEAF_PEOPLE=10` distinct people and `MIN_LEAF_CONVERSATIONS=10` conversations. The privacy gate rolls up smaller leaves (smallest first, into the nearest sibling, else Other) before it checks any text, and publish refuses a full build that breaks the floor. Intake only adds conversations to existing leaves, so it can't break it. The privacy audit and the Jev identifiability question both treat text that could point to fewer than about 1,000 people as too specific (`au2`, `id2`).
+
 ## 2. Identifiers
 
 | ID | Format | Scope |

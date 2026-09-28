@@ -88,11 +88,11 @@ def category_question(categories: list[dict]) -> dict:
                          "criteria": {c["title"]: c.get("description") or "" for c in categories}}}
 
 
-IDENT_QV = "id1"
+IDENT_QV = "id2"
 IDENT_LEVELS = [
     "Generic: describes a broad pattern that many unrelated people share; no specific person, place, organization or event",
     "Mostly generic: mentions a common topic or product but nothing that narrows it to a small group",
-    "Specific: combines details (a niche situation, a particular event, a rare combination of attributes) that could point to a small group of people",
+    "Specific: combines details (a niche situation, a particular event, a rare combination of attributes) that could point to a small group, fewer than about 1,000 people",
     "Identifying: names or clearly points to a specific person, organization, place, account or private document",
 ]
 

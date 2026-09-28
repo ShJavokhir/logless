@@ -14,7 +14,7 @@ PROMPT_VERSIONS = {
     "describe": "de2",
     "friction_note": "fn1",
     "category_text": "ct1",
-    "audit": "au1",
+    "audit": "au2",
     "rewrite": "rw1",
     "labels": "lb3",
 }
@@ -254,7 +254,7 @@ AUDIT_SYS = (
     "AI-assistant dataset. Each item is a title, description, need or problem written for one cluster of "
     "conversations; generalized records from that cluster are provided as evidence. For every item decide 'pass' "
     "or 'rewrite'. Rewrite when the text: names or points to a person, username, organization, exact place, date or "
-    "account; contains a combination of specifics that could point to a small group; states a number, count or "
+    "account; contains a combination of specifics that could point to a small group (fewer than about 1,000 people); states a number, count or "
     "proportion; makes a claim the evidence records do not support; or reads like a paraphrase or translation of one "
     "specific conversation rather than a pattern across people. When rewriting, keep the meaning at a more general "
     "level, keep the same role (titles at most 8 words, descriptions one or two sentences, needs/problems one short "

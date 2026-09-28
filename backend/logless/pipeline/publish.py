@@ -11,7 +11,7 @@ import re
 from collections import Counter
 
 from .. import db
-from ..config import (DATASET_REVISION, DATASET_URL, EMBEDDING_MODEL, GLM, GLM_FLASH, JEV)
+from ..config import (DATASET_REVISION, DATASET_URL, EMBEDDING_MODEL, GLM, GLM_FLASH, JEV, settings)
 from ..config_workspace import (INTENDED_USES, SAMPLE_NOTE, SHARD_ROWS, WORKSPACE_DESCRIPTION, WORKSPACE_NAME)
 from ..data import fixtures
 from ..ids import utcnow
@@ -289,6 +289,10 @@ def validate(snap: dict, rows: list[dict] | None = None, clusters_arg: list[dict
             errs.append(f"{len(cats)} categories outside {CATS_RANGE}")
         if not (LEAVES_RANGE[0] <= len(leaves) <= LEAVES_RANGE[1]):
             errs.append(f"{len(leaves)} leaves outside {LEAVES_RANGE}")
+        s = settings()
+        for l in leaves:
+            if not l.get("is_other") and (l["users"] < s.min_leaf_people or l["conversations"] < s.min_leaf_conversations):
+                errs.append(f"{l['id']}: below the publish minimum of {s.min_leaf_people} people and {s.min_leaf_conversations} conversations")
     if rows is not None and clusters_arg is not None:
         ref = reference_metrics(rows, clusters_arg)
         # Frozen sandbox inputs (the eval's reconciliation source) hold friction only, so care is
@@ -361,7 +365,7 @@ def run(build: util.Build) -> dict:
     if build.limit is not None:
         # pilot builds may be small; still report range issues without blocking
         for e in validate(snap, strict_ranges=True):
-            if "outside" in e:
+            if "outside" in e or "publish minimum" in e:
                 log.warning("pilot build: %s", e)
     sc = scan(snap, TokenScanner(fixtures.load_tokens()))
     if sc["fixture_tokens"]:

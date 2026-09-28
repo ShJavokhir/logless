@@ -46,6 +46,8 @@ class Settings:
     sample_size: int
     sample_seed: int
     n_canary: int = 40
+    min_leaf_people: int = 10          # a published leaf needs this many distinct people...
+    min_leaf_conversations: int = 10   # ...and this many conversations, or it is rolled up
     glm_concurrency: int = 16
     jev_concurrency: int = 24
     extra: dict = field(default_factory=dict)
@@ -85,4 +87,6 @@ def settings() -> Settings:
         sample_size=int(os.environ.get("SAMPLE_SIZE", "5000")),
         sample_seed=int(os.environ.get("SAMPLE_SEED", "20260926")),
         n_canary=int(os.environ.get("N_CANARY", "40")),
+        min_leaf_people=int(os.environ.get("MIN_LEAF_PEOPLE", "10")),
+        min_leaf_conversations=int(os.environ.get("MIN_LEAF_CONVERSATIONS", "10")),
     )
