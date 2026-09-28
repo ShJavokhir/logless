@@ -41,6 +41,14 @@ def main(argv: list[str] | None = None) -> int:
     itsub.add_parser("status", help="show the prepared batch")
     itsub.add_parser("reset", help="re-publish the base snapshot and clear the batch's decisions")
 
+    sy = sub.add_parser("synth", help="write a synthetic corpus from the known mix in eval/synthetic_mix.json (calls GLM)")
+    sy.add_argument("--n", type=int, default=5000)
+    sy.add_argument("--out", required=True, help="new directory for conversations.jsonl, source.json and truth.jsonl")
+    sy.add_argument("--seed", type=int, default=7)
+    rc = sub.add_parser("reconstruct", help="score the current build against a synthetic truth.jsonl")
+    rc.add_argument("truth", help="truth.jsonl written by `synth`")
+    rc.add_argument("--build", default=None, help="build id (default: the current snapshot's build)")
+
     sv = sub.add_parser("serve", help="run the API server")
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8000)
@@ -100,6 +108,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "eval":
         from .eval import report
         return report.main()
+    if args.cmd in ("synth", "reconstruct"):
+        import json as _json
+        from pathlib import Path
+        from .eval import reconstruct
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        if args.cmd == "synth":
+            out = reconstruct.synth(args.n, Path(args.out).expanduser(), args.seed)
+        else:
+            out = reconstruct.score(Path(args.truth).expanduser(), args.build or reconstruct.current_build())
+        print(_json.dumps(out, ensure_ascii=False, indent=1))
+        return 0
     if args.cmd == "serve":
         import uvicorn
         uvicorn.run("logless.api.app:app", host=args.host, port=args.port, log_level="info", access_log=False)

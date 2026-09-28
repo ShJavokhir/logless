@@ -106,3 +106,28 @@ shows those checks as unverified rather than inheriting a success from the demo.
 create a held-out, source-appropriate reference set, review stratified samples (languages, domains,
 conversation lengths and rare workflows), and measure precision/recall with adequate positive
 support. Do not tune and report final performance on the same examples.
+
+## Synthetic reconstruction check
+
+A synthetic corpus with a known mix measures model quality without hand labels, in the way Clio
+does. `synth` asks GLM to write conversations from the topic, language and correction mix in
+`backend/logless/eval/synthetic_mix.json` (including two rare topics at 2–3%). It writes an
+importable `conversations.jsonl` and `source.json`, and keeps the true labels in `truth.jsonl`,
+which the pipeline never reads. `reconstruct` then scores the published build against the truth.
+
+```bash
+backend/.venv/bin/logless synth --n 5000 --out /absolute/path/synth
+backend/.venv/bin/logless import /absolute/path/synth/conversations.jsonl \
+  --metadata /absolute/path/synth/source.json --data-dir /absolute/path/synth-data
+export LOGLESS_DATA_DIR=/absolute/path/synth-data
+backend/.venv/bin/logless rebuild
+backend/.venv/bin/logless reconstruct /absolute/path/synth/truth.jsonl
+```
+
+The report (also saved to `artifacts/eval/reconstruct.json`) gives the adjusted Rand index between
+true topic and leaf, the total variation distance between the true topic mix and the mix the leaves
+imply (each leaf counts as its majority topic, and Other counts as unassigned), and precision and
+recall of the `correction` signal against planted corrections. It repeats these per true language
+and per facet model lane, and omits scores for groups under 30 conversations. `synth` fails if more
+than 5% of generations fail, because silently dropped chats would bias the mix. Both commands need
+the provider keys, so run them on the VM.

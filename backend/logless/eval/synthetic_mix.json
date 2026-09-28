@@ -1,0 +1,19 @@
+{
+ "note": "Known mix for the synthetic reconstruction eval. Weights are normalized; small topics test whether rare uses survive.",
+ "topics": [
+  {"id": "math_homework", "weight": 0.18, "description": "a student asks for help solving or understanding a school or university math problem"},
+  {"id": "python_debugging", "weight": 0.16, "description": "a developer asks why their Python code throws an error and how to fix it"},
+  {"id": "cover_letters", "weight": 0.12, "description": "a job seeker asks for help writing or improving a cover letter or CV"},
+  {"id": "recipes", "weight": 0.10, "description": "someone asks for a recipe or cooking advice for a specific meal or diet"},
+  {"id": "translation", "weight": 0.10, "description": "someone asks to translate a short text between two languages"},
+  {"id": "travel_planning", "weight": 0.09, "description": "someone plans a trip and asks for an itinerary, budget or places to visit"},
+  {"id": "fitness_plans", "weight": 0.08, "description": "someone asks for a workout plan or exercise advice for a goal"},
+  {"id": "fantasy_fiction", "weight": 0.07, "description": "a writer asks the assistant to continue or write a fantasy story scene"},
+  {"id": "sql_queries", "weight": 0.05, "description": "an analyst asks how to write or fix an SQL query for a reporting task"},
+  {"id": "houseplants", "weight": 0.03, "description": "someone asks why a houseplant is unhealthy and how to care for it"},
+  {"id": "teddy_bears", "weight": 0.02, "description": "someone asks how to sew, repair or choose a teddy bear"}
+ ],
+ "languages": {"English": 0.45, "Spanish": 0.2, "Chinese": 0.15, "Arabic": 0.1, "Georgian": 0.1},
+ "correction_rate": 0.15,
+ "conversations_per_person": 2
+}
