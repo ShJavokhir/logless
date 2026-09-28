@@ -37,3 +37,6 @@ var-synthetic/
 # Local submission deck (separate repo) and note-helper lock
 /submission-slides/
 notes/.take-notes.lock
+
+# Research scratch notes
+research/
