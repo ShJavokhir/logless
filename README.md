@@ -1,5 +1,7 @@
 # logless
 
+![How Logless turns private conversations into published workflow insights](docs/img/how-logless-turns-conversations-into-insights.png)
+
 **Blast radius zero for an AI data analyst.** A product manager asks about private chat logs in plain English. The agent plans the task, writes the code, dispatches it to throwaway gVisor sandboxes on Vultr, and returns an answer that was **executed and verified, not described**. If the code goes rogue, the blast radius is one container with no network, no keys and a read-only root, and it is destroyed after the run.
 
 Track 1: Blast Radius Zero · 5,000 real [WildChat](https://huggingface.co/datasets/allenai/WildChat-1M) conversations

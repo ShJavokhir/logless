@@ -6,6 +6,7 @@ import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
+import { ULTRA, ultraCss } from "@/lib/ultrasort"
 
 export type MarbleBin = {
   label: string
@@ -20,6 +21,8 @@ export type MarbleStats = {
   landed: number
   bins: { landed: number; friction: number }[]
   drained: boolean
+  /** live, not-yet-faded simulated drip marbles (informational only) */
+  drips: number
 }
 
 export type MarbleScene = {
@@ -27,15 +30,10 @@ export type MarbleScene = {
   push: (bin: number, friction: boolean) => void
   /** lift the gate (armed → running) */
   open: () => void
-  /**
-   * While armed: one decision at GLM's pace. A marble drops into the gate, waits
-   * `dripHold` seconds (one GLM call) and rolls to `bin`. Without `real` it is an
-   * estimate: never counted, cleared by the wave, recycled when the pool is full.
-   * With `real` it is a known decision: counted in the bin labels and kept. Returns
-   * false when it was not dropped (after `ultrasort()`, no `dripCapacity`, pool full).
-   */
+  /** A baseline marble; with `real`, count a known decision and keep it after Ultrasort.
+   * Returns false if the gate is open or no pool slot is available. */
   drip: (bin: number, real?: { friction: boolean }) => boolean
-  /** Switch to Jev: a wave clears every drip marble (instantly with reduced motion) and the gate opens. Idempotent. */
+  /** open() plus the violet wave, camera pull-back, and simulated drip marbles fading out */
   ultrasort: () => void
   /** inset: fractions of the canvas height kept clear for overlaid HUD */
   resize: (w: number, h: number, inset?: { top: number; bottom: number }) => void
@@ -88,6 +86,16 @@ const G = 11 // gravity, units/s²
 const T_SLIDE = 0.2 // jar floor → outlet
 const T_TUBE = 0.24 // drop down the glass tube into the gate
 const T_GATE = 0.12 // through the gate
+const T_ROLL = 0.16 // drip: tube foot → its waiting spot on Jev's lid
+const T_DROP = 0.14 // drip: waiting spot → into the gate
+const QUEUE = 16 // drip waiting spots in a ring around the tube foot
+const GHOST = 0.6 // drip fade-out after ultrasort
+const WAVE_DELAY = 0.25 // button flood before the wave leaves the jar
+const WAVE_T = 0.8 // wave front: jar top → end of the rail
+const WAVE_GATE = 0.4 // share of the wave path spent on jar → gate
+const PULL_T = 1.2 // camera ease-back
+const PULL = 0.14 // extra distance, as a fraction of the framed distance
+const CLOSE = 0.56 // drip framing distance, as a fraction of the framed distance
 
 function layout(capacity: number, nBins: number) {
   const r = Math.min(0.045, Math.max(0.0125, 0.0125 * Math.cbrt(100000 / Math.max(1, capacity))))
@@ -174,143 +182,108 @@ function binSlots(L: Layout, bin: number, count: number, seed: number) {
 const VERT = /* glsl */ `
 attribute vec3 aJar;
 attribute vec3 aTarget;
-attribute vec4 aRoute; // spawn time (-1 = still in the jar), release x, lane z, colour code (64: left as a drip marble)
+attribute vec4 aRoute; // spawn time (-1 = still in the jar), release x, lane z, colour code
 uniform float uTime, uSpawned, uPerLayer, uPitch, uJarBottom, uR;
 uniform vec3 uOutlet, uGateIn;
 uniform float uGateOut, uRailY0, uSlope, uSpeed, uG, uTSlide, uTTube, uTGate;
+uniform float uLid, uQueueR, uDripHold, uTRoll, uTDrop, uGhostAt, uGhostT;
 uniform vec3 uColors[8];
 uniform vec3 uGlass;
 varying vec2 vUv;
 varying vec3 vCenter, vColor;
-varying float vGlass;
+varying float vGlass, vFade;
 
 float railY(float x) { return uRailY0 - uSlope * (x - uGateOut); }
 
 void main() {
-  // this conversation left the hopper as a drip marble, which draws it from here on
-  if (aRoute.w >= 64.0) {
+  // This conversation left the hopper as a counted drip instance.
+  if (aRoute.w >= 2048.0) {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
   }
-  // colour code: bin + 16 when friction was observed; friction is counted, not coloured
-  float code = aRoute.w;
+  // colour code: bin + 16 when friction was observed; friction is counted, not coloured.
+  // Drip marbles add 32 * (waiting spot + 1); counted drips also add 1024.
+  bool realDrip = aRoute.w >= 1024.0;
+  float code = mod(aRoute.w, 1024.0);
   int bin = int(mod(code, 16.0) + 0.5);
+  bool drip = code >= 32.0;
   vec3 jarFloor = vec3(aJar.x, uJarBottom + uR, aJar.z);
   vec3 p;
   float glass = 1.0;
   float t = uTime - aRoute.x;
-  if (aRoute.x < 0.0 || t < 0.0) {
-    // still in the hopper: the whole pile sinks as marbles leave from the floor
-    p = aJar;
-    p.y = max(uJarBottom + uR, aJar.y - (uSpawned / uPerLayer) * uPitch);
-  } else if (t < uTSlide) {
-    float k = t / uTSlide;
-    p = mix(jarFloor, uOutlet, k * k);
-  } else if (t < uTSlide + uTTube) {
-    float k = (t - uTSlide) / uTTube;
-    p = mix(uOutlet, uGateIn, k * k);
-  } else if (t < uTSlide + uTTube + uTGate) {
-    float k = (t - uTSlide - uTTube) / uTGate;
-    vec3 outP = vec3(uGateOut, railY(uGateOut) + uR, aRoute.z);
-    p = mix(uGateIn, outP, k);
-    glass = step(k, 0.5);
-  } else {
-    glass = 0.0;
-    float s = t - uTSlide - uTTube - uTGate;
-    float tRail = max(0.0, aRoute.y - uGateOut) / uSpeed;
-    if (s < tRail) {
-      float x = uGateOut + uSpeed * s;
-      p = vec3(x, railY(x) + uR, aRoute.z);
+  float fade = 1.0;
+  if (drip) {
+    if (!realDrip) fade = 1.0 - clamp((uTime - uGhostAt) / uGhostT, 0.0, 1.0);
+    if (aRoute.x < 0.0 || t < 0.0 || fade <= 0.0) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+  }
+  float held = uTTube + uTRoll + uDripHold + uTDrop;
+  if (drip && t < held) {
+    // outlet → down the tube to the lid → out to its spot in the ring → wait → into the gate
+    float a = (floor(code / 32.0) - 1.0) * ${((2 * Math.PI) / QUEUE).toFixed(6)} + 0.4;
+    vec3 foot = vec3(uGateIn.x, uLid, uGateIn.z);
+    vec3 q = foot + uQueueR * vec3(cos(a), 0.0, sin(a));
+    if (t < uTTube) {
+      float k = t / uTTube;
+      p = mix(uOutlet, foot, k * k);
+    } else if (t < uTTube + uTRoll) {
+      float k = 1.0 - (t - uTTube) / uTRoll;
+      p = mix(foot, q, 1.0 - k * k);
+    } else if (t < uTTube + uTRoll + uDripHold) {
+      p = q;
     } else {
-      vec3 rel = vec3(aRoute.y, railY(aRoute.y) + uR, aRoute.z);
-      float drop = max(0.001, rel.y - aTarget.y);
-      float tFall = sqrt(2.0 * drop / uG);
-      float f = s - tRail;
-      if (f < tFall) {
-        float k = f / tFall;
-        p = vec3(mix(rel.x, aTarget.x, k), rel.y - 0.5 * uG * f * f, mix(rel.z, aTarget.z, k));
+      float k = (t - uTTube - uTRoll - uDripHold) / uTDrop;
+      p = mix(q, uGateIn, k * k);
+    }
+  } else {
+    // past the wait, a drip follows the real path from the gate entrance on
+    if (drip) t += uTSlide + uTTube - held;
+    if (aRoute.x < 0.0 || t < 0.0) {
+      // still in the hopper: the whole pile sinks as marbles leave from the floor
+      p = aJar;
+      p.y = max(uJarBottom + uR, aJar.y - (uSpawned / uPerLayer) * uPitch);
+    } else if (t < uTSlide) {
+      float k = t / uTSlide;
+      p = mix(jarFloor, uOutlet, k * k);
+    } else if (t < uTSlide + uTTube) {
+      float k = (t - uTSlide) / uTTube;
+      p = mix(uOutlet, uGateIn, k * k);
+    } else if (t < uTSlide + uTTube + uTGate) {
+      float k = (t - uTSlide - uTTube) / uTGate;
+      vec3 outP = vec3(uGateOut, railY(uGateOut) + uR, aRoute.z);
+      p = mix(uGateIn, outP, k);
+      glass = step(k, 0.5);
+    } else {
+      glass = 0.0;
+      float s = t - uTSlide - uTTube - uTGate;
+      float tRail = max(0.0, aRoute.y - uGateOut) / uSpeed;
+      if (s < tRail) {
+        float x = uGateOut + uSpeed * s;
+        p = vec3(x, railY(x) + uR, aRoute.z);
       } else {
-        float k = clamp((f - tFall) / 0.14, 0.0, 1.0);
-        p = aTarget + vec3(0.0, min(0.035, drop * 0.06) * 4.0 * k * (1.0 - k), 0.0);
+        vec3 rel = vec3(aRoute.y, railY(aRoute.y) + uR, aRoute.z);
+        float drop = max(0.001, rel.y - aTarget.y);
+        float tFall = sqrt(2.0 * drop / uG);
+        float f = s - tRail;
+        if (f < tFall) {
+          float k = f / tFall;
+          p = vec3(mix(rel.x, aTarget.x, k), rel.y - 0.5 * uG * f * f, mix(rel.z, aTarget.z, k));
+        } else {
+          float k = clamp((f - tFall) / 0.14, 0.0, 1.0);
+          p = aTarget + vec3(0.0, min(0.035, drop * 0.06) * 4.0 * k * (1.0 - k), 0.0);
+        }
       }
     }
   }
   vColor = uColors[bin];
   vGlass = glass;
+  vFade = fade;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vCenter = mv.xyz;
   vUv = position.xy * 1.08;
   mv.xy += position.xy * uR * 1.08;
-  gl_Position = projectionMatrix * mv;
-}
-`
-
-// Drip marbles (the GLM estimate while armed): they appear in the glass tube under
-// the closed shutter, wait uHold seconds inside the gate, then take the same rail
-// to their bin. The Ultrasort wave shrinks each one away as it passes.
-const DRIP_VERT = /* glsl */ `
-attribute vec3 aTarget;
-attribute vec4 aRoute; // spawn time (-1 = unused), release x, lane z, bin + 32 when real (kept by the wave)
-uniform float uTime, uR, uHold, uWaveAt, uWaveX0, uWaveSpeed, uWaveFade;
-uniform vec3 uDripStart, uGateIn;
-uniform float uGateOut, uRailY0, uSlope, uSpeed, uG, uTTube, uTGate;
-uniform vec3 uColors[8];
-varying vec2 vUv;
-varying vec3 vCenter, vColor;
-varying float vGlass;
-
-float railY(float x) { return uRailY0 - uSlope * (x - uGateOut); }
-
-void main() {
-  int bin = int(mod(aRoute.w, 16.0) + 0.5);
-  bool real = aRoute.w >= 32.0;
-  float t = uTime - aRoute.x;
-  vec3 p = uDripStart;
-  float glass = 1.0;
-  float size = 1.0;
-  if (aRoute.x < 0.0 || t < 0.0) {
-    size = 0.0;
-  } else if (t < uTTube) {
-    float k = t / uTTube;
-    p = mix(uDripStart, uGateIn, k * k);
-    size = smoothstep(0.0, 0.1, t);
-  } else if (t < uTTube + uHold) {
-    p = uGateIn; // one GLM call: the marble waits inside the gate
-  } else if (t < uTTube + uHold + uTGate) {
-    float k = (t - uTTube - uHold) / uTGate;
-    vec3 outP = vec3(uGateOut, railY(uGateOut) + uR, aRoute.z);
-    p = mix(uGateIn, outP, k);
-    glass = step(k, 0.5);
-  } else {
-    glass = 0.0;
-    float s = t - uTTube - uHold - uTGate;
-    float tRail = max(0.0, aRoute.y - uGateOut) / uSpeed;
-    if (s < tRail) {
-      float x = uGateOut + uSpeed * s;
-      p = vec3(x, railY(x) + uR, aRoute.z);
-    } else {
-      vec3 rel = vec3(aRoute.y, railY(aRoute.y) + uR, aRoute.z);
-      float drop = max(0.001, rel.y - aTarget.y);
-      float tFall = sqrt(2.0 * drop / uG);
-      float f = s - tRail;
-      if (f < tFall) {
-        float k = f / tFall;
-        p = vec3(mix(rel.x, aTarget.x, k), rel.y - 0.5 * uG * f * f, mix(rel.z, aTarget.z, k));
-      } else {
-        p = aTarget;
-      }
-    }
-  }
-  if (uWaveAt >= 0.0 && !real) {
-    float gone = uWaveAt + max(0.0, p.x - uWaveX0) / uWaveSpeed;
-    size *= 1.0 - smoothstep(gone, gone + uWaveFade, uTime);
-  }
-  vColor = uColors[bin];
-  vGlass = glass;
-  vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  vCenter = mv.xyz;
-  vUv = position.xy * 1.08;
-  mv.xy += position.xy * uR * 1.08 * size;
   gl_Position = projectionMatrix * mv;
 }
 `
@@ -321,7 +294,7 @@ uniform float uR;
 uniform vec3 uGlass;
 varying vec2 vUv;
 varying vec3 vCenter, vColor;
-varying float vGlass;
+varying float vGlass, vFade;
 
 void main() {
   float d2 = dot(vUv, vUv);
@@ -343,9 +316,29 @@ void main() {
   col += vec3(1.0) * pow(max(dot(r, L), 0.0), 48.0) * 1.1;
   col *= 0.72 + 0.28 * smoothstep(-1.0, 0.25, n.y); // contact shading underneath
   float edge = fwidth(d2);
-  gl_FragColor = vec4(col, 1.0 - smoothstep(1.0 - edge * 1.5, 1.0, d2));
+  col = mix(vec3(1.0), col, 0.4 + 0.6 * vFade); // drip ghosts pale as they fade
+  gl_FragColor = vec4(col, (1.0 - smoothstep(1.0 - edge * 1.5, 1.0, d2)) * vFade);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
+}
+`
+
+// Ultrasort wave: an emissive violet front that runs jar top → gate → rail end,
+// flaring each surface as it passes and decaying after. Patched into the
+// standard/physical materials so it costs nothing beyond a few ALU ops.
+const WAVE_VERT = /* glsl */ `
+varying vec3 vWaveW;
+`
+const WAVE_FRAG = /* glsl */ `
+uniform float uWaveT, uWaveAt, uWaveTop, uWaveMid, uWaveX0, uWaveX1;
+uniform vec3 uWaveCol;
+varying vec3 vWaveW;
+float waveGlow() {
+  float s = vWaveW.x < uWaveX0
+    ? ${WAVE_GATE.toFixed(2)} * clamp((uWaveTop - vWaveW.y) / (uWaveTop - uWaveMid), 0.0, 1.0)
+    : ${WAVE_GATE.toFixed(2)} + ${(1 - WAVE_GATE).toFixed(2)} * clamp((vWaveW.x - uWaveX0) / (uWaveX1 - uWaveX0), 0.0, 1.0);
+  float te = uWaveT - uWaveAt - s * ${WAVE_T.toFixed(2)};
+  return smoothstep(-0.08, 0.0, te) * exp(-max(te, 0.0) * 2.2);
 }
 `
 
@@ -403,15 +396,17 @@ export function createMarbleScene(
     countScale?: number
     /** fractions of the canvas height kept clear for overlaid HUD */
     inset?: { top: number; bottom: number }
-    /** drip marbles available while armed (0: no drip); reused oldest-first when exhausted */
+    /** extra drip instances; simulated marbles can be recycled, counted ones are kept */
     dripCapacity?: number
-    /** seconds each drip marble waits in the gate (one GLM call) */
+    /** seconds each drip marble waits at the gate */
     dripHold?: number
   },
 ): MarbleScene {
   const { bins, reducedMotion = false, countScale = 1 } = opts
   const toCount = (marbles: number) => Math.round(marbles * countScale)
   const capacity = Math.max(1, Math.floor(opts.capacity))
+  const dripCap = Math.max(0, Math.floor(opts.dripCapacity ?? 0))
+  const dripHold = Math.max(0, opts.dripHold ?? 1.5)
   const L = layout(capacity, bins.length)
   const { r } = L
 
@@ -476,7 +471,33 @@ export function createMarbleScene(
   const brass = new THREE.MeshStandardMaterial({ color: 0xc9a46a, metalness: 1, roughness: 0.3 })
   const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, envMapIntensity: 2.2, side: THREE.DoubleSide, depthWrite: false })
   const acrylic = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, transparent: true, opacity: 0.1, envMapIntensity: 1.8, depthWrite: false })
-  disposables.push(wood, woodEnd, steel, brass, glassMat, acrylic)
+  const gateMat = new THREE.MeshStandardMaterial({ color: 0x1d2130, roughness: 0.32, metalness: 0.35 })
+  disposables.push(wood, woodEnd, steel, brass, glassMat, acrylic, gateMat)
+
+  // violet wave uniforms, shared by every patched material
+  const wave = {
+    uWaveT: { value: 0 },
+    uWaveAt: { value: 1e9 },
+    uWaveTop: { value: 0 },
+    uWaveMid: { value: L.gateY },
+    uWaveX0: { value: L.gateOut },
+    uWaveX1: { value: L.trayX1 },
+    uWaveCol: { value: new THREE.Vector3(...oklchLinear(ULTRA.l, ULTRA.c, ULTRA.h)) },
+  }
+  const waveHook = (mat: THREE.Material, strength: number, alphaBoost = 0) => {
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, wave)
+      sh.vertexShader = WAVE_VERT + sh.vertexShader.replace("#include <project_vertex>", "#include <project_vertex>\n  vWaveW = (modelMatrix * vec4(transformed, 1.0)).xyz;")
+      sh.fragmentShader = WAVE_FRAG + sh.fragmentShader
+        .replace("#include <alphamap_fragment>", `#include <alphamap_fragment>\n  float wg = waveGlow();\n  diffuseColor.a = min(1.0, diffuseColor.a + ${alphaBoost.toFixed(2)} * wg);`)
+        .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n  totalEmissiveRadiance += uWaveCol * (wg * ${strength.toFixed(2)});`)
+    }
+    mat.customProgramCacheKey = () => `wave:${strength}:${alphaBoost}`
+  }
+  waveHook(glassMat, 2.4, 0.3)
+  waveHook(steel, 1.2)
+  waveHook(brass, 1.2)
+  waveHook(gateMat, 1.4)
 
   // table
   const table = add(new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: bg.clone().multiplyScalar(0.985), roughness: 0.95 })), false)
@@ -533,6 +554,7 @@ export function createMarbleScene(
   const jar = jarSlots(L, capacity)
   const hop = L.hopper
   const jarH = Math.max(0.8, jar.height + 0.14)
+  wave.uWaveTop.value = hop.bottom + jarH
   const cyl = add(new THREE.Mesh(new THREE.CylinderGeometry(hop.R, hop.R, jarH, 64, 1, true), glassMat), false)
   cyl.position.set(hop.x, hop.bottom + jarH / 2, hop.z)
   for (const y of [hop.bottom, hop.bottom + jarH]) {
@@ -556,7 +578,7 @@ export function createMarbleScene(
   }
 
   // Jev gate: dark body, live front display (text + a strip of recent decisions), amber bar while armed
-  const gate = add(new THREE.Mesh(new RoundedBoxGeometry(GATE.w, GATE.h, GATE.d, 5, 0.07), new THREE.MeshStandardMaterial({ color: 0x1d2130, roughness: 0.32, metalness: 0.35 })))
+  const gate = add(new THREE.Mesh(new RoundedBoxGeometry(GATE.w, GATE.h, GATE.d, 5, 0.07), gateMat))
   gate.position.set(L.gateX, L.gateY, TROUGH_Z)
   rod(new THREE.Vector3(L.gateX, -0.07, TROUGH_Z), new THREE.Vector3(L.gateX, L.gateY - GATE.h / 2, TROUGH_Z), 0.04, steel)
   const screen = canvasPlane(GATE.w - 0.12, GATE.h - 0.14, 640, 420, true)
@@ -578,7 +600,7 @@ export function createMarbleScene(
     disposables.push(plate.mesh.geometry, plate.mesh.material as THREE.Material, plate.tex)
     return { ...plate, bin: b, shown: -1 }
   })
-  const drawLabel = (i: number, landed: number, friction: number) => {
+  const drawLabel = (i: number, landed: number, friction: number, sim = false) => {
     const lb = labels[i]
     const { ctx, cv } = lb
     ctx.clearRect(0, 0, cv.width, cv.height)
@@ -595,12 +617,16 @@ export function createMarbleScene(
     ctx.textBaseline = "middle"
     ctx.textAlign = "left"
     ctx.fillText(lb.bin.label, 50, 39, cv.width - 70)
-    ctx.font = "600 44px 'Geist Mono Variable', ui-monospace, monospace"
-    ctx.fillText(toCount(landed).toLocaleString("en-US"), 22, 88)
+    // the landed count is the live counter during a run: large, squeezed only if it would reach the friction note
+    const note = sim ? "simulated" : friction ? `${toCount(friction).toLocaleString("en-US")} friction` : "no friction"
+    ctx.font = "500 20px 'Geist Mono Variable', ui-monospace, monospace"
+    const noteW = ctx.measureText(note).width
+    ctx.font = "700 58px 'Geist Mono Variable', ui-monospace, monospace"
+    ctx.fillText(toCount(landed).toLocaleString("en-US"), 20, 86, cv.width - 20 - noteW - 22 - 14)
     ctx.textAlign = "right"
     ctx.font = "500 20px 'Geist Mono Variable', ui-monospace, monospace"
     ctx.fillStyle = friction ? `oklch(0.6 0.16 ${HEAT_HUE})` : "#8a8f99"
-    ctx.fillText(friction ? `${toCount(friction).toLocaleString("en-US")} friction` : "no friction", cv.width - 22, 92)
+    ctx.fillText(note, cv.width - 22, 94)
     lb.tex.needsUpdate = true
   }
 
@@ -608,11 +634,16 @@ export function createMarbleScene(
   const geo = new THREE.InstancedBufferGeometry()
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]), 3))
   geo.setIndex([0, 1, 2, 0, 2, 3])
-  geo.instanceCount = capacity
-  const aJar = new THREE.InstancedBufferAttribute(jar.slots, 3)
-  const targets = new Float32Array(capacity * 3)
-  const routes = new Float32Array(capacity * 4)
+  // drip marbles live after the real ones in the same buffers: one draw call
+  const total = capacity + dripCap
+  geo.instanceCount = total
+  const jarAll = new Float32Array(total * 3)
+  jarAll.set(jar.slots)
+  const aJar = new THREE.InstancedBufferAttribute(jarAll, 3)
+  const targets = new Float32Array(total * 3)
+  const routes = new Float32Array(total * 4)
   for (let i = 0; i < capacity; i++) routes[i * 4] = -1
+  for (let i = capacity; i < total; i++) routes.set([-1, 0, 0, 32], i * 4)
   const aTarget = new THREE.InstancedBufferAttribute(targets, 3).setUsage(THREE.DynamicDrawUsage)
   const aRoute = new THREE.InstancedBufferAttribute(routes, 4).setUsage(THREE.DynamicDrawUsage)
   geo.setAttribute("aJar", aJar)
@@ -640,6 +671,13 @@ export function createMarbleScene(
     uTSlide: { value: T_SLIDE },
     uTTube: { value: T_TUBE },
     uTGate: { value: T_GATE },
+    uLid: { value: L.gateTop + r },
+    uQueueR: { value: Math.min((QUEUE * 2.3 * r) / (2 * Math.PI), GATE.d / 2 - 0.08 - r) },
+    uDripHold: { value: dripHold },
+    uTRoll: { value: T_ROLL },
+    uTDrop: { value: T_DROP },
+    uGhostAt: { value: 1e9 },
+    uGhostT: { value: GHOST },
     uColors: { value: colors },
     uGlass: { value: new THREE.Vector3(...oklchLinear(0.9, 0.018, 215)) },
     uProj: { value: camera.projectionMatrix },
@@ -649,44 +687,6 @@ export function createMarbleScene(
   marbles.frustumCulled = false
   scene.add(marbles)
   disposables.push(geo, marbleMat)
-
-  // drip marbles: a separate pool so estimates never take a real marble's place or count
-  const dripCap = Math.max(0, Math.floor(opts.dripCapacity ?? 0))
-  const WAVE_S = 0.9
-  const waveX0 = L.gateX - GATE.w / 2 - 0.1
-  const waveX1 = trayX1 + 0.1
-  const dripUniforms = {
-    ...uniforms,
-    uHold: { value: Math.max(0, opts.dripHold ?? 0) },
-    uDripStart: { value: new THREE.Vector3(L.outlet.x, L.outlet.y - 0.05 - r, L.outlet.z) },
-    uWaveAt: { value: -1 },
-    uWaveX0: { value: waveX0 },
-    uWaveSpeed: { value: reducedMotion ? 1e9 : (waveX1 - waveX0) / WAVE_S },
-    uWaveFade: { value: reducedMotion ? 1e-4 : 0.16 },
-  }
-  const dripTargets = new Float32Array(Math.max(1, dripCap) * 3)
-  const dripRoutes = new Float32Array(Math.max(1, dripCap) * 4).fill(-1)
-  const aDripTarget = new THREE.InstancedBufferAttribute(dripTargets, 3).setUsage(THREE.DynamicDrawUsage)
-  const aDripRoute = new THREE.InstancedBufferAttribute(dripRoutes, 4).setUsage(THREE.DynamicDrawUsage)
-  if (dripCap > 0) {
-    const dripGeo = new THREE.InstancedBufferGeometry()
-    dripGeo.setAttribute("position", geo.getAttribute("position"))
-    dripGeo.setIndex(geo.getIndex())
-    dripGeo.instanceCount = dripCap
-    dripGeo.setAttribute("aTarget", aDripTarget)
-    dripGeo.setAttribute("aRoute", aDripRoute)
-    const dripMat = new THREE.ShaderMaterial({ vertexShader: DRIP_VERT, fragmentShader: FRAG, uniforms: dripUniforms, alphaToCoverage: true })
-    const dripMesh = new THREE.Mesh(dripGeo, dripMat)
-    dripMesh.frustumCulled = false
-    scene.add(dripMesh)
-    disposables.push(dripGeo, dripMat)
-  }
-  // the Ultrasort wave: a green sheet sweeping from the gate across the bins
-  const waveMat = new THREE.MeshBasicMaterial({ color: 0x2fbf71, transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
-  const waveH = L.gateTop + 0.2
-  const wave = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, waveH, BIN_Z1 - BIN_Z0 + 0.5), waveMat), false)
-  wave.position.set(waveX0, waveH / 2 - 0.07, 0.1)
-  wave.visible = false
 
   // ---------------------------------------------------------------- bookkeeping
   const totalWeight = bins.reduce((a, b) => a + Math.max(0, b.weight), 0) || 1
@@ -702,13 +702,25 @@ export function createMarbleScene(
   const rand = rng(99)
   const recent: number[] = [] // for the gate display
   const clock0 = performance.now()
-  // starts at 100 s so reduced motion's "landed a minute ago" (t - 60) is never negative, which the shaders read as unspawned
+  // Keep reduced motion's already-landed timestamps positive (negative means unspawned).
   const now = () => (performance.now() - clock0) / 1000 + 100
   let openedAt = opts.armed ? Infinity : 0
-  let dripped = 0
+  let ultraAt = Infinity
+  let pullAt = Infinity // camera ease-back start; stays Infinity if skipped
+
+  // drip: a ring buffer of instances plus QUEUE waiting spots on the gate lid
+  const dripRand = rng(5)
+  const dripPerBin = bins.map(() => 0)
+  const dripLandTimes: number[][] = bins.map(() => [])
+  const dripLandedIdx = bins.map(() => 0)
+  let dripSeq = 0
   let realDripped = 0
-  const dripUsed = bins.map(() => 0)
-  let waveAt = -1
+  let dripsLive = dripCap > 0
+  let held = 0
+  const spotFree = new Float64Array(QUEUE) // time each waiting spot is vacated
+  const heldFrom = new Float64Array(QUEUE)
+  const heldTo = new Float64Array(QUEUE)
+  let spotNext = 0
 
   const release = (t: number, dt: number) => {
     const waiting = pending.length - head
@@ -743,8 +755,7 @@ export function createMarbleScene(
     }
     const count = spawned - start
     if (count > 0) {
-      aTarget.clearUpdateRanges()
-      aRoute.clearUpdateRanges()
+      // three clears ranges after each upload; don't drop a drip range added since
       aTarget.addUpdateRange(start * 3, count * 3)
       aRoute.addUpdateRange(start * 4, count * 4)
       aTarget.needsUpdate = true
@@ -756,6 +767,58 @@ export function createMarbleScene(
     }
   }
 
+  const drip = (bin: number, real?: { friction: boolean }) => {
+    if (!dripCap || ultraAt !== Infinity || openedAt !== Infinity) return false
+    // Counted drips must never be overwritten when the pool wraps.
+    if (dripSeq >= dripCap && (real || realDripped > 0)) return false
+    if (real && spawned >= capacity) return false
+    const t = now()
+    bin = Math.max(0, Math.min(bins.length - 1, bin)) & 15
+    let spot = spotNext
+    for (let k = 0; k < QUEUE; k++) {
+      const j = (spotNext + k) % QUEUE
+      if (spotFree[j] < spotFree[spot]) spot = j
+    }
+    spotNext = (spot + 1) % QUEUE
+    // wait upstream (hidden) if every spot is taken
+    const spawnAt = reducedMotion ? t - 60 : Math.max(t, spotFree[spot] - T_TUBE)
+    heldFrom[spot] = spawnAt + T_TUBE + T_ROLL
+    heldTo[spot] = heldFrom[spot] + dripHold
+    spotFree[spot] = heldTo[spot] + T_DROP
+    const list = slots[bin]
+    let p: number[]
+    if (real) {
+      p = list[used[bin]] ?? [list[list.length - 1][0] + (rand() - 0.5) * BIN_W * 0.6, list[list.length - 1][1] + rand() * 0.1, list[list.length - 1][2] + (rand() - 0.5) * 0.6]
+      used[bin]++
+      realDripped++
+      // Consume one hopper marble; the extra drip instance draws it from here on.
+      const j = spawned++
+      routes.set([t, 0, 0, 2048], j * 4)
+      aRoute.addUpdateRange(j * 4, 4)
+    } else {
+      p = list[dripPerBin[bin]++ % Math.min(list.length, dripCap)]
+    }
+    const relX = trayX0 + bin * BIN_W + BIN_W * (0.1 + dripRand() * 0.6)
+    const lane = TROUGH_Z + (dripRand() - 0.5) * L.track.gap
+    const i = capacity + (dripSeq++ % dripCap)
+    // same path as a real marble from the gate entrance on
+    const fall = Math.sqrt((2 * Math.max(0.001, railY(L, relX) + r - p[1])) / G)
+    const land = heldTo[spot] + T_DROP + T_GATE + Math.max(0, relX - L.gateOut) / SPEED + fall
+    if (real) {
+      landTimes[bin].push(land)
+      if (real.friction) frictionTimes[bin].push(land)
+    } else {
+      dripLandTimes[bin].push(land)
+    }
+    targets.set(p, i * 3)
+    routes.set([spawnAt, relX, lane, bin + 32 * (spot + 1) + (real ? 1024 : 0)], i * 4)
+    aTarget.addUpdateRange(i * 3, 3)
+    aRoute.addUpdateRange(i * 4, 4)
+    aTarget.needsUpdate = true
+    aRoute.needsUpdate = true
+    return true
+  }
+
   const landedCounts = (t: number) =>
     bins.map((_, i) => {
       const lt = landTimes[i]
@@ -763,6 +826,13 @@ export function createMarbleScene(
       const ft = frictionTimes[i]
       while (frictionIdx[i] < ft.length && ft[frictionIdx[i]] <= t) frictionIdx[i]++
       return { landed: landedIdx[i], friction: frictionIdx[i] }
+    })
+
+  const dripLanded = (t: number) =>
+    bins.map((_, i) => {
+      const lt = dripLandTimes[i]
+      while (dripLandedIdx[i] < lt.length && lt[dripLandedIdx[i]] <= t) dripLandedIdx[i]++
+      return dripLandedIdx[i]
     })
 
   // gate display: a scrolling LED matrix of Jev's latest decisions
@@ -773,21 +843,25 @@ export function createMarbleScene(
   const drawScreen = (t: number) => {
     const { ctx, cv, tex } = screen
     const armed = openedAt > t
-    // while the GLM estimate drips, the gate shows GLM; the Ultrasort wave hands it to Jev
-    const glm = armed && dripCap > 0 && waveAt < 0
+    // held drips blink the amber LEDs; the ultrasort wave flares them violet as it passes the gate
+    const blink = held > 0 && Math.sin(t * 9) > 0
+    const flareAt = wave.uWaveAt.value + WAVE_GATE * WAVE_T
+    const flare = t < flareAt ? 0 : Math.exp(-(t - flareAt) * 2.4)
+    // the drip is the simulated GLM baseline: the gate wears its name until the violet wave reaches it
+    const glm = dripCap > 0 && (ultraAt === Infinity || (!reducedMotion && t < flareAt))
     ctx.fillStyle = "#12141d"
     ctx.fillRect(0, 0, cv.width, cv.height)
     ctx.fillStyle = "#ffffff"
-    ctx.font = "700 72px 'Geist Variable', system-ui, sans-serif"
+    ctx.font = glm ? "700 50px 'Geist Variable', system-ui, sans-serif" : "700 72px 'Geist Variable', system-ui, sans-serif"
     ctx.textAlign = "left"
     ctx.textBaseline = "alphabetic"
-    ctx.fillText(glm ? "GLM" : "Jev", 28, 92)
+    ctx.fillText(glm ? "GLM 5.3 Flash" : "Jev", 28, glm ? 84 : 92, 400)
     ctx.font = "500 20px 'Geist Mono Variable', ui-monospace, monospace"
-    ctx.fillStyle = armed ? "#e0a13a" : "#8fe3b0"
+    ctx.fillStyle = armed || glm ? (held > 0 && !blink ? "#7a5a26" : "#e0a13a") : flare > 0.15 ? ultraCss(0.8) : "#8fe3b0"
     ctx.textAlign = "right"
-    ctx.fillText(glm ? "● EST. PACE" : armed ? "● ARMED" : "● SORTING", cv.width - 26, 58)
+    ctx.fillText(glm ? "● SORTING" : armed ? "● ARMED" : "● SORTING", cv.width - 26, 58)
     ctx.fillStyle = "#6c7386"
-    ctx.fillText(glm ? "estimate" : "TypeSafe", cv.width - 26, 88)
+    ctx.fillText(glm ? "simulated" : "TypeSafe", cv.width - 26, 88)
     // shift in new decisions
     const take = Math.min(recent.length, ROWS * 3)
     if (take) {
@@ -805,12 +879,19 @@ export function createMarbleScene(
       for (let col = 0; col < COLS; col++) {
         const code = leds[row * COLS + col]
         let color = "#232838"
-        if (armed) color = `rgba(224,161,58,${0.15 + 0.35 * Math.max(0, Math.sin(t * 2.2 + col * 0.35 - row * 0.2))})`
-        else if (code !== null && code !== undefined) color = binCss(bins[code & 15] ?? bins[0], 0.72, 0.17)
+        if (armed) {
+          const a = 0.15 + 0.35 * Math.max(0, Math.sin(t * 2.2 + col * 0.35 - row * 0.2))
+          // bottom row: one solid LED per marble held at the gate
+          color = row === ROWS - 1 && col < held ? (blink ? "#f0b44a" : "rgba(224,161,58,0.45)") : `rgba(224,161,58,${blink ? a + 0.12 : a})`
+        } else if (code !== null && code !== undefined) color = binCss(bins[code & 15] ?? bins[0], 0.72, 0.17)
         ctx.fillStyle = color
         ctx.beginPath()
         ctx.arc(x0 + col * cell + cell / 2, y0 + row * cell + cell / 2, cell * 0.36, 0, Math.PI * 2)
         ctx.fill()
+        if (flare > 0.02) {
+          ctx.fillStyle = ultraCss(0.62 + 0.2 * flare, flare * (0.55 + 0.45 * Math.max(0, Math.sin(col * 0.6 + row * 0.9 - (t - flareAt) * 14))))
+          ctx.fill()
+        }
       }
     }
     tex.needsUpdate = true
@@ -831,9 +912,9 @@ export function createMarbleScene(
     new THREE.Vector3(trayX1 + 0.1, hop.bottom + jarH + 0.05, BIN_Z1 + 0.4),
   )
   const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => new THREE.Vector3(k & 1 ? bounds.max.x : bounds.min.x, k & 2 ? bounds.max.y : bounds.min.y, k & 4 ? bounds.max.z : bounds.min.z))
-  const place = (sway = 0) => {
-    camera.position.copy(target).addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), sway), dist)
-    camera.lookAt(target)
+  const place = (sway = 0, pull = 1, at = target) => {
+    camera.position.copy(at).addScaledVector(dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), sway), dist * pull)
+    camera.lookAt(at)
     camera.updateMatrixWorld()
   }
   const fit = () => {
@@ -858,6 +939,11 @@ export function createMarbleScene(
     }
     place()
   }
+
+  // drip view: close enough on the gate and the first piles that single marbles read
+  const dripClose = dripCap > 0 && !reducedMotion
+  const focus = new THREE.Vector3(L.gateX + 1.5, L.gateY - 0.05, 0)
+  const at = new THREE.Vector3()
 
   const controls = new OrbitControls(camera, canvas)
   controls.enableDamping = true
@@ -893,15 +979,29 @@ export function createMarbleScene(
     bar.position.x = hop.x + lift * 0.3
     bar.visible = lift < 1
     barMat.emissiveIntensity = openedAt > t ? 0.35 + 0.3 * Math.sin(t * 3) : 0.5
-    if (wave.visible) {
-      const k = (t - waveAt) / WAVE_S
-      wave.visible = k < 1
-      wave.position.x = waveX0 + Math.min(1, k) * (waveX1 - waveX0)
-      waveMat.opacity = 0.55 * Math.sqrt(Math.max(0, 1 - k))
+    wave.uWaveT.value = t
+    held = 0
+    if (dripsLive) {
+      for (let j = 0; j < QUEUE; j++) if (heldFrom[j] <= t && t < heldTo[j]) held++
+      // Ghosts gone: stop drawing the pool unless it contains counted replay marbles.
+      if (t >= ultraAt + (reducedMotion ? 0 : GHOST)) {
+        dripsLive = false
+        held = 0
+        if (!realDripped) geo.instanceCount = capacity
+      }
     }
     if (!userView) {
-      place(reducedMotion ? 0 : Math.sin(t * 0.12) * 0.04)
-      controls.target.copy(target)
+      const k = Math.min(1, Math.max(0, (t - pullAt) / PULL_T))
+      const e = k * k * (3 - 2 * k)
+      const sway = reducedMotion ? 0 : Math.sin(t * 0.12) * 0.04
+      if (dripClose) {
+        at.lerpVectors(focus, target, e)
+        place(sway, CLOSE + (1 + PULL - CLOSE) * e, at)
+        controls.target.copy(at)
+      } else {
+        place(sway, 1 + PULL * e)
+        controls.target.copy(target)
+      }
     }
     controls.update()
     if (t - lastScreen > 0.05) {
@@ -910,12 +1010,22 @@ export function createMarbleScene(
     }
     if (t - lastLabels > 0.08) {
       lastLabels = t
-      landedCounts(t).forEach((c, i) => {
-        if (labels[i].shown !== c.landed + c.friction * 1e7) {
-          labels[i].shown = c.landed + c.friction * 1e7
-          drawLabel(i, c.landed, c.friction)
-        }
-      })
+      if (dripCap && ultraAt === Infinity && !realDripped) {
+        // before Ultrasort the piles count the simulated drip; after it they count only real marbles
+        dripLanded(t).forEach((n, i) => {
+          if (labels[i].shown !== -2 - n) {
+            labels[i].shown = -2 - n
+            drawLabel(i, n, 0, true)
+          }
+        })
+      } else {
+        landedCounts(t).forEach((c, i) => {
+          if (labels[i].shown !== c.landed + c.friction * 1e7) {
+            labels[i].shown = c.landed + c.friction * 1e7
+            drawLabel(i, c.landed, c.friction)
+          }
+        })
+      }
     }
     renderer.render(scene, camera)
     raf = requestAnimationFrame(frame)
@@ -928,52 +1038,17 @@ export function createMarbleScene(
     open() {
       if (openedAt === Infinity) openedAt = now()
     },
-    drip(bin, real) {
-      if (!dripCap || waveAt >= 0 || openedAt !== Infinity) return false
-      // real marbles are never recycled, and estimates never overwrite a real one
-      if (dripped >= dripCap && (real || realDripped > 0)) return false
-      if (real && spawned >= capacity) return false
-      const b = Math.max(0, Math.min(bins.length - 1, bin))
-      const t = now()
-      const i = dripped++ % dripCap
-      const list = slots[b]
-      let p: number[]
-      if (real) {
-        // a real decision takes the next pile slot, exactly like a pushed marble
-        p = list[used[b]] ?? [list[list.length - 1][0] + (rand() - 0.5) * BIN_W * 0.6, list[list.length - 1][1] + rand() * 0.1, list[list.length - 1][2] + (rand() - 0.5) * 0.6]
-        used[b]++
-        realDripped++
-        // the conversation leaves the hopper: its jar marble is spent (hidden) and the pile sinks
-        const j = spawned++
-        routes.set([t, 0, 0, 64], j * 4)
-        aRoute.addUpdateRange(j * 4, 4)
-        aRoute.needsUpdate = true
-      } else {
-        p = list[dripUsed[b]++ % list.length]
-      }
-      const relX = trayX0 + b * BIN_W + BIN_W * (0.1 + rand() * 0.6)
-      const spawnAt = reducedMotion ? t - 60 : t
-      dripTargets.set(p, i * 3)
-      dripRoutes.set([spawnAt, relX, TROUGH_Z + (rand() - 0.5) * L.track.gap, b + (real ? 32 : 0)], i * 4)
-      if (real) {
-        const drop = railY(L, relX) + r - p[1]
-        const land = spawnAt + T_TUBE + dripUniforms.uHold.value + T_GATE + Math.max(0, relX - L.gateOut) / SPEED + Math.sqrt((2 * Math.max(0.001, drop)) / G)
-        landTimes[b].push(land)
-        if (real.friction) frictionTimes[b].push(land)
-      }
-      aDripTarget.addUpdateRange(i * 3, 3)
-      aDripRoute.addUpdateRange(i * 4, 4)
-      aDripTarget.needsUpdate = true
-      aDripRoute.needsUpdate = true
-      return true
-    },
+    drip,
     ultrasort() {
-      if (waveAt >= 0) return
+      if (ultraAt !== Infinity) return
       const t = now()
-      waveAt = t
-      dripUniforms.uWaveAt.value = t
-      wave.visible = !reducedMotion && dripCap > 0
+      ultraAt = t
       if (openedAt === Infinity) openedAt = t
+      uniforms.uGhostAt.value = reducedMotion ? t - GHOST : t
+      if (!reducedMotion) {
+        wave.uWaveAt.value = t + WAVE_DELAY
+        if (!userView) pullAt = t
+      }
     },
     resize(w, h, next) {
       if (next) Object.assign(inset, next)
@@ -988,7 +1063,7 @@ export function createMarbleScene(
       const t = now()
       const perBin = landedCounts(t)
       const landed = perBin.reduce((a, b) => a + b.landed, 0)
-      return { spawned, landed, bins: perBin, drained: pending.length - head === 0 && landed >= spawned }
+      return { spawned, landed, bins: perBin, drained: pending.length - head === 0 && landed >= spawned, drips: dripsLive ? Math.min(dripSeq, dripCap) - realDripped : 0 }
     },
     dispose() {
       cancelAnimationFrame(raf)

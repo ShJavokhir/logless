@@ -33,3 +33,7 @@ vultr-agent-arena-research-*.zip
 teaser-video/
 tsconfig.tsbuildinfo
 var-synthetic/
+
+# Local submission deck (separate repo) and note-helper lock
+/submission-slides/
+notes/.take-notes.lock

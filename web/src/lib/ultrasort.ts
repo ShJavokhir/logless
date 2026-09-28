@@ -50,3 +50,7 @@ export function resultLine(n: number, seconds: number): string {
   const times = seconds > 0 ? ` (~${fmtInt(Math.round(glm / seconds))}× longer, est.)` : ""
   return `Jev sorted ${fmtInt(n)} in ${fmtDuration(seconds * 1000)}, measured · GLM est. ${fmtDuration(glm * 1000)}${times}`
 }
+
+/** The one new colour: Ultrasort violet, plus shades derived from it. */
+export const ULTRA = { l: 0.62, c: 0.2, h: 295 } as const
+export const ultraCss = (l: number = ULTRA.l, alpha = 1) => `oklch(${l} ${ULTRA.c} ${ULTRA.h}${alpha < 1 ? ` / ${alpha}` : ""})`
